@@ -1,0 +1,55 @@
+{
+  "module": "sha512_acc_csr",
+  "bug_id": "035",
+  "bug_name": "sha512_acc_bug_035",
+  "version": 1,
+  "status": "partial_proof",
+  "blocker": "The structural gap is proven completely: the LOCK field has two software update arms and the CSR module has no input through which hardware could set or clear it. What is not measured is a downstream consequence. Demonstrating that a held lock actually denies a hardware API user its digest would require driving the sha512_acc_top wrapper and a second requesting agent, which this case does not do. The impact is therefore assessed from the structure of the arbitration rather than from an observed denial.",
+  "proof_method_executed": "Twenty-one scripted structural gates over the submitted checkout, followed by a negative control that restores the LOCK hardware set and clear path on a scratch copy of the two CSR files and re-runs the identical audit against them.",
+  "result_summary": "The SHA accelerator LOCK field is software-only. Its combinational block holds exactly two arms, a set-on-read and a write-1-clear, and references no hardware set or clear source. The CSR file consumes nothing from the hwif_in.LOCK namespace, the package declares no LOCK input struct type, and the top-level sha512_acc_csr__in_t has no LOCK member. Seven hwset or hwclr members exist in the same package for other fields and EXECUTE consumes a hardware clear arm in the same file, so the generator does emit such paths when asked; the omission is specific to LOCK. An input named lock_set exists and is consumed at exactly one site, which the audit pins to the USER field rather than to LOCK.",
+  "security_impact_assessment": "Ownership of the SHA accelerator cannot be arbitrated by hardware. Out of reset LOCK reads 1, and the only way it ever clears is a software write of 1 qualified by valid_user. An agent that acquires the lock by reading it and then declines to release it holds the accelerator indefinitely, with no hardware reclaim path. A hardware API user cannot assert ownership on its own behalf, so the exclusivity the hardware specification describes for hardware API users rests entirely on the cooperation of whichever software agent last read the register.",
+  "evidence": {
+    "competition_file": "src/soc_ifc/rtl/sha512_acc_csr.sv",
+    "line_range": "585-609",
+    "run_log": "final_bug_submissions/035/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/035/proof/logs/witness.log",
+    "structural_audit_log": "final_bug_submissions/035/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/035/proof/logs/negative_control.log",
+    "negative_control_audit_log": "final_bug_submissions/035/proof/logs/negative_control_audit.log",
+    "key_observation": "The LOCK field's storage is reset to 1'h1 and its combinational block contains exactly 2 update arms, both software-decoded. Greps for the hwif_in.LOCK namespace return nothing across the CSR file, and the top-level input struct contains no LOCK member, while the same package holds 7 hwset or hwclr members for other fields. structural_gates_passed=21/21 with result=PASS.",
+    "negative_evidence": "With a LOCK input struct added to the package and a highest-priority hardware clear and set arm inserted ahead of the set-on-read arm, the identical audit fails. The six absence gates flip to gate_fail and the audit's exit code becomes non-zero, while all six control gates covering the two software arms, the reset value, the lock_set to USER binding and the EXECUTE contrast remain gate_ok. nc_checks_failed=0 with NEGATIVE_CONTROL: PASS."
+  },
+  "evidence_items": [
+    "field_storage.LOCK.LOCK.value resets to 1'h1, so the accelerator is owned out of reset.",
+    "hwif_out.LOCK.LOCK.value is assigned from the stored value, so the field is consumed by the wrapper.",
+    "Update arm 1 of 2: decoded_reg_strb.LOCK with a read, commented SW set on read.",
+    "Update arm 2 of 2: decoded_reg_strb.LOCK with a write and hwif_in.valid_user, commented SW write 1 clear.",
+    "The extracted LOCK combinational block contains exactly 2 occurrences of if(.",
+    "The extracted LOCK block matches none of hwset, hwclr or hwif_in.lock.",
+    "grep for hwif_in.LOCK across the CSR file returns nothing.",
+    "The package contains no sha512_acc_csr__LOCK__in_t type.",
+    "The top-level input struct, extracted from its closing tag back to its opening brace, contains no LOCK member.",
+    "The package contains at least 7 hwset or hwclr members for other fields.",
+    "EXECUTE consumes if(hwif_in.EXECUTE.EXECUTE.hwclr) in the same CSR file.",
+    "hwif_in.lock_set is declared in the input struct and consumed at exactly 1 site, which is the USER field's hardware write enable.",
+    "The LOCK arms carry no lc_escalate, debug or priv qualifier, so ordinary software reaches them.",
+    "readback_array[0][0:0] returns the stored LOCK value on a read, so set-on-read is observable."
+  ],
+  "non_findings": [
+    "No claim that the software lock protocol is broken.",
+    "No claim of digest confidentiality or integrity loss; no digest was computed in this case.",
+    "No claim that hwif_in.lock_set is defective. It correctly gates the USER field.",
+    "No claim about sha512_acc_top wrapper arbitration, which was not exercised.",
+    "No dynamic witness is claimed. This case ships no simulation, for the reason recorded in the plan's witness construction note."
+  ],
+  "reproduction": {
+    "command": "final_bug_submissions/035/proof/scripts/run_bug_035_negative_control.sh && final_bug_submissions/035/proof/scripts/run_bug_035_proof.sh",
+    "tools": "POSIX shell, awk, grep and python3 only. No simulator is required, because this case is audit-only.",
+    "success_marker": "result=PASS with structural_gates_passed=21/21 from the audit, and NEGATIVE_CONTROL: PASS with nc_checks_failed=0 from the negative control.",
+    "determinism": "Fully deterministic. Every gate is a content match against files in the checkout, with no simulator, no randomness and no line-number dependence.",
+    "note_on_log_order": "The negative control invokes the audit script with DUT_CSR_SV and DUT_CSR_PKG_SV pointed at its patched scratch copies, and that run overwrites structural_audit.log. The negative control preserves its own copy as structural_audit_negative_control.log, and the unmodified-checkout audit must be re-run last so that structural_audit.log reflects the checkout as submitted. The reproduction command above is written in that order.",
+    "note_on_positional_independence": "An earlier revision of the audit extracted the LOCK block and the input struct by hardcoded line ranges. The negative control caught the resulting fragility: the restored LOCK member landed above the line the extraction was anchored to, so one gate failed to flip for a reason unrelated to the fix. Both extractions now locate their region by content, the struct by walking back from its closing tag to its opening brace.",
+    "note_on_lock_set": "hwif_in.lock_set is easy to mistake for a LOCK control on the strength of its name. It is not. Gates 16 through 19 exist specifically to bind it to the USER field, so that no reader concludes the audit overlooked an available hardware path."
+  },
+  "conclusion": "The defect is confirmed. The SHA accelerator LOCK field is reachable only from software: two decoded software arms are its entire update set, and the CSR module exposes no input through which hardware could set or clear it, in a package that carries such inputs for seven sibling fields. Hardware arbitration of accelerator ownership is therefore absent, and an agent that acquires the lock and declines to release it cannot be preempted. The case is bounded at partial_proof because no downstream denial was driven."
+}

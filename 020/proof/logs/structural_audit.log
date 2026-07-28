@@ -1,0 +1,26 @@
+BUG-020 structural audit
+src=/home/smy/hackatdac26-phase-2-caliptra/src
+
+gate_ok   [01] the boot-flow transition detector source file does not exist
+gate_ok   [02] no file under src references boot_flow at all
+gate_ok   [03] none of the three phase outputs is referenced anywhere
+gate_ok   [04] the integration top does not instantiate the detector
+gate_ok   [05] no dangling port declaration survives the removal
+gate_ok   [06] the integration top is present
+gate_ok   [07] anchor: debug gating exists in the integration top
+gate_ok   [08] anchor: the CPU wrapper is instantiated, so fetch-side logic is present
+gate_ok   [09] anchor: the key vault is instantiated in the integration top
+gate_ok   [10] the key vault source is present
+gate_ok   [11] the key vault module references no boot-flow signal
+gate_ok   [12] contrast: the key vault does take a firmware-update reset window input
+gate_ok   [13] contrast: the key vault does take a debug-unlock or scan mode input
+gate_ok   [14] the OCP lock phase signal is driven straight from a software register field
+gate_ok   [15] that signal is not derived from any fetch or ICCM observation
+gate_ok   [16] the software-written phase signal is exported from soc_ifc_top
+gate_ok   [17] the software-written phase signal is distributed to multiple consumers
+gate_ok   [18] the ICCM lock is also driven from a software register field
+gate_ok   [19] the key vault description names the software bit as the phase indicator
+gate_ok   [20] the description states the obligation as a software requirement
+
+structural_gates_passed=20/20
+result=PASS

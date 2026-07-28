@@ -1,0 +1,57 @@
+{
+  "module": "caliptra_top",
+  "bug_id": "020",
+  "bug_name": "boot_flow_bug_020",
+  "version": 1,
+  "status": "partial_proof",
+  "blocker": "The absence is proven completely and so is the software origin of every surviving phase signal. What is not measured is a downstream consequence. Showing that a firmware image which misreports its phase actually obtains a key or a policy relaxation it should not have requires driving the key vault or one of the four crypto blocks that consume ss_ocp_lock_in_progress through a full boot sequence, which this case does not do. The impact is therefore assessed from the structure of the phase signal's origin rather than from an observed privilege gain. No simulation accompanies the case, for the reason recorded in the plan's witness construction note.",
+  "proof_method_executed": "Twenty scripted structural gates over the submitted checkout, followed by a negative control that reconstructs the shape of the missing detector on a scratch copy of the source tree, instantiates it in the integration top, gives the key vault boot-phase inputs, and re-runs the identical census against that tree.",
+  "result_summary": "No hardware-derived boot-phase event exists in the design. The transition detector source file is absent from src/integration/rtl, grep across the whole src tree returns zero references to boot_flow, none of the three phase outputs is referenced anywhere, and no dangling port declaration survives, so this is a complete absence rather than a half-disconnected remnant. The census anchors confirm the tree is live code: the integration top carries debug gating, the CPU wrapper whose fetch behaviour the detector would have observed is instantiated, and the key vault is instantiated. The key vault takes a firmware-update reset window input and a debug-unlock or scan mode input but no boot-phase input. The only phase-adjacent signal reaching the crypto blocks, ss_ocp_lock_in_progress, is assigned in soc_ifc_top.sv:769 directly from the SS_OCP_LOCK_CTRL.LOCK_IN_PROGRESS software register field, is not derived from any fetch or ICCM observation, and is distributed to six consumers in the integration top. The ICCM lock at soc_ifc_top.sv:1077 has the same software origin.",
+  "security_impact_assessment": "Every phase-dependent policy in the design takes the boot phase from software. Because no hardware observes instruction fetch entering the FMC or RT ICCM region, nothing can contradict a firmware image that claims to be in a phase it has not reached. The key vault description at keyvault.md:253 states the obligation as a software requirement, that ROM MUST set OCP_LOCK_IN_PROGRESS before transitioning to the FMC image, and with the detector absent that MUST has no hardware backstop. A firmware image that sets the bit late, early, or not at all leaves the four crypto blocks and the key vault applying the policy for a phase the system is not in. The defect is an absent integrity check on a security-relevant control input rather than a direct disclosure.",
+  "evidence": {
+    "competition_file": "src/soc_ifc/rtl/soc_ifc_top.sv",
+    "line_range": "769",
+    "run_log": "final_bug_submissions/020/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/020/proof/logs/witness.log",
+    "structural_audit_log": "final_bug_submissions/020/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/020/proof/logs/negative_control.log",
+    "negative_control_audit_log": "final_bug_submissions/020/proof/logs/negative_control_audit.log",
+    "key_observation": "grep -rl boot_flow over src returns 0 files, grep -rn for the 3 phase outputs returns 0 lines, and boot_flow_monitor.sv does not exist, while the integration top, the CPU wrapper at caliptra_top.sv:523 and the key vault instance at :1185 are all present. The surviving phase signal is a direct assignment from a software register field at soc_ifc_top.sv:769 and is distributed to 6 consumers in the integration top. structural_gates_passed=20/20 with result=PASS, and the negative control reports nc_checks_failed=0 over 14 checks, 5 gates flipped and 7 held.",
+    "negative_evidence": "With a detector reconstructed on a scratch copy of the tree, instantiated in the integration top and wired as three inputs on the key vault, the identical census fails. All five absence gates flip to gate_fail and the audit's exit code becomes non-zero, while the three anchor gates and the four software-origin and documentation gates stay gate_ok, which is what shows the census is a targeted enumeration rather than a blanket grep. The control also verifies the submitted checkout is unmodified afterwards. nc_checks_failed=0 with NEGATIVE_CONTROL: PASS."
+  },
+  "evidence_items": [
+    "src/integration/rtl/boot_flow_monitor.sv does not exist.",
+    "grep -rl boot_flow over src returns 0 files.",
+    "grep -rn for boot_flow_fmc, boot_flow_rt and boot_flow_error over src returns 0 lines.",
+    "caliptra_top.sv does not contain the string boot_flow_monitor.",
+    "No boot_flow line under src is an input or output declaration, so no dangling port survives.",
+    "Anchor: caliptra_top.sv declares and drives cptra_core_dmi_enable, so the top is live code.",
+    "Anchor: caliptra_top.sv:523 instantiates el2_veer_wrapper rvtop, so the fetch-side logic the detector would observe is present.",
+    "Anchor: caliptra_top.sv:1185 instantiates kv with key_vault1 at :1189.",
+    "kv.sv contains no boot_flow reference.",
+    "Contrast: kv.sv:32 takes input logic fw_update_rst_window and :34 takes input logic debugUnlock_or_scan_mode_switch, so the module does receive control inputs.",
+    "soc_ifc_top.sv:769 assigns ss_ocp_lock_in_progress from soc_ifc_reg_hwif_out.SS_OCP_LOCK_CTRL.LOCK_IN_PROGRESS.value.",
+    "That assignment matches no iccm or fetch term, so the signal is not derived from observed behaviour.",
+    "soc_ifc_top.sv:163 exports the signal as output logic ss_ocp_lock_in_progress.",
+    "caliptra_top.sv references ss_ocp_lock_in_progress 6 times, at :302, :1062, :1094, :1124, :1154 and :1509.",
+    "soc_ifc_top.sv:1077 assigns iccm_lock from soc_ifc_reg_hwif_out.internal_iccm_lock.lock.value.",
+    "keyvault.md names OCP_LOCK_IN_PROGRESS as the phase indicator and states the obligation with MUST set, so the design intends a phase signal to exist."
+  ],
+  "non_findings": [
+    "No claim that the OCP lock register field is itself incorrectly implemented. Sticky software-set behaviour is correct for that field.",
+    "No claim about the downstream policy in the key vault or the crypto blocks. Those are separate cases; this one concerns the absence of the event they would consume.",
+    "No claim that the ICCM lock is defective. It is recorded only as a second phase-adjacent control with the same software origin.",
+    "No claim that a specific exploit was executed. No simulation was run, and none is possible for an omission this complete.",
+    "No claim about which phase a particular firmware image would misreport, or that any real ROM does so."
+  ],
+  "reproduction": {
+    "command": "final_bug_submissions/020/proof/scripts/run_bug_020_negative_control.sh && final_bug_submissions/020/proof/scripts/run_bug_020_proof.sh",
+    "tools": "POSIX shell, grep and python3 only. No simulator is required, because this case is audit-only.",
+    "success_marker": "result=PASS with structural_gates_passed=20/20 from the audit, and NEGATIVE_CONTROL: PASS with nc_checks_failed=0 from the negative control.",
+    "determinism": "Fully deterministic. Every gate is a content match against files in the checkout, with no simulator, no randomness and no dependence on line numbering.",
+    "note_on_log_order": "The negative control invokes the audit script with DUT_SRC_DIR pointed at its patched scratch tree, and that run overwrites structural_audit.log. The control preserves its own copy as structural_audit_negative_control.log, and the unmodified-checkout audit must be re-run last so structural_audit.log reflects the checkout as submitted. The reproduction command above is written in that order.",
+    "note_on_the_control_shape": "This control is reconstructive rather than restorative. Elsewhere a negative control neutralises a defect on a scratch copy; here there is no stub, no tied-off signal and no dangling port to restore, because the detector and every reference to it are gone. The control therefore builds the shape of the missing logic and shows the census detects it. The reconstruction is not offered as a proposed implementation; its only role is to give the census something to find.",
+    "note_on_gate_patterns": "Two gates were initially written against assumed source formatting and failed on real code: the key vault instance spans two lines, kv #( at caliptra_top.sv:1185 with key_vault1 at :1189, and the iccm_lock assignment carries two spaces before its equals sign. Both patterns were corrected against the actual text."
+  },
+  "conclusion": "The defect is confirmed. No hardware-derived boot-phase event exists anywhere in the design: the transition detector, its instance and every textual reference to it are absent, and the census anchors confirm this is a live tree rather than a stale one. Every surviving phase-adjacent control is written by software, ss_ocp_lock_in_progress from SS_OCP_LOCK_CTRL.LOCK_IN_PROGRESS and iccm_lock from internal_iccm_lock.lock, so the documented obligation that ROM must announce the FMC transition rests entirely on software self-reporting with no hardware backstop. The case is bounded at partial_proof because no downstream policy consequence was driven."
+}

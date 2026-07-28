@@ -1,0 +1,64 @@
+{
+  "module": "hmac",
+  "bug_id": "014",
+  "bug_name": "hmac_bug_014",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Any software able to write the hmac register block over its native cs/we register interface. No privilege, lifecycle or debug qualifier guards the HMAC512_CTRL write, so the command is issued at whatever privilege reaches the block's register window.",
+    "precondition": "A released reset with the hmac block reachable over its register interface. No KeyVault sideload is required or used: the witness holds kv_rd_resp and kv_wr_resp at their absent values so every command in the run is register-programmed.",
+    "input": "Program the sixteen HMAC512_KEY words and the thirty-two HMAC512_BLOCK words, then write HMAC512_CTRL with only bit 5 set, the field position the specification assigns to the final-block command and which the submitted tree names Reserved.",
+    "protected_asset": "The integrity of the HMAC command protocol: the guarantee that a message finalization request is either performed or reported as illegal. docs/CaliptraHardwareSpecification.md:1129,1134 requires the final block to carry the padding and length and to chain from the previous block's result.",
+    "security_property": "A command written to HMAC512_CTRL must have a defined outcome observable by its issuer. Either the requested operation is performed and STATUS reports it, or the command is rejected and the illegal-command status in error_internal_intr_r is set. A command that is neither performed nor reported leaves software unable to distinguish a completed finalization from a discarded one.",
+    "implemented_logic": "The finalization command does not exist in the RTL. src/hmac/rtl/hmac_core.sv:24-44 has no finalization port and the identifier last_cmd occurs nowhere in src/hmac/rtl or src/hmac_drbg/rtl. src/hmac/rtl/hmac_reg.sv:868-888 nevertheless gives CTRL bit 5 a real flop and exports it to the wrapper, while src/hmac/rtl/hmac.sv:257-260,304 consumes only INIT, NEXT, ZEROIZE, MODE and CSR_MODE and never reads it. The status that would report an illegal command is tied off: src/hmac/rtl/hmac.sv:428 assigns error2_sts.hwset = 1'b0 with a TODO, while its siblings at :426-427 are driven from real logic."
+  },
+  "security_feature_bypassed": "The reporting of an illegal or unimplemented HMAC command. The register block accepts and retains a finalization request, the wrapper performs nothing with it, and the one status bit that exists to report an illegal command is held at constant zero.",
+  "proof_goal": "Establish on one unmodified hmac block, compiled from the audited checkout and driven only over its register port, that a finalization command written to HMAC512_CTRL bit 5 is absorbed without error, starts no operation, produces no tag, and sets no error status, while an ordinary INIT command over the same interface completes and produces a tag.",
+  "proof_style": "Directed register-bus simulation of one real DUT, paired with a scripted structural audit of the command decode, the field's consumers and the interrupt drivers. A negative control restores the reporting half of the missing protocol on a scratch copy and requires the same testbench to stop reporting the rejection gap.",
+  "invariant": "A write to HMAC512_CTRL must either start an operation that STATUS.VALID reports, or set error_internal_intr_r bit 2 to report the command as illegal. For a write of bit 5 alone, neither holds.",
+  "attacker_model": "Unprivileged software at user-level mode",
+  "minimum_attack_sequence": [
+    "Program the key and message block registers over the ordinary register interface.",
+    "Write HMAC512_CTRL with only bit 5 set, requesting message finalization.",
+    "Poll HMAC512_STATUS and read error_internal_intr_r: neither reports an outcome, and HMAC512_CTRL is software-write-only so the request cannot be read back either."
+  ],
+  "controls": [
+    "An ordinary INIT command over the same register interface, to establish that the DUT completes operations and that the harness drives the bus correctly.",
+    "A tag read after that INIT, to establish that a completed operation is observable as a non-zero tag.",
+    "A tag sample taken before the finalization command, so a null result is measured against this run's own baseline rather than against the control's result.",
+    "An error_internal_intr_r read after the ordinary INIT, to establish that this block does not report errors constantly.",
+    "A STATUS read after the finalization write, to establish the write was absorbed and left the block ready rather than wedged or rejected.",
+    "A check on the two sideload-gated error statuses, to establish that the measured silence is specifically the illegal-command status.",
+    "A negative control that un-ties error2_sts on a scratch copy and drives it from a locally derivable condition, required to make the rejection check pass while leaving the ordinary INIT path intact."
+  ],
+  "witness_construction_note": "The testbench instantiates the whole hmac block, not a submodule, and drives it only through its native cs/we/address/write_data register port. No force, no deposit, no hierarchical assignment into the DUT. Each of the two configurations runs from its own reset, so the control's result cannot be mistaken for a result produced by the command under test. The KeyVault response inputs are held absent throughout, which is what makes the run diagnostic: src/hmac/rtl/hmac.sv:395-396 gate both driven error conditions on kv_key_data_present, so under register-only stimulus the illegal-command status is the only reporter that could fire.",
+  "expected_evidence": [
+    "The ordinary INIT control completes: STATUS.VALID rises and the tag registers return non-zero material.",
+    "The finalization write is absorbed: the bus transaction completes and STATUS.READY is still set afterwards.",
+    "HMAC512_CTRL reads back as zero, because the register is software-write-only, so no readback channel exists to confirm or deny the request.",
+    "STATUS.VALID never rises after the finalization command, across a four-thousand-read polling window.",
+    "The tag registers are byte-identical before and after the finalization command.",
+    "error_internal_intr_r bit 2 stays zero and error_intr never pulses, sampled on every clock rather than at a single point.",
+    "The two sideload-gated error statuses also stay zero, confirming the silence is not a stuck read of the whole register.",
+    "Under the negative control the rejection check passes and the register reads 0x00000004, while the no-operation check still fails."
+  ],
+  "success_criteria": [
+    "Both invariant checks on the finalization command fail on the unmodified tree, and they are the only failures.",
+    "Every control and bounding check passes, so the null result is a property of the command and not of the setup.",
+    "All three coverage preconditions are observed: the control ran, the finalization write was absorbed, and no sideload error path was armed.",
+    "The negative control flips the rejection check to passing without breaking the ordinary INIT path, and the testbench's PASS predicate is not met under it."
+  ],
+  "non_findings": [
+    "No claim is made that a secret was recovered. The witness supplies its own key and message block and reads back only its own material.",
+    "No claim is made that a wrong digest is returned. The block produces no result at all for the finalization command, which is a different and more visible failure than a silently incorrect one.",
+    "No claim is made about the DRBG call chain beyond the structural observation that HMAC_last does not occur in src/hmac_drbg/rtl. The dynamic witness covers the hmac block only.",
+    "No claim is made that CTRL bit 5 was ever specified as the finalization command in the submitted tree, whose register description calls it Reserved. The witness is constructed so that the finding holds under either reading of that field."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/014/proof/tb/hmac_bug_014_tb.sv",
+    "script": "final_bug_submissions/014/proof/scripts/run_bug_014_proof.sh",
+    "sim_script": "final_bug_submissions/014/proof/scripts/run_bug_014_sim.sh",
+    "negative_control": "final_bug_submissions/014/proof/scripts/run_bug_014_negative_control.sh",
+    "logs": "final_bug_submissions/014/proof/logs/"
+  }
+}

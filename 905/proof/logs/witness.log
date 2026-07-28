@@ -1,0 +1,24 @@
+=== pv_bug_905 measured decisions ===
+CONTROL_A provisioned entry 7 read_data=0x5ec00007
+ok:   CONTROL_A the PCR entry holds its measurement value=0x5ec00007 as expected
+CONTROL_B PCR_CTRL[7]=0x00000001 lock=1
+ok:   CONTROL_B software write set the PCR lock value=0x00000001 as expected
+CONTROL_C locked clear attempt PCR_CTRL[7]=0x00000001 clear_bit=0 entry_read_data=0x5ec00007
+ok:   CONTROL_C the clear write was refused while locked value=0x00000000 as expected
+ok:   CONTROL_C the measurement survived the refused clear value=0x5ec00007 as expected
+WITNESS_D after core_only_rst_b pulse PCR_CTRL[7]=0x00000000 lock=0 entry_read_data=0x5ec00007
+witness_pcr_lock_survives_core_only_reset=0
+witness_pcr_measurement_survives_core_only_reset=1
+TBFAIL WITNESS_D the lock is still set after the pulse, per pcrvault.md:6 observed=0x00000000 required=0x00000001
+  OBSERVED: PV_905_WITNESS_OBSERVED a set PCR_CTRL[7].lock was cleared by a microcontroller-only reset, which is not a powergood cycle
+ok:   WITNESS_D the measurement survived the pulse value=0x5ec00007 as expected
+ok:   WITNESS_E fw_update_rst_window is de-asserted, so the swwel mask does not explain the clear value=0x00000000 as expected
+WITNESS_E post-reset clear attempt entry_read_data=0x00000000
+witness_measurement_cleared_after_reset=1
+TBFAIL WITNESS_E the measurement survived the post-reset clear observed=0x00000000 required=0x5ec00007
+  OBSERVED: PV_905_WITNESS_OBSERVED the clear refused in CONTROL_C was accepted after the reset and zeroed the measurement
+cover_locked_clear_refused=1
+cover_unlocked_clear_landed=1
+checks_run=8 checks_failed=2 witness_hits=2
+PROOF_RESULT: PASS
+result=PASS

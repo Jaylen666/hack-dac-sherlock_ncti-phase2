@@ -346,6 +346,20 @@ module kv_flush_and_error_tb;
     expect_eq("CONTROL_B lock_use suppresses the read to zero",
               rd_locked_suppressed, 32'h0);
 
+    // Also lock a second entry for WRITES only. lock_wr leaves the read mux open,
+    // so after the flush this entry can show what was actually written into a
+    // locked slot, which a lock_use entry cannot.
+    ahb_write(key_ctrl_addr(WRLOCK_ENTRY), LOCK_WR_MASK);
+    ahb_read(key_ctrl_addr(WRLOCK_ENTRY), ctrl_readback);
+    $display("CONTROL_B KEY_CTRL[%0d] readback=0x%08h lock_wr=%0b",
+             WRLOCK_ENTRY, ctrl_readback, |(ctrl_readback & LOCK_WR_MASK));
+    expect_bit("CONTROL_B software write set lock_wr on the write-locked entry",
+               |(ctrl_readback & LOCK_WR_MASK), 1'b1);
+    read_entry(WRLOCK_ENTRY, rd_wrlock_before);
+    $display("CONTROL_B write-locked entry read_data=0x%08h", rd_wrlock_before);
+    expect_eq("CONTROL_B lock_wr does not suppress the read",
+              rd_wrlock_before, WRLOCK_KEY_DWORD);
+
     // --- PROBE_A: debug scan mode alone, with no software poke -------------
     // Measured, not asserted. src/keyvault/rtl/kv.sv:123 qualifies the
     // cptra_in_debug_scan_mode term with CLEAR_SECRETS.wr_debug_values, which is
@@ -388,8 +402,22 @@ module kv_flush_and_error_tb;
     // original key material. Assert the negative, which holds under either
     // reading: a suppressed read returns zero, and a flushed entry returns the
     // debug value; only surviving key material returns LOCKED_KEY_DWORD.
-    expect_bit("CONTROL_D the locked entry no longer returns its original key material",
+    expect_bit("CONTROL_D the use-locked entry no longer returns its original key material",
                (rd_locked_after_flush === LOCKED_KEY_DWORD), 1'b0);
+
+    // The write-locked entry settles what the use-locked one cannot. lock_wr
+    // leaves the read mux open, so a zero here would mean the entry was merely
+    // suppressed while the debug value means the flush actually wrote through the
+    // lock. This is the positive form of the lock-bypass measurement.
+    ahb_read(key_ctrl_addr(WRLOCK_ENTRY), ctrl_readback);
+    read_entry(WRLOCK_ENTRY, rd_wrlock_after_flush);
+    $display("CONTROL_D after the flush pulse KEY_CTRL[%0d]=0x%08h lock_wr=%0b write-locked entry read_data=0x%08h",
+             WRLOCK_ENTRY, ctrl_readback, |(ctrl_readback & LOCK_WR_MASK),
+             rd_wrlock_after_flush);
+    expect_bit("CONTROL_D the write lock is still set after the flush",
+               |(ctrl_readback & LOCK_WR_MASK), 1'b1);
+    expect_eq("CONTROL_D the flush wrote the debug value through a set write lock",
+              rd_wrlock_after_flush, EXPECTED_DEBUG_VALUE);
 
     // --- CONTROL_E: the KeyVault's own internal error response -------------
     provision_entry(RACE_ENTRY, RACE_KEY_DWORD);

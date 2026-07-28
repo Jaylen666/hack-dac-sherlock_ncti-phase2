@@ -1,0 +1,62 @@
+{
+  "module": "aes",
+  "bug_id": "002",
+  "bug_name": "aes_bug_002",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Any software able to program the AES register block and the KeyVault write-control register. The exposed read is an ordinary DATA_OUT register read at offsets 0x64 through 0x70, with no privilege, lifecycle, or debug qualifier on the read arms.",
+    "precondition": "A released reset with the AES block reachable over its TileLink register interface, and the KeyVault write path enabled so that caliptra2aes.kv_en is asserted. The OCP LOCK conditions that drive block_reg_output are not met, which is the ordinary case: block_reg_output is a conjunction of ocp_lock_in_progress, a specific KeyVault key slot being in use, and the operation being an ECB decrypt.",
+    "input": "Program CTRL_SHADOWED twice for AES-128 ECB encryption, write both key shares, then write the four DATA_IN words to launch the operation while kv_en is asserted. Read the four DATA_OUT words at 0x64, 0x68, 0x6C and 0x70.",
+    "protected_asset": "The result of an AES operation whose declared destination is the KeyVault. src/aes/rtl/aes.sv:153 states the design intent in the tree's own words: a mask exists to conceal data_out from the register API when the destination is the KeyVault. A result routed into the KeyVault is meant to become vault-resident material rather than something software reads back.",
+    "security_property": "When an AES result is routed to the KeyVault, that result must not also be returned by a DATA_OUT register read. Concealment must follow the routing decision.",
+    "implemented_logic": "src/aes/rtl/aes.sv:197 arms the concealment mask as hw2reg_data_out_mask_en <= ~caliptra2aes.block_reg_output, with no kv_en term, even though src/aes/rtl/aes.sv:196 consumes kv_en on the immediately preceding line of the same clocked block. src/aes/rtl/aes.sv:154 replicates mask_en across the mask word and src/aes/rtl/aes.sv:174 applies it as a bitwise AND, so mask_en = 1 is an all-ones mask, meaning visible. The reset value at src/aes/rtl/aes.sv:192 is 1, so the default presentation is transparent. Concealment therefore engages only for the OCP LOCK ECB-decrypt case and never for KeyVault routing on its own."
+  },
+  "security_feature_bypassed": "The concealment of KeyVault-destined AES output from the register API, as described by the audited tree's own comment at src/aes/rtl/aes.sv:153.",
+  "proof_goal": "Establish on one unmodified aes block, compiled from the audited checkout and driven only over its TileLink register interface, that a result routed to the KeyVault is returned in full by a DATA_OUT read, while the same testbench shows the concealment mask does work when block_reg_output is asserted. The second half is what separates a mask that never engages from a mask that ignores the routing input.",
+  "proof_style": "Directed TileLink register-bus simulation of one real DUT, paired with a scripted structural audit of the arming expression and its reachability. No force, no deposit, no hierarchical assignment, no second checkout. The KeyVault routing inputs are driven at the aes block's own port boundary.",
+  "invariant": "A DATA_OUT read taken after an operation whose result was routed to the KeyVault must return zero, because concealment should follow the routing decision.",
+  "attacker_model": "Unprivileged software at user-level mode",
+  "minimum_attack_sequence": [
+    "Enable the KeyVault write path so kv_en is asserted for the AES block, without satisfying the OCP LOCK conjunction that block_reg_output requires.",
+    "Program CTRL_SHADOWED twice for ECB encryption, load both key shares, and write the four DATA_IN words to launch the operation.",
+    "Read the four DATA_OUT words and observe the complete result that was routed to the KeyVault."
+  ],
+  "controls": [
+    "A plain operation with kv_en deasserted, to establish that the DUT completes an operation and that DATA_OUT returns cipher material at all. Without it a zero readback later could not be attributed to the mask.",
+    "A readback of CTRL_SHADOWED after the pair of writes, to confirm the mode took. A single write to a shadow register leaves MODE at AES_NONE, which src/aes/rtl/aes_control_fsm.sv:217 treats as invalid, and the operation would silently never start.",
+    "Each configuration is run from its own reset, and DATA_OUT is sampled before each operation, so no readback can be a residue of the previous configuration.",
+    "The KeyVault-routed run uses a different plaintext from the plain control, so its readback must differ from the control ciphertext to count. With the same plaintext a fresh result and a stale residue would be byte-identical.",
+    "A bound that the readback is not the written plaintext handed back, which would indicate a register echo rather than a result.",
+    "A containment check that no bus error was raised, so every observation is an ordinary register access."
+  ],
+  "witness_construction_note": "The testbench instantiates the whole aes block, not a submodule, and drives it only through its TileLink port, an EDN responder, and the caliptra2aes routing inputs at the port boundary. TL-UL command integrity is generated with an in-tree caliptra_tlul_cmd_intg_gen instance, because src/aes/rtl/aes_reg_top.sv gates writes on reg_error and every write would otherwise silently fail. Completion is not judged on STATUS.OUTPUT_VALID alone: when kv_data_intercept is set, src/aes/rtl/aes.sv:183 drives data_out[idx].re from output_valid_r, so hardware retires the flag before software can poll it.",
+  "expected_evidence": [
+    "The plain control completes and returns non-zero cipher material that differs from its own pre-operation baseline.",
+    "The KeyVault-routed run returns non-zero cipher material that differs both from its baseline and from the plain control's ciphertext, proving it is that run's own result.",
+    "The KeyVault-routed readback is not the written plaintext echoed back.",
+    "With block_reg_output asserted, the readback is all zeros, so the mask does engage when armed.",
+    "STATUS.OUTPUT_LOST is set in the blocked run, the distinct behaviour of the armed case.",
+    "No bus error on any access.",
+    "A structural audit showing the arming expression has no kv_en term, that kv_en is reachable from a software register write, and that block_reg_output is not."
+  ],
+  "success_criteria": [
+    "The invariant check on the KeyVault-routed read fails on the unmodified tree, and it is the only failing check.",
+    "All three configurations report completion, each from its own reset.",
+    "Every structural gate passes.",
+    "With the missing kv_en term added on a scratch copy, the same testbench reports the KeyVault-routed readback as concealed and no longer reports the exposure, while the plain control still reads back cipher material."
+  ],
+  "non_findings": [
+    "No claim is made that a secret unknown to the attacker was recovered. The witness supplies its own key and plaintext, so the value read back was already known to the software that programmed it. What is proven is that the concealment mechanism does not engage for KeyVault routing, not that a specific vault secret was disclosed.",
+    "No claim is made about the OCP LOCK flow being broken. The discriminator shows concealment works when block_reg_output is asserted.",
+    "No claim is made about the KeyVault contents themselves, which this witness does not read.",
+    "No claim is made about the value DATA_OUT holds before an operation. That value tracks the clearing PRNG and the mask state, and no check depends on it; the checks compare each readback against its own pre-operation sample instead."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/002/proof/tb/aes_bug_002_tb.sv",
+    "script": "final_bug_submissions/002/proof/scripts/run_bug_002_proof.sh",
+    "sim_script": "final_bug_submissions/002/proof/scripts/run_bug_002_sim.sh",
+    "negative_control": "final_bug_submissions/002/proof/scripts/run_bug_002_negative_control.sh",
+    "logs": "final_bug_submissions/002/proof/logs/"
+  }
+}

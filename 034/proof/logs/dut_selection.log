@@ -1,0 +1,3 @@
+dut_core=/home/smy/hackatdac26-phase-2-caliptra/src/sha512_masked/rtl/sha512_masked_core.sv
+tb=/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/034/proof/tb/sha512_masked_bug_034_tb.sv
+caliptra_root=/home/smy/hackatdac26-phase-2-caliptra

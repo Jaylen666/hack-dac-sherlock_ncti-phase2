@@ -1,0 +1,71 @@
+{
+  "module": "sha512_masked_core",
+  "bug_id": "034",
+  "bug_name": "sha512_masked_bug_034",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_functional_defect",
+  "security_feature_bypassed": "The masking countermeasure of the SHA-512 masked core. src/sha512_masked/rtl/sha512_masked_core.sv recombines the masked and random shares of the eight compression working registers and drives the unmasked result onto the digest port whenever digest_valid is low.",
+  "finding": "In src/sha512_masked/rtl/sha512_masked_core.sv the digest output is a two-way select on digest_valid_reg. When a result is valid the port returns the eight H hash registers, which is correct. When no result is valid the port returns the bitwise xor of the masked shares and the random shares of working registers a through h, which reconstructs their unmasked values. Sampling the port on every invalid cycle of one operation yields 89 samples, of which 80 are neither the published SHA-512 initial hash value nor a constant; the value changes at 81 adjacent positions, tracking the compression rounds, and diverges from a second message's trace at 80 of 89 compared positions, so it is live message-dependent state. The select carries no debug, lifecycle or zeroize qualifier, so the exposure is unconditional and present on the ordinary hashing path.",
+  "location_or_code_reference": {
+    "competition_file": "src/sha512_masked/rtl/sha512_masked_core.sv",
+    "line_range": "240-248",
+    "supporting_references": [
+      "src/sha512_masked/rtl/sha512_masked_core.sv:240",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:241",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:242",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:243",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:244",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:245",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:246",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:247",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:248",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:250",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:76",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:77",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:65",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:73",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:365",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:366",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:367"
+    ],
+    "attachment_note": "A witness testbench, simulation script, structural audit and negative control accompany this submission under final_bug_submissions/034/proof/, together with the run, witness, compile, audit, negative-control and DUT-selection logs."
+  },
+  "detection_method": "The digest output's continuous assignment was read against the module's masking scheme, and the invalid arm was found to xor the two share sets of the working registers. A testbench then sampled the digest port on every invalid cycle across two different message blocks, and the resulting traces were compared against the published initial hash value, against themselves round to round, and against each other. A structural audit fixes the code-level claims and a negative control neutralises the invalid arm to show both the audit and the testbench detect its removal.",
+  "security_impact": "An observer able to sample the digest port during an operation reads the unmasked intermediate state of a masked SHA-512 computation. The trace varies with the message, so it carries information about the data being hashed rather than a fixed pattern. This is precisely the observability the masking is intended to prevent, and it is available without any special mode, privilege or debug condition.",
+  "adversary_profile": "Unprivileged software at user-level mode",
+  "proposed_mitigation": [
+    "Drive a constant on the digest port during invalid cycles, so the port carries no function of the working registers.",
+    "Alternatively retain the previous final digest across the operation and return that until the new result is valid, which keeps the port stable and message-independent for the in-flight computation.",
+    "Do not recombine the masked and random shares anywhere outside the compression datapath itself; the xor of the two shares should not appear on any signal that leaves the module.",
+    "If an intermediate value must be observable for debug, gate it behind an explicit debug or lifecycle qualifier rather than exposing it on the functional path.",
+    "Add a directed test that samples the digest port throughout an operation and requires every sample to be independent of the message, so a regression that re-exposes the working state is caught."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:L/I:N/A:N",
+    "base_score": 2.5,
+    "severity": "Low",
+    "scoring_note": "Scored with the CVSS v3.1 calculator from what was measured at the module port. Local vector and low privilege because the exposure is on the ordinary hashing path. Attack complexity high because exploitation requires sampling within the operation's invalid window at a rate this case demonstrated only at the module boundary, not through a software register path. Confidentiality low for the observation of unmasked intermediate state; integrity and availability none, since the computed digest remained correct throughout."
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/034/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/034/proof_result_v1.json",
+    "script": "final_bug_submissions/034/proof/scripts/run_bug_034_proof.sh",
+    "sim_script": "final_bug_submissions/034/proof/scripts/run_bug_034_sim.sh",
+    "negative_control_script": "final_bug_submissions/034/proof/scripts/run_bug_034_negative_control.sh",
+    "testbench": "final_bug_submissions/034/proof/tb/sha512_masked_bug_034_tb.sv",
+    "run_log": "final_bug_submissions/034/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/034/proof/logs/witness.log",
+    "compile_log": "final_bug_submissions/034/proof/logs/compile.log",
+    "structural_audit_log": "final_bug_submissions/034/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/034/proof/logs/negative_control.log",
+    "c_validation_status": "final_bug_submissions/034/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "A hash operation begins on the masked core with a message block loaded.",
+    "Throughout the operation digest_valid stays low while the compression rounds advance.",
+    "On every one of those cycles the digest port carries the xor of the masked and random shares of the working registers, which is their unmasked value.",
+    "An observer sampling the port collects a trace of the engine's internal state as it evolves.",
+    "The trace differs when a different message is hashed, so it carries message-dependent information that the masking was intended to hide."
+  ]
+}

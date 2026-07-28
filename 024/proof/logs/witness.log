@@ -7,17 +7,24 @@ CONTROL_B KEY_CTRL[4] readback=0x00000202 lock_use=1
 ok:   CONTROL_B software write set lock_use value=1 as expected
 CONTROL_B locked entry read_data=0x00000000 rd_error=1
 ok:   CONTROL_B lock_use suppresses the read to zero value=0x00000000 as expected
+CONTROL_B KEY_CTRL[6] readback=0x00000201 lock_wr=1
+ok:   CONTROL_B software write set lock_wr on the write-locked entry value=1 as expected
+CONTROL_B write-locked entry read_data=0xc0de0004
+ok:   CONTROL_B lock_wr does not suppress the read value=0xc0de0004 as expected
 PROBE_A   cptra_in_debug_scan_mode=1 with no CLEAR_SECRETS poke open entry read_data=0xc0de0001
 probe_entry_flushed_by_debug_scan_mode_alone=0
 CONTROL_C after the flush pulse open entry read_data=0xaaaaaaaa
 ok:   CONTROL_C the flush overwrote the unlocked entry with the debug value value=0xaaaaaaaa as expected
 CONTROL_D after the flush pulse KEY_CTRL[4]=0x00000202 lock_use=1 locked entry read_data=0x00000000
-ok:   CONTROL_D the locked entry no longer returns its original key material value=0 as expected
+ok:   CONTROL_D the use-locked entry no longer returns its original key material value=0 as expected
+CONTROL_D after the flush pulse KEY_CTRL[6]=0x00000201 lock_wr=1 write-locked entry read_data=0xaaaaaaaa
+ok:   CONTROL_D the write lock is still set after the flush value=1 as expected
+ok:   CONTROL_D the flush wrote the debug value through a set write lock value=0xaaaaaaaa as expected
 CONTROL_E race entry before the simultaneous write read_data=0xc0de0003
 ok:   CONTROL_E race entry is provisioned before the simultaneous write value=0xc0de0003 as expected
 CONTROL_E simultaneous two-client write wr_error_a=0 wr_error_b=0
 CONTROL_E race entry after the simultaneous write read_data=0x00000000
 ok:   CONTROL_E the multi-write error destroyed the entry contents value=0 as expected
 ok:   CONTROL_E neither racing write landed as itself value=0 as expected
-checks_run=9 checks_failed=0
+checks_run=13 checks_failed=0
 result=PASS

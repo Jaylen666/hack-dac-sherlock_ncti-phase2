@@ -1,0 +1,62 @@
+{
+  "module": "sha512_acc_csr",
+  "bug_id": "035",
+  "bug_name": "sha512_acc_bug_035",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Any software agent able to issue reads and writes to the SHA accelerator CSR block. No privilege beyond ordinary register access is required.",
+    "precondition": "A released reset with the sha512_acc CSR block reachable over its register interface. Out of reset LOCK holds the value 1, so the accelerator starts owned.",
+    "input": "A read of the LOCK register acquires the lock by set-on-read. A write of 1 to LOCK bit 0, qualified by valid_user, releases it. No third input path exists.",
+    "protected_asset": "Exclusive ownership of the SHA accelerator. The lock is what keeps two agents from interleaving message blocks into one digest computation, and what lets hardware reclaim the engine when an owner does not release it.",
+    "security_property": "Ownership of the accelerator must be arbitrable by hardware as well as by software: hardware must be able to assert the lock on behalf of a hardware API user and to clear it when the engine is reclaimed or reset by flow control.",
+    "implemented_logic": "The LOCK field has exactly two update arms, both software. src/soc_ifc/rtl/sha512_acc_csr.sv holds a set-on-read arm and a write-1-clear arm and nothing else. src/soc_ifc/rtl/sha512_acc_csr_pkg.sv declares no LOCK input struct type and the top-level sha512_acc_csr__in_t carries no LOCK member, so the module has no port through which hardware could set or clear the lock. Seven sibling fields in the same package do carry hwset or hwclr members, so the omission is specific to LOCK."
+  },
+  "security_feature_bypassed": "Hardware arbitration of the SHA accelerator lock. Ownership can only be taken and released by software, so a hardware API user cannot claim the engine and flow control cannot reclaim it.",
+  "proof_goal": "Establish on one unmodified checkout that the LOCK field's complete update set is two software arms, and that no input exists on the CSR module through which a hardware agent could set or clear it.",
+  "proof_style": "Scripted structural audit of one real checkout, paired with a negative control that restores the hardware path on a scratch copy and requires the identical audit to fail.",
+  "invariant": "A lock that mediates access between a software owner and a hardware API user must be writable from both sides.",
+  "attacker_model": "Unprivileged software at user-level mode",
+  "minimum_attack_sequence": [
+    "Read the LOCK register once. Set-on-read acquires the lock and the reading agent now owns the accelerator.",
+    "Never write 1 back to LOCK. There is no hardware clear arm and no hardware input that could reach one, so no other agent and no flow-control logic can take ownership away.",
+    "The accelerator remains held for as long as the owner declines to release it."
+  ],
+  "controls": [
+    "LOCK is a real storage element whose reset value is 1, so the audit is reading a live field and not a tied-off constant.",
+    "The stored value is exported to the wrapper as hwif_out, so the field is consumed rather than dead.",
+    "Both software arms are present and identified individually, so the field is not simply broken.",
+    "Reading LOCK returns the stored value through the readback array, so set-on-read is observable to software.",
+    "Seven hwset or hwclr members exist in the same package for other fields, so the package is capable of expressing a hardware path.",
+    "EXECUTE consumes a hardware clear arm in the same CSR file, so the generator emits such arms when the field description asks for one.",
+    "An input named lock_set does exist, and the audit pins it to the USER field rather than to LOCK, which rules out mistaking it for a LOCK control."
+  ],
+  "witness_construction_note": "This case is audit-only by construction and deliberately ships no simulation. The claim is the absence of a hardware port, and absence of a port cannot be demonstrated by driving one: any observation of the form 'LOCK did not move when signal X was driven' is answered by 'X was the wrong signal'. A simulation that drives hwif_in.lock_set and reports that LOCK stayed put would prove only that the USER field's write-enable does not affect LOCK, which is true of the correct design as well and therefore vacuous. The audit instead enumerates the field's complete update set and the module's complete input surface, and the negative control shows that enumeration is sensitive to the missing path.",
+  "expected_evidence": [
+    "The LOCK combinational block contains exactly two update arms and references no hwset, hwclr or hwif_in.lock source.",
+    "The CSR file consumes nothing from the hwif_in.LOCK namespace.",
+    "The package declares no LOCK input struct type.",
+    "The top-level CSR input struct has no LOCK member.",
+    "Sibling fields in the same package and CSR do have hardware paths.",
+    "lock_set is consumed at exactly one site and that site is the USER field.",
+    "structural_gates_passed equals the total gate count and the audit prints result=PASS.",
+    "With the hardware path restored on a scratch copy the identical audit fails, and it fails on the absence gates while the software-arm and lock_set gates stay green."
+  ],
+  "success_criteria": [
+    "All structural gates pass on the unmodified checkout.",
+    "The negative control fails the audit after restoring the hardware set and clear path.",
+    "The negative control's failures are confined to the gates that assert absence, proving the audit is targeted rather than a blanket check.",
+    "No gate depends on a hardcoded line number, so a remediation that shifts line numbering cannot make the audit fail for an unrelated reason."
+  ],
+  "non_findings": [
+    "No claim that the software lock protocol is broken. Set-on-read and write-1-clear both work.",
+    "No claim of a confidentiality or integrity compromise of digest data. No digest was computed or observed in this case.",
+    "No claim that hwif_in.lock_set is itself defective. It correctly gates the USER field.",
+    "No claim about the sha512_acc_top wrapper's own arbitration behaviour, which was not exercised."
+  ],
+  "artifacts": {
+    "script": "final_bug_submissions/035/proof/scripts/run_bug_035_proof.sh",
+    "negative_control": "final_bug_submissions/035/proof/scripts/run_bug_035_negative_control.sh",
+    "logs": "final_bug_submissions/035/proof/logs/"
+  }
+}

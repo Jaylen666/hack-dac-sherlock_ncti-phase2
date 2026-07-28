@@ -1,0 +1,77 @@
+=== pv_bug_905 proof run ===
+dut=src/pcrvault/rtl/pv.sv
+tb=proof/tb/pv_lock_reset_domain_tb.sv
+dut_instances_compiled=1
+=== pv_bug_905 structural audit: PCR lock reset domain reachability ===
+tree_relative_paths_only=yes
+--- gate 1: declared reset signals of the lock field and the entry data ---
+  the lock field declaration in src/pcrvault/rtl/pv_reg.rdl:
+    29:        field {desc="Lock the PCR from being cleared";
+    30-               sw=rw; swwel=true; hw=r; resetsignal = core_only_rst_b;} lock=0; 
+pcr_lock_resetsignal_is_core_only=1
+  the entry data field declaration in src/pcrvault/rtl/pv_reg.rdl:
+    22:    field pcr {desc="PCR Entries"; sw=r; hw=rw; we=true; hwclr; resetsignal = hard_reset_b;};
+pcr_data_resetsignal_is_hard_reset=1
+lock_and_data_reset_domains_differ=1
+generated_lock_flop_reset_by_core_only=1
+--- gate 2: the signal connected to the pv core_only_rst_b port ---
+  the reset port connection at the pv instantiation:
+        .core_only_rst_b      (cptra_uc_rst_b),
+pv_core_only_rst_connected_signal=cptra_uc_rst_b
+pv_reset_signal_is_top_level_input_pin=0
+  contrast: the port the in-tree sentence names as the only permitted clear
+    connected signal: cptra_pwrgood
+contrast_pwrgood_signal_is_top_level_input_pin=1
+--- gate 3: firmware reachability of the reset ---
+  the boot FSM output that carries it:
+    37:    output logic cptra_uc_rst_b, //Global + fw update rst that goes to VeeR core only,
+  the arc that enters the firmware-update reset state:
+    97:always_comb arc_BOOT_DONE_BOOT_FWRST = (boot_fsm_ps == BOOT_DONE) & fw_update_rst;
+boot_fsm_fwrst_arc_uses_fw_update_rst=1
+  where fw_update_rst comes from:
+    334:    .fw_update_rst (soc_ifc_reg_hwif_out.internal_fw_update_reset.core_rst.value),
+fw_update_rst_driven_by_register=1
+  the software access of that register field:
+    45:    field {desc = "FW Update reset to reset core"; hw = r; sw = rw; singlepulse=true; swwel = soc_req; resetsignal = cptra_rst_b;} core_rst = 1'b0;
+    46-} internal_fw_update_reset;
+fw_update_reset_field_software_writable=1
+pcr_lock_reset_reachable_from_firmware=1
+--- gate 4: what the lock protects ---
+  the lock feeding the write-enable-low of the lock and clear fields:
+    110:        pv_reg_hwif_in.PCR_CTRL[entry].lock.swwel = pv_reg_hwif_out.PCR_CTRL[entry].lock.value & ~fw_update_rst_window;
+    111:        pv_reg_hwif_in.PCR_CTRL[entry].clear.swwel = pv_reg_hwif_out.PCR_CTRL[entry].lock.value & ~fw_update_rst_window;
+pv_lock_swwel_feedback_sites=2
+  the clear field driving the entry data hardware clear:
+    130:            pv_reg_hwif_in.PCR_ENTRY[entry][dword].data.hwclr = pv_reg_hwif_out.PCR_CTRL[entry].clear.value;
+pv_clear_to_data_hwclr_sites=1
+  the boot FSM expression that produces the swwel mask:
+    90:always_comb fw_update_rst_window = (boot_fsm_ps == BOOT_FW_RST) |
+    91-                                   ((boot_fsm_ps == BOOT_WAIT) & (wait_count != 0));
+swwel_mask_is_a_function_of_boot_fsm_state=2
+--- gate 5: in-tree statements on PCR lock stickiness ---
+  what src/pcrvault/config/pcrvault.md requires of the lock:
+    6:* A lock bit can be set by FW to prevent the entry from being cleared. The lock bit is sticky and only resets on a powergood cycle.
+spec_pcr_lock_stickiness_statements=1
+spec_pcr_lock_stickiness_statements_in_hw_spec=1
+  in-tree reset-column statements for the PCR control register:
+spec_pcr_control_reset_column_rows=0
+  contrast, not part of this verdict: the KeyVault lock declarations
+keyvault_lock_declarations_with_core_only_reset=3
+keyvault_lock_reset_column_rows_in_hw_spec=2
+--- audit summary ---
+pcr_lock_resetsignal_is_core_only=1
+pcr_data_resetsignal_is_hard_reset=1
+generated_lock_flop_reset_by_core_only=1
+pv_core_only_rst_connected_signal=cptra_uc_rst_b
+pv_reset_signal_is_top_level_input_pin=0
+contrast_pwrgood_signal_is_top_level_input_pin=1
+fw_update_reset_field_software_writable=1
+pv_lock_swwel_feedback_sites=2
+pv_clear_to_data_hwclr_sites=1
+swwel_mask_is_a_function_of_boot_fsm_state=2
+spec_pcr_lock_stickiness_statements=1
+spec_pcr_control_reset_column_rows=0
+audit_conclusion=pcr_lock_reset_is_firmware_reachable_and_contradicts_the_in_tree_stickiness_requirement
+audit_result=PASS
+=== proof run complete ===
+result=PASS

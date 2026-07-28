@@ -159,6 +159,28 @@ tr '|' '\n' <<<"${flush_rhs}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//
 fatal_in_flush=$(tr '|' '\n' <<<"${flush_rhs}" | grep -c -i "error_fatal" || true)
 echo "kv_flush_signal_fatal_error_terms=${fatal_in_flush}"
 
+# Contrast for the term detector. The same extract-and-split applied to a signal
+# in the same file that is known NOT to carry a fatal error term must report zero,
+# so a nonzero reading above is known to be discrimination rather than a pattern
+# that matches anything. cptra_in_debug_scan_mode is the natural control: the kv
+# module consumes it alongside the flush signal and it is not fatal-derived.
+contrast_sig="cptra_in_debug_scan_mode"
+contrast_drv="$(grep -n -E "(assign|always_comb)[[:space:]]+${contrast_sig}[[:space:]]*=" "${TOP}" \
+                | tr -d '\r' || true)"
+if [[ -z "${contrast_drv}" ]]; then
+  gate_fail "could not find a driver for the contrast signal ${contrast_sig}; the term detector is unverified"
+  contrast_fatal=-1
+else
+  echo "  contrast: a signal in the same file that should carry no fatal term"
+  sed -e 's/^/    /' <<<"${contrast_drv}"
+  contrast_rhs="$(sed -e 's/^[^=]*=//' -e 's/;.*//' <<<"${contrast_drv}")"
+  contrast_fatal=$(tr '|' '\n' <<<"${contrast_rhs}" | grep -c -i "error_fatal" || true)
+fi
+echo "contrast_signal_fatal_error_terms=${contrast_fatal}"
+if (( contrast_fatal != 0 )); then
+  gate_fail "the term detector reports a fatal term on a signal that should have none; its readings are not trustworthy"
+fi
+
 # The fatal error signal itself: is it an output of the design, and is it the same
 # signal the SoC sees? A term that is only an internal alias would not count.
 echo "  the fatal error signal at the top level:"
@@ -279,12 +301,25 @@ if (( kv_fatal_reqs > 0 )); then
   grep -n -i -E "(key ?vault|KV) [^.]{0,60}(fatal error|CPTRA_HW_ERROR_FATAL)" \
     "${INT_SPEC}" "${HW_SPEC}" "${KV_DOC}" 2>/dev/null | head -6 | sed -e 's/^/    /'
 fi
+# The conditions on which the integration specification requires hardware to clear
+# the KeyVault. The pattern has to tolerate either word order and must not stop at
+# a comma, because these statements live in wide table cells; a narrower pattern
+# reports zero here while the matching sentences are printed directly above it,
+# which would invert the reading of this gate.
 echo "  in-tree statements on hardware clearing of the KeyVault:"
-grep -n -i "key vault\|keyvault" "${INT_SPEC}" | grep -i "clear\|debug\|scan" \
-  | head -6 | sed -e 's/^/    /'
-spec_hw_clear=$(grep -c -i -E "(clears|clear) (the )?(caliptra )?key ?vault" "${INT_SPEC}" "${HW_SPEC}" 2>/dev/null \
-                | awk -F: '{t+=$2} END{print t+0}')
+SPEC_CLEAR_PAT="(key ?vault)[^|]{0,120}(cleared|flush)|(cleared|flush)[^|]{0,120}(key ?vault)"
+spec_clear_hits="$(grep -n -i -E "${SPEC_CLEAR_PAT}" "${INT_SPEC}" || true)"
+if [[ -z "${spec_clear_hits}" ]]; then
+  spec_hw_clear=0
+else
+  spec_hw_clear=$(grep -c . <<<"${spec_clear_hits}")
+  # Truncated: these are wide specification table rows.
+  cut -c1-200 <<<"${spec_clear_hits}" | sed -e 's/^/    /'
+fi
 echo "spec_hardware_keyvault_clear_conditions=${spec_hw_clear}"
+if (( spec_hw_clear == 0 )); then
+  gate_fail "found no in-tree statement on hardware clearing of the KeyVault; the flush requirement could not be evaluated"
+fi
 
 # ---------------------------------------------------------------------------
 # Verdict

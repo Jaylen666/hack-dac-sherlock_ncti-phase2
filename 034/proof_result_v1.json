@@ -1,0 +1,58 @@
+{
+  "module": "sha512_masked_core",
+  "bug_id": "034",
+  "bug_name": "sha512_masked_bug_034",
+  "version": 1,
+  "status": "partial_proof",
+  "blocker": "The exposure is proven at the module boundary: live, message-dependent compression state is observable on the digest port throughout the operation. What is not established is a software-visible read path. Reaching the port from software goes through the sha512 wrapper's digest registers, which this case does not drive, so no claim is made that unprivileged software can sample the trace at the rate the testbench does. The confidentiality impact is scored from what was measured at the port, not from a completed recovery.",
+  "proof_method_executed": "Fifteen scripted structural gates over the submitted checkout, a directed port-driven simulation of one unmodified sha512_masked_core with per-cycle sampling of the digest port across two different message blocks, and a negative control that neutralises the invalid-cycle arm and re-runs both the audit and the identical testbench.",
+  "result_summary": "One unmodified sha512_masked_core was driven over its module ports with a padded single-block message. The digest port was sampled on every cycle while digest_valid was low, yielding 89 samples. Of those, 1 equals the published SHA-512 initial hash value and 80 are neither that value nor a constant. The trace changes at 81 adjacent positions, so the exposed value advances with the compression rounds. Repeating the operation from its own reset with a different message block produced a trace that differs from the first at 80 of 89 compared positions, so the exposed value is message-dependent rather than a fixed internal sequence. The final digest matched the published SHA-512 value for the empty string both times.",
+  "security_impact_assessment": "The masking countermeasure is defeated at the module output. The digest port recombines the masked and random shares of the eight working registers on every invalid cycle, so an observer sampling during an operation reads unmasked intermediate compression state that varies with the message being hashed. The exposure is unconditional: the select carries no debug, lifecycle or zeroize qualifier, and no configuration is required to reach it.",
+  "evidence": {
+    "competition_file": "src/sha512_masked/rtl/sha512_masked_core.sv",
+    "line_range": "240-248",
+    "run_log": "final_bug_submissions/034/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/034/proof/logs/witness.log",
+    "compile_log": "final_bug_submissions/034/proof/logs/compile.log",
+    "structural_audit_log": "final_bug_submissions/034/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/034/proof/logs/negative_control.log",
+    "dut_selection_log": "final_bug_submissions/034/proof/logs/dut_selection.log",
+    "key_observation": "TRACE n_a=89 iv=1 non_iv=80 changes=81 msg_divergence=80. The first message's final digest read 0x...a538327af927da3e, matching the published SHA-512 of the empty string; the second message's read 0x...2a9ac94fa54ca49f. structural_gates_passed=15/15 with result=PASS and PROOF_RESULT: PASS at 10 checks, 3 expected failures, 3 witness hits.",
+    "negative_evidence": "With the invalid-cycle arm of the digest select removed on a scratch copy, the identical testbench reports witness_hits=0 and the simulation no longer passes, while control_engine_reaches_a_valid_digest and control_digest_matches_published_vector both still pass, so the remediation is targeted rather than a break of the hash. The audit flips on the three gates describing the unmasking arm. nc_checks_failed=0 with NEGATIVE_CONTROL: PASS."
+  },
+  "evidence_items": [
+    "The digest continuous assignment is a two-way select on digest_valid_reg.",
+    "The valid arm drives the eight H hash registers.",
+    "The invalid arm reads the masked shares of working registers a through h.",
+    "The invalid arm also reads the random shares of the same registers.",
+    "The two share sets are combined with xor, reconstructing the unmasked values.",
+    "The invalid arm is not a constant, so no safe placeholder is driven.",
+    "The core carries both working registers and a round counter, so the exposed value is per-round state.",
+    "digest_valid is a separate module output, so an observer can identify the invalid cycles.",
+    "digest is a module output rather than an internal signal.",
+    "The digest select carries no lc_escalate, debug or scan qualifier.",
+    "The digest select is not qualified by zeroize.",
+    "89 invalid-cycle samples were captured; 80 are neither the initial hash value nor zero.",
+    "The sampled value changes at 81 adjacent trace positions.",
+    "Two different message blocks diverge at 80 of 89 compared positions.",
+    "The initial-hash phase is present exactly once in the trace, recorded as a bound."
+  ],
+  "non_findings": [
+    "No claim that the final digest is wrong; it matches the published test vector.",
+    "No claim of a software register read path; the sha512 wrapper was not driven.",
+    "No claim of completed key or message recovery.",
+    "No claim that the masking scheme is weak in itself; the finding is that its shares are recombined onto an output.",
+    "No claim that sampling perturbs the operation; the published test vector still matched after the full sweep."
+  ],
+  "reproduction": {
+    "command": "final_bug_submissions/034/proof/scripts/run_bug_034_negative_control.sh && final_bug_submissions/034/proof/scripts/run_bug_034_proof.sh && final_bug_submissions/034/proof/scripts/run_bug_034_sim.sh",
+    "tools": "VCS W-2024.09-SP1 at /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/bin, plus POSIX shell, awk, grep and python3.",
+    "success_marker": "PROOF_RESULT: PASS from the simulation, result=PASS with structural_gates_passed=15/15 from the audit, and NEGATIVE_CONTROL: PASS with nc_checks_failed=0.",
+    "determinism": "Fully deterministic. The stimulus is two fixed message blocks with a fixed entropy constant, each run from its own reset, and no randomisation is enabled.",
+    "note_on_verdict_markers": "The testbench prints result=PASS only on success. Its failure branch prints PROOF_RESULT: FAIL alone with no result= line, so the negative control's deliberately failing run cannot be mistaken for a real failure verdict by a log scanner.",
+    "note_on_log_order": "The negative control invokes both the audit and the simulation with DUT_CORE_SV pointed at its patched scratch copy, and those runs overwrite structural_audit.log, run.log and witness.log. The unmodified-checkout audit and simulation must therefore be re-run last, which is the order the reproduction command uses. dut_selection.log records which source was elaborated.",
+    "note_on_sampling_point": "The exposed value equals the published SHA-512 initial hash value for the first cycles after init_cmd. A witness that captures the first non-zero sample and stops therefore records a published constant and demonstrates nothing. This case samples every invalid cycle and reports the initial-hash phase explicitly as a bound so that its presence is documented rather than hidden.",
+    "note_on_witness_predicate": "The first witness statement counts samples that are neither the initial hash value nor zero. Excluding zero is load-bearing: an earlier revision tested only against the initial value, and the negative control caught that a constant-zero remediation still satisfies it. The negative control's flip list also deliberately omits the 'invalid arm is not a constant' gate, because this control removes the arm outright rather than replacing it with a literal."
+  },
+  "conclusion": "The defect is confirmed and reproducible. During every cycle in which no result is valid, sha512_masked_core recombines the masked and random shares of its eight working registers and drives the unmasked compression state onto its digest port. The exposed value advances with the rounds and differs between messages, so it is live state and not a constant. The case is bounded at partial_proof because no software-visible read path was driven."
+}

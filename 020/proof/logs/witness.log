@@ -1,0 +1,18 @@
+BUG-020 witness extract: the gates establishing that no hardware-derived
+boot-phase event exists and that every surviving phase signal is
+written by software.
+
+gate_ok   [01] the boot-flow transition detector source file does not exist
+gate_ok   [02] no file under src references boot_flow at all
+gate_ok   [03] none of the three phase outputs is referenced anywhere
+gate_ok   [04] the integration top does not instantiate the detector
+gate_ok   [05] no dangling port declaration survives the removal
+gate_ok   [11] the key vault module references no boot-flow signal
+
+software origin of the surviving phase signals:
+gate_ok   [14] the OCP lock phase signal is driven straight from a software register field
+gate_ok   [15] that signal is not derived from any fetch or ICCM observation
+gate_ok   [17] the software-written phase signal is distributed to multiple consumers
+gate_ok   [18] the ICCM lock is also driven from a software register field
+
+structural_gates_passed=20/20

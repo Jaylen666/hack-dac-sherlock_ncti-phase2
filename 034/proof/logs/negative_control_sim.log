@@ -1,0 +1,14 @@
+PROOF: BUG-034 sha512_masked_core invalid-cycle digest exposure
+CHECK_PASS control_engine_reaches_a_valid_digest digest_valid=1 samples=89
+CHECK_PASS control_digest_matches_published_vector digest[63:0]=0xa538327af927da3e
+CHECK_PASS control_captured_enough_invalid_cycle_samples samples=89
+CHECK_FAIL bound_trace_contains_an_iv_phase_a_naive_witness_would_stop_at iv_samples=0 of 89
+CHECK_PASS control_second_message_also_completes digest_valid=1 samples=89
+CHECK_PASS control_two_messages_produce_different_digests a[63:0]=0xa538327af927da3e b[63:0]=0x2a9ac94fa54ca49f
+CHECK_PASS witness_invalid_cycles_expose_live_working_state samples_that_are_neither_iv_nor_constant=0 of 89
+CHECK_PASS witness_exposed_value_advances_across_compression_rounds adjacent_changes=0
+CHECK_PASS witness_exposed_value_depends_on_the_message_block diverging_positions=0 of 89 compared
+CHECK_PASS containment_final_digest_unaffected_by_sampling published test vector still matches after the full sample sweep
+SUMMARY checks=10 fails=1 witness_hits=0
+TRACE n_a=89 iv=0 non_iv=0 changes=0 msg_divergence=0
+PROOF_RESULT: FAIL

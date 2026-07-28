@@ -1,7 +1,7 @@
 --- simulate ---
 Chronologic VCS simulator copyright 1991-2024
 Contains Synopsys proprietary information.
-Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 17:18 2026
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 21:48 2026
 === kv_bug_025 release-slot destination classification ===
 release_slot=23 dma_dest_idx=8 hmac_key_dest_idx=0 kv_num_read=9
 CONTROL_A dest=HMAC_KEY_onehot(0x1) read_allow=0
@@ -19,4 +19,4 @@ $finish at simulation time               229000
            V C S   S i m u l a t i o n   R e p o r t 
 Time: 229000 ps
 CPU Time:      0.310 seconds;       Data structure size:   0.0Mb
-Tue Jul 28 17:19:02 2026
+Tue Jul 28 21:48:45 2026

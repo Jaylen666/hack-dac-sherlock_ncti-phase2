@@ -1,0 +1,45 @@
+== BUG-014 structural audit ==
+tree: /home/smy/hackatdac26-phase-2-caliptra
+
+-- group 1: no final-block command exists in the RTL --
+gate_ok   no last_cmd identifier occurs anywhere in src/hmac/rtl or src/hmac_drbg/rtl
+gate_ok   hmac_drbg.sv carries no HMAC_last command encoding
+gate_ok   hmac_core.sv:24-44 port list has no finalization input
+gate_ok   hmac_core.sv does declare init_cmd and next_cmd, so the omission is specific to finalization
+
+-- group 2: CTRL bit 5 is stored and retained, with no readback --
+gate_ok   hmac_reg.sv:875 loads CTRL bit 5 from the software write data
+gate_ok   hmac_reg.sv:885 commits that value to a real flop, so the write sticks
+gate_ok   hmac_reg.sv:888 exports the stored value to the wrapper, so the request is retained
+gate_ok   the decode has no read arm for HMAC512_CTRL, so software cannot confirm the request
+gate_ok   hmac_reg.rdl:68 declares the CTRL register software-write-only, which is why
+gate_ok   hmac_reg.rdl declares the field, placing it at bit 5 after INIT/NEXT/ZEROIZE/MODE/CSR_MODE
+
+-- group 3: nothing consumes the field --
+gate_ok   hmac.sv never reads hwif_out.HMAC512_CTRL.Reserved, so the accepted write drives no logic
+gate_ok   hmac.sv:257 does consume INIT, establishing the pattern a live command field follows
+gate_ok   hmac.sv:258 does consume NEXT, so only the finalization field is unread
+
+-- group 4: the illegal-command interrupt is tied off --
+gate_ok   hmac.sv:428 ties error2_sts.hwset to constant 0, so that status can never set
+gate_ok   the tie is marked TODO in the source, i.e. it is an unfinished driver, not a decision
+gate_ok   hmac.sv:426 drives the sibling key_mode_error_sts from real logic
+gate_ok   hmac.sv:427 drives the sibling key_zero_error_sts from real logic
+gate_ok   hmac_reg.sv:2332 maps error2_sts to error_internal_intr_r bit 2, the bit software would poll
+
+-- group 5: no register-only error path exists --
+gate_ok   hmac.sv:395 gates key_mode_error on the KeyVault sideload being present
+gate_ok   hmac.sv:396 gates key_zero_error on the same sideload
+gate_ok   hmac.sv:398 aggregates exactly those two, so a register-programmed command raises nothing
+
+-- group 6: the field is unguarded, not merely inert --
+gate_ok   hmac.sv:251 qualifies INIT writes on ready_reg
+gate_ok   no swwe qualifier is applied to bit 5, so it accepts writes even while the block is busy
+gate_ok   hmac_reg.sv:868-888 has no self-clear, so the stale request persists after the write
+
+-- group 7: the write is an ordinary unprivileged access --
+gate_ok   no privilege, lifecycle, or debug qualifier guards the CTRL bit 5 write
+gate_ok   hmac.sv exposes a plain cs/we register interface, the path the witness drives
+
+structural_gates_passed=26/26
+result=PASS

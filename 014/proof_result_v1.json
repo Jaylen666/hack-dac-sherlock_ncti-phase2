@@ -1,0 +1,55 @@
+{
+  "module": "hmac",
+  "bug_id": "014",
+  "bug_name": "hmac_bug_014",
+  "version": 1,
+  "status": "partial_proof",
+  "blocker": "The protocol gap is proven end to end: a finalization command is absorbed, performs nothing, and is reported by nothing, while an ordinary command over the same interface works. What is not shown is a confidentiality or integrity consequence downstream. Software that believes it finalized a message will proceed on a tag that was never produced, but demonstrating that a specific caller is thereby led to accept a forged or truncated authentication would require driving a consumer of the hmac block, which this witness does not do. The finding is therefore reported as a functional and reportability defect with the impact that was measured, not the impact that could be argued.",
+  "proof_method_executed": "Twenty-six scripted structural gates over the submitted checkout, a directed VCS W-2024.09-SP1 simulation of one whole hmac block driven only over its native register port, and a negative control that applies the reporting half of the remediation to a scratch copy and re-runs the identical testbench.",
+  "result_summary": "One whole hmac block was driven over its cs/we register interface, with two configurations each run from its own reset. An ordinary INIT command completed: STATUS read 0x00000003 and the tag returned non-zero material beginning 0xb5a8dba8. A write of HMAC512_CTRL bit 5 alone was then issued after programming the key and block. The write was absorbed without error and left STATUS at 0x00000001, ready and idle. STATUS.VALID never rose across four thousand polling reads, the tag registers were byte-identical before and after, error_internal_intr_r read 0x00000000, and error_intr never pulsed on any clock. Eleven checks ran; the two invariant statements on the finalization command were the only failures, and all three coverage preconditions were observed. Under the negative control, which un-ties error2_sts on a scratch copy, the same testbench read error_internal_intr_r as 0x00000004 and the rejection check passed, while the no-operation check still failed and the ordinary INIT path was unaffected.",
+  "security_impact_assessment": "A command interface with an undefined outcome. Software issuing a finalization request receives no error, no completion, and no readback, so it cannot distinguish a performed finalization from a discarded one. The one status bit provisioned to report an illegal command is held at constant zero with a TODO marker, and the two error paths that are driven both require a KeyVault sideload, so no register-programmed command can raise any error at all. A caller that treats the absence of an error as success will consume a tag that was never computed for the finalized message.",
+  "evidence": {
+    "competition_file": "src/hmac/rtl/hmac.sv",
+    "line_range": "424-429",
+    "run_log": "final_bug_submissions/014/proof/logs/run.log",
+    "compile_log": "final_bug_submissions/014/proof/logs/compile.log",
+    "witness_log": "final_bug_submissions/014/proof/logs/witness.log",
+    "structural_audit_log": "final_bug_submissions/014/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/014/proof/logs/negative_control.log",
+    "dut_selection_log": "final_bug_submissions/014/proof/logs/dut_selection.log",
+    "key_observation": "After a write of HMAC512_CTRL bit 5 alone, STATUS read 0x00000001, ready and never valid; the tag registers were unchanged from their pre-command sample; and error_internal_intr_r read 0x00000000 with error_intr low on every clock. The same block, driven over the same bus, completed an ordinary INIT with STATUS 0x00000003 and a non-zero tag, so the null outcome is a property of the command rather than of the harness.",
+    "negative_evidence": "With the reporting half of the mitigation applied to a scratch copy, rewriting src/hmac/rtl/hmac.sv:428 from error2_sts.hwset = 1'b0 to a locally derived condition, the identical testbench read error_internal_intr_r as 0x00000004 and the rejection check passed while the ordinary INIT path still completed with the same tag. The witness therefore depends on the tie-off in the RTL, not on the testbench setup."
+  },
+  "evidence_items": [
+    "hmac_core.sv:24-44 declares init_cmd and next_cmd but no finalization input, so the core has no port through which a final block could be requested.",
+    "The identifier last_cmd occurs zero times across src/hmac/rtl and src/hmac_drbg/rtl, and HMAC_last occurs zero times in src/hmac_drbg/rtl, so the command is absent from the whole chain rather than merely unrouted at one level.",
+    "hmac_reg.sv:875 loads CTRL bit 5 from decoded_wr_data, hmac_reg.sv:885 commits it to a flop, and hmac_reg.sv:888 exports it to the wrapper, so the request is accepted and retained.",
+    "hmac_reg.rdl:68 declares the CTRL register software-write-only and the hmac_reg.sv decode has no read arm for it, so software has no channel to confirm or deny the request.",
+    "hmac.sv never reads hwif_out.HMAC512_CTRL.Reserved, while hmac.sv:257 and :258 do consume INIT and NEXT, so the retained request drives nothing and the omission is specific to finalization.",
+    "hmac.sv:428 ties error2_sts.hwset to 1'b0 with a TODO comment, while hmac.sv:426-427 drive the sibling key_mode_error_sts and key_zero_error_sts from real edge-detected logic.",
+    "hmac_reg.sv:2332 maps error2_sts to error_internal_intr_r bit 2, which is the bit software would poll to learn a command was illegal.",
+    "hmac.sv:395 and :396 gate both driven error conditions on kv_key_data_present, and hmac.sv:398 aggregates exactly those two, so no register-programmed command can raise any error.",
+    "hmac.sv:251 qualifies INIT writes on ready_reg while no swwe qualifier is applied to bit 5, and hmac_reg.sv:868-888 has no self-clear, so the field accepts writes even while the block is busy and retains the stale request afterwards.",
+    "Measured: STATUS 0x00000003 with a non-zero tag for the ordinary INIT, against STATUS 0x00000001 with an unchanged tag and error_internal_intr_r 0x00000000 for the finalization command.",
+    "Measured under the negative control: error_internal_intr_r 0x00000004 with the rejection check passing and the ordinary INIT unaffected, while the no-operation check still failed, since the control restores reporting only."
+  ],
+  "non_findings": [
+    "No secret was recovered. The witness supplies its own key and message block and reads back only its own material.",
+    "No incorrect digest was demonstrated. The block produces no result at all for this command, which is a different failure from a silently wrong one.",
+    "No dynamic claim is made about the DRBG call chain. Its involvement rests on the structural observation that HMAC_last occurs nowhere in src/hmac_drbg/rtl.",
+    "No claim is made that the submitted tree ever documented bit 5 as the finalization command; it names the field Reserved. The two witness statements are constructed so the finding holds under either reading.",
+    "No claim is made about multi-block chaining behaviour. The witness issues a single-block sequence, so it shows that finalization cannot be requested at all rather than that chaining across blocks is computed wrongly."
+  ],
+  "reproduction": {
+    "command": "final_bug_submissions/014/proof/scripts/run_bug_014_proof.sh && final_bug_submissions/014/proof/scripts/run_bug_014_negative_control.sh && final_bug_submissions/014/proof/scripts/run_bug_014_sim.sh",
+    "tools": "VCS W-2024.09-SP1 at /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/bin, bash, python3. CALIPTRA_ROOT, CALIPTRA_PRIM_ROOT and CALIPTRA_PRIM_MODULE_PREFIX are exported by the simulation script.",
+    "success_marker": "PROOF_RESULT: PASS from the simulation script, result=PASS with structural_gates_passed=26/26 from the audit, and NEGATIVE_CONTROL: PASS from the negative control.",
+    "determinism": "Fully deterministic. The stimulus is a fixed directed register sequence with no randomization, and each configuration runs from its own reset.",
+    "note_on_verdict_markers": "The testbench prints result=PASS only on success. Its failure branch prints PROOF_RESULT: FAIL with no result= line, because the negative control's simulation is supposed to fail and a result=FAIL line in any log would read as a genuine failure.",
+    "note_on_filelist": "The simulation script expands src/hmac/config/hmac_ctrl.vf with one adjustment that changes neither the file set nor the file contents: packages are emitted ahead of modules, because the shipped list places some modules before the packages they import.",
+    "note_on_log_order": "The negative control invokes the simulation script with a DUT override, so it overwrites run.log and witness.log. The unmodified-tree simulation was re-run last, and dut_selection.log records which source was elaborated for the logs as they stand.",
+    "note_on_negative_control_scope": "A complete remediation restores the finalization protocol across the register block, the wrapper, the core FSM and the DRBG call chain. The negative control applies only its reporting half, which is sufficient to discriminate: the structural audit shows both driven error paths conjoin the KeyVault sideload, so no register-programmed command can raise anything in the audited tree. The control is asserted to leave the ordinary INIT path intact and to leave the no-operation gap still reported.",
+    "note_on_ctrl_readback": "HMAC512_CTRL reads back as zero by construction. That is the register's designed behaviour, not a broken bus read, and the testbench records it as a passing bound rather than a failure so the zero in the log cannot be misread."
+  },
+  "conclusion": "The defect is confirmed and reproducible. The HMAC finalization command is absent from the RTL end to end, while HMAC512_CTRL bit 5 still accepts and retains a write that no consumer reads, and the one status bit provisioned to report an illegal command is tied to constant zero with a TODO marker. A finalization request is therefore neither honoured nor rejected, and because the two error paths that are driven both require a KeyVault sideload, no register-programmed command can raise any error at all. Reported as partial_proof: the protocol and reportability gap is fully demonstrated, but no downstream confidentiality or integrity consequence was driven."
+}

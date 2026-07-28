@@ -1,0 +1,67 @@
+{
+  "module": "pcrvault",
+  "bug_id": "905",
+  "bug_name": "pv_bug_905",
+  "team_name": null,
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "security_feature_bypassed": "PCR lock stickiness. src/pcrvault/config/pcrvault.md:6 states that the lock bit set by firmware to prevent a PCR entry from being cleared is sticky and only resets on a powergood cycle. The lock is implemented with the microcontroller-only reset as its reset signal, which firmware itself can assert, so every PCR lock clears on a firmware-update reset while the measurements it protects remain in place and become clearable.",
+  "finding": "The PCR lock bit and the measurement it protects sit in different reset domains, and the lock's domain is the weaker one. src/pcrvault/rtl/pv_reg.rdl:30 declares the lock field as sw=rw; swwel=true; hw=r with resetsignal = core_only_rst_b, while the PCR entry data at src/pcrvault/rtl/pv_reg.rdl:22 declares resetsignal = hard_reset_b. The generated register block implements the declaration: the lock storage element is clocked with negedge hwif_in.core_only_rst_b and resets to zero (src/pcrvault/rtl/pv_reg.sv:163-169), so this concerns real flops. Reading the declaration is not sufficient to call it a defect, because a reset domain only an external pin can enter is not an attacker capability, so the module input was traced rather than the port name read: src/integration/rtl/caliptra_top.sv:1226 connects .core_only_rst_b (cptra_uc_rst_b), and cptra_uc_rst_b is not a top-level input pin, whereas the module's cptra_pwrgood port -- the one condition the in-tree sentence does permit to clear the lock -- does resolve to one, which confirms the pin-versus-internal reading discriminates. cptra_uc_rst_b is asserted by the boot FSM arc arc_BOOT_DONE_BOOT_FWRST = (boot_fsm_ps == BOOT_DONE) & fw_update_rst (src/soc_ifc/rtl/soc_ifc_boot_fsm.sv:97), fw_update_rst comes from a register field (src/soc_ifc/rtl/soc_ifc_top.sv:334), and that field is declared hw = r; sw = rw; singlepulse=true; swwel = soc_req (src/soc_ifc/rtl/soc_ifc_internal_reg.rdl:45) -- firmware-writable, with the SoC excluded. The consequence is present because the lock is the only gate on the clear: src/pcrvault/rtl/pv.sv:110-111 feeds the lock's value into the swwel of both the lock and the clear field, and src/pcrvault/rtl/pv.sv:130 makes the clear drive the entry data's hwclr. Measured on one pv DUT over real AHB with entry 7 holding 0x5ec00007: the lock reads back set, a clear write is refused with the entry intact, and after a core_only_rst_b pulse taken with rst_b and cptra_pwrgood held asserted the control register reads 0x00000000 while the entry still reads 0x5ec00007; the same clear write then lands and the entry reads 0x00000000. checks_run=8 checks_failed=2 witness_hits=2, the two failures being exactly the expectations that encode the stickiness requirement. The ~fw_update_rst_window mask on the swwel terms was ruled out as an alternative explanation by measuring that window de-asserted at the moment the accepted clear was issued.",
+  "location_or_code_reference": {
+    "competition_file": "src/pcrvault/rtl/pv_reg.rdl:30",
+    "line_range": "29-30",
+    "supporting_references": [
+      "src/pcrvault/rtl/pv_reg.rdl:22",
+      "src/pcrvault/rtl/pv_reg.rdl:32",
+      "src/pcrvault/rtl/pv_reg.sv:163",
+      "src/pcrvault/rtl/pv.sv:110",
+      "src/pcrvault/rtl/pv.sv:111",
+      "src/pcrvault/rtl/pv.sv:130",
+      "src/pcrvault/rtl/pv.sv:176",
+      "src/pcrvault/config/pcrvault.md:6",
+      "src/integration/rtl/caliptra_top.sv:1226",
+      "src/integration/rtl/caliptra_top.sv:1227",
+      "src/soc_ifc/rtl/soc_ifc_boot_fsm.sv:37",
+      "src/soc_ifc/rtl/soc_ifc_boot_fsm.sv:90",
+      "src/soc_ifc/rtl/soc_ifc_boot_fsm.sv:97",
+      "src/soc_ifc/rtl/soc_ifc_top.sv:334",
+      "src/soc_ifc/rtl/soc_ifc_internal_reg.rdl:45",
+      "src/integration/config/integration.md:1125"
+    ],
+    "attachment_note": "The detection code and scripts are included in the attachment: the directed testbench that provisions a PCR entry through the vault write port (entries are sw=r, so software cannot write them), sets the lock with a real AHB write, confirms the clear is refused while locked, pulses the module's core_only_rst_b with rst_b and cptra_pwrgood held asserted, and re-reads both the lock and the entry over the same bus; plus the structural audit script that reads the declared reset signals of the lock and the entry data, traces the signal connected to the module's reset port and whether it is an internal signal or a top-level pin, follows that signal back through the boot FSM to the register field that drives it, and collects the in-tree statements on lock stickiness. The pin-versus-internal detector carries a contrast check against the module's powergood port, so a negative reading on the lock's reset is known to be discrimination rather than a detector that always reports zero. The audit also records the identically-declared KeyVault lock fields as an in-tree contrast that is deliberately excluded from the verdict."
+  },
+  "detection_method": "RTL review of the PCR vault register description, noticing that the lock field and the entry data it protects declare different reset signals, followed by a 5-gate structural audit of the submitted tree that traces the signal connected to the pv module's core_only_rst_b port to the boot FSM output and the firmware-writable register field behind it, and a directed single-DUT simulation of src/pcrvault/rtl/pv.sv measuring the lock and the entry across a microcontroller-only reset pulse and re-issuing the clear that the lock had refused.",
+  "security_impact": "Loss of PCR measurement integrity, reachable by firmware alone. A PCR entry holds a boot measurement that an attestation quote is computed over; the lock is the only mechanism standing between a stored measurement and a software clear. Firmware sets a lock, is refused a clear as designed, writes INTERNAL_FW_UPDATE_RESET.core_rst, and after the reset the same clear is accepted and zeroes the measurement. This needs no physical access, no debug authorization, no scan mode and no SoC cooperation, and it uses a supported firmware operation rather than a fault. The exposure is not transient: the lock flop stays cleared until firmware sets it again, and all 32 PCR control registers share the reset domain so every lock clears at once. The measurement surviving the same reset is what makes the loss exploitable rather than self-limiting, and it was measured rather than assumed -- had the entry cleared with its lock there would have been nothing left to protect and the claim was pre-committed to withdrawal. Re-extending a cleared entry with attacker-chosen values to forge a quote is stated as the consequence this measurement does not itself reach, since the vault's single hardware write client is the SHA-512 hash-extend path.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "Declare the PCR lock field with the same reset signal as the asset it protects. Changing resetsignal = core_only_rst_b to resetsignal = hard_reset_b at src/pcrvault/rtl/pv_reg.rdl:30 makes the lock survive everything short of a powergood cycle, which is what src/pcrvault/config/pcrvault.md:6 states, and matches the entry data's own declaration at src/pcrvault/rtl/pv_reg.rdl:22. A protection bit outliving its asset is safe; the reverse is not.",
+    "If the microcontroller-only reset domain is intended for this field for reset-domain-crossing reasons, then the in-tree statement at src/pcrvault/config/pcrvault.md:6 is the thing that is wrong and should be corrected to name the microcontroller reset explicitly, so that firmware authors do not rely on stickiness the hardware does not provide. Leaving the two as they are means the tree promises a property it does not implement, which is the situation this case reports.",
+    "Consider whether a firmware-update reset should preserve PCR locks as a matter of policy, independent of the wording. A firmware-update reset is triggered by the same software that the lock is meant to constrain, so a lock that clears on it cannot bind the entity it was written to bind.",
+    "Add a reset-column row for the PCR control register to the register documentation the way the KeyVault lock fields already have one. The absence of that row is why the point rests on a single prose sentence, and a future reader of src/pcrvault/rtl/pv_reg.rdl:30 alone has nothing local telling them which behaviour is intended.",
+    "Keep the regression shipped with this case, proof/tb/pv_lock_reset_domain_tb.sv, in the PCR vault regression set. Its CONTROL_C group asserts that a set lock actually refuses a clear and its WITNESS_D group asserts the lock survives a microcontroller-only reset, so both halves of the property are pinned and a future change to the reset domain or to the swwel feedback at src/pcrvault/rtl/pv.sv:110-111 is caught."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:H/UI:N/S:U/C:N/I:H/A:N",
+    "base_score": 4.4,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "proof_plan_v1.json",
+    "proof_result": "proof_result_v1.json",
+    "script": "proof/scripts/run_pv_bug_905_proof.sh",
+    "audit_script": "proof/scripts/audit_pv_lock_reset_domain.sh",
+    "tb": "proof/tb/pv_lock_reset_domain_tb.sv",
+    "run_log": "proof/logs/run.log",
+    "witness_log": "proof/logs/witness.log",
+    "sim_log": "proof/logs/sim.log",
+    "compile_log": "proof/logs/compile.log",
+    "c_validation_status": "c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Precondition: a PCR entry holds a boot measurement and firmware has set that entry's lock to protect it. Measured: entry 7 provisioned at 0x5ec00007 through the vault write port and readable over AHB, then PCR_CTRL[7] read back as 0x00000001 after an AHB write of the lock bit.",
+    "Firmware confirms the protection is live, so the later reading is a change rather than a pre-existing hole. Measured: with the lock set, an AHB write of the clear bit is refused (clear_bit reads 0) and the entry still reads 0x5ec00007, which is the swwel feedback at src/pcrvault/rtl/pv.sv:110-111 doing its job.",
+    "Firmware writes INTERNAL_FW_UPDATE_RESET.core_rst at src/soc_ifc/rtl/soc_ifc_internal_reg.rdl:45, a field declared sw = rw with the SoC excluded by swwel = soc_req. The boot FSM turns this into an assertion of cptra_uc_rst_b (src/soc_ifc/rtl/soc_ifc_boot_fsm.sv:97), which is the signal connected to the pv module's core_only_rst_b port at src/integration/rtl/caliptra_top.sv:1226. This is a supported firmware operation, not a fault injection, and the tree describes it as software-triggered at src/integration/config/integration.md:1125.",
+    "The reset de-asserts, leaving the entry protected by nothing. Measured with rst_b and cptra_pwrgood held asserted throughout, since a firmware-update reset resets the microcontroller only: PCR_CTRL[7] reads 0x00000000 with the lock gone, while the entry still reads 0x5ec00007 because it resets on hard_reset_b. src/pcrvault/config/pcrvault.md:6 requires the lock to still be set here.",
+    "Firmware re-issues the clear that was refused in step 2. Measured: one AHB write of the clear bit is accepted and the entry reads 0x00000000, with fw_update_rst_window measured de-asserted at that moment so the swwel mask does not account for it. The measurement an attestation quote would be computed over has been destroyed by software, and the entry is left available for re-extension."
+  ]
+}

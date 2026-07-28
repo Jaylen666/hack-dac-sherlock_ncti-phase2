@@ -1,0 +1,60 @@
+{
+  "module": "caliptra_top",
+  "bug_id": "020",
+  "bug_name": "boot_flow_bug_020",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Software running on the Caliptra core at any stage of the boot flow, including a compromised or simply buggy mutable firmware image that misreports which boot phase it is in.",
+    "precondition": "A released reset with the core fetching from ICCM. No special mode is needed; the condition is the ordinary boot sequence.",
+    "input": "Whatever the running firmware chooses to write to the phase-indicating register fields. There is no hardware observation of fetch behaviour to contradict it.",
+    "protected_asset": "The trustworthiness of the boot-phase signal that downstream policy depends on. Key vault access rules, OCP lock behaviour and the crypto blocks' phase-dependent policy are only as trustworthy as the event that tells them which phase the system is in.",
+    "security_property": "The boot phase must be derived by hardware from observable behaviour, such as instruction fetch entering a configured FMC or RT ICCM region, so that software cannot claim to be in a phase it has not reached.",
+    "implemented_logic": "No hardware-derived boot-phase event exists. The transition detector source file is absent from src/integration/rtl, and grep across the entire src tree returns zero references to boot_flow at any level, so no dangling instance or unconnected port survives. The only phase-adjacent signal reaching the crypto blocks is ss_ocp_lock_in_progress, assigned in src/soc_ifc/rtl/soc_ifc_top.sv directly from the SS_OCP_LOCK_CTRL.LOCK_IN_PROGRESS software register field, and the ICCM lock is likewise assigned from the internal_iccm_lock software field."
+  },
+  "security_feature_bypassed": "Hardware derivation of the boot phase. With no transition detector, every phase-dependent policy in the design rests on software self-reporting.",
+  "proof_goal": "Establish on one unmodified checkout that no hardware-derived boot-phase event exists, that the removal is complete rather than a half-disconnected remnant, and that every surviving phase-adjacent signal originates in a software-written register field.",
+  "proof_style": "Scripted structural census of one real checkout, paired with a negative control that reconstructs the shape of the missing detector on a scratch copy of the tree and requires the identical census to fail.",
+  "invariant": "A security decision that depends on the boot phase must not take the phase from the entity whose behaviour it is meant to constrain.",
+  "attacker_model": "Privileged software at supervisor mode",
+  "minimum_attack_sequence": [
+    "Firmware running before it has legitimately entered a later boot phase writes the phase-indicating register field to claim that phase.",
+    "No hardware observes instruction fetch to contradict the claim, because the detector that would have done so does not exist.",
+    "Every consumer of that signal, including the four crypto blocks that receive it, applies the policy for the claimed phase."
+  ],
+  "controls": [
+    "The integration top is present and contains live debug gating, so the census reads real code rather than a stale or empty tree.",
+    "The CPU wrapper is instantiated, so the fetch-side logic the detector would have observed does exist.",
+    "The key vault is instantiated in the integration top, so its port list is the live one.",
+    "The key vault does take a firmware-update reset window input and a debug-unlock or scan mode input, so it is capable of receiving control inputs; the boot-phase input specifically is missing.",
+    "The key vault description names the software bit as the phase indicator and states the obligation as a software requirement, which confirms the design intends a phase signal to exist."
+  ],
+  "witness_construction_note": "No dynamic witness is possible and none is claimed. Absence here is total: the module, its instance and every textual reference are gone, so the elaborated design contains nothing that can be driven to expose the omission. There is no tied-off output to observe stuck low and no dangling port to stimulate. Because a simulation cannot carry the claim, the negative control does the work a witness normally would: it reconstructs the shape of the missing logic on a scratch copy and shows the census detects its return, which is what makes the passing census on the submitted checkout non-vacuous.",
+  "expected_evidence": [
+    "The transition detector source file does not exist.",
+    "Zero files under src reference boot_flow, and none of the three phase outputs is referenced anywhere.",
+    "The integration top does not instantiate the detector and no dangling port declaration survives.",
+    "The key vault module references no boot-flow signal, while it does take other control inputs.",
+    "The OCP lock phase signal is assigned directly from a software register field and is not derived from any fetch or ICCM observation.",
+    "That software-written signal is distributed to at least five consumers in the integration top.",
+    "The ICCM lock is likewise assigned from a software register field.",
+    "With the detector reconstructed on a scratch tree, the census fails on the absence gates while the anchors and software-origin gates stay green."
+  ],
+  "success_criteria": [
+    "All structural gates pass on the unmodified checkout.",
+    "The negative control fails the census after reconstructing the detector.",
+    "The negative control's failures are confined to the census gates, leaving the anchors and the software-origin gates green.",
+    "The negative control verifies the submitted checkout is unmodified afterwards."
+  ],
+  "non_findings": [
+    "No claim that the OCP lock register is itself incorrectly implemented. Its sticky write-once behaviour is correct for a software-set field.",
+    "No claim about the downstream policy in the key vault or the crypto blocks. Those are separate cases; this one is about the absence of the event they would consume.",
+    "No claim that a specific exploit was executed. No simulation was run and none is possible for this omission.",
+    "No claim that the ICCM lock is defective; it is noted only as a second phase-adjacent control with the same software origin."
+  ],
+  "artifacts": {
+    "script": "final_bug_submissions/020/proof/scripts/run_bug_020_proof.sh",
+    "negative_control": "final_bug_submissions/020/proof/scripts/run_bug_020_negative_control.sh",
+    "logs": "final_bug_submissions/020/proof/logs/"
+  }
+}

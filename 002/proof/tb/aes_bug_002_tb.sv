@@ -122,6 +122,8 @@ module aes_bug_002_tb
   logic [31:0] pre_plain   [4];
   logic [31:0] pre_kv      [4];
   logic [31:0] pre_blocked [4];
+  // STATUS as sampled at the end of each operation.
+  logic [31:0] st_plain, st_kv, st_blocked;
   int unsigned idle_waits;
   logic        err_seen;
   bit          plain_nonzero, kvroute_is_fresh, blocked_is_zero;
@@ -386,7 +388,7 @@ module aes_bug_002_tb
     //   * DATA_OUT changed from its pre-operation content (the KV-routed case), or
     //   * STATUS.OUTPUT_LOST, bit 2 per src/aes/rtl/aes_reg_top.sv:1836, is set,
     //     meaning a result was produced and then dropped (the blocked case).
-    completed = ready_ok &&
+    completed = ctrl_ok && ready_ok &&
                 (valid_ok || !same(out, pre_out) || end_status[STATUS_OUTPUT_LOST_BIT]);
 
     // Return the routing inputs to rest. No soft clear is attempted here; the
@@ -450,14 +452,19 @@ module aes_bug_002_tb
     // operation and that DATA_OUT returns cipher material at all. Without this
     // a zero readback later could not be attributed to the mask.
     // -------------------------------------------------------------------
-    run_operation(1'b0, 1'b0, PTXT_BASE, plain_out, pre_plain, c_plain);
+    run_operation(1'b0, 1'b0, PTXT_BASE, plain_out, pre_plain, st_plain, c_plain);
     $display("COV plain out=[0x%08x 0x%08x 0x%08x 0x%08x] pre=[0x%08x 0x%08x 0x%08x 0x%08x] completed=%0d idle_polls=%0d",
              plain_out[0], plain_out[1], plain_out[2], plain_out[3],
              pre_plain[0], pre_plain[1], pre_plain[2], pre_plain[3], c_plain, idle_waits);
     plain_nonzero = any_nonzero(plain_out);
     record("control_plain_operation_completed", c_plain);
     record("control_plain_output_is_readable", plain_nonzero);
-    record("control_data_out_is_clear_before_plain_operation", all_zero(pre_plain));
+    // DATA_OUT after reset holds the clearing PRNG's output, not zero, so the
+    // baseline is "the readback differs from what was there beforehand" rather
+    // than "the register started empty". That is the property that makes the
+    // readback attributable to this operation.
+    record("control_plain_readback_differs_from_its_own_baseline",
+           !same(plain_out, pre_plain));
     if (c_plain) cov_op_completed = 1;
     if (plain_nonzero) cov_plain_visible = 1;
 
@@ -468,7 +475,7 @@ module aes_bug_002_tb
     // destined for the KeyVault must not also be readable through the plaintext
     // register API.
     // -------------------------------------------------------------------
-    run_operation(1'b1, 1'b0, PTXT_ALT, kvroute_out, pre_kv, c_kv);
+    run_operation(1'b1, 1'b0, PTXT_ALT, kvroute_out, pre_kv, st_kv, c_kv);
     $display("COV kv_route out=[0x%08x 0x%08x 0x%08x 0x%08x] pre=[0x%08x 0x%08x 0x%08x 0x%08x] completed=%0d",
              kvroute_out[0], kvroute_out[1], kvroute_out[2], kvroute_out[3],
              pre_kv[0], pre_kv[1], pre_kv[2], pre_kv[3], c_kv);
@@ -483,7 +490,8 @@ module aes_bug_002_tb
     // and it used a different plaintext from the control. So a readback that is
     // non-zero and unequal to the control ciphertext was produced by this
     // operation; it cannot be a residue of the previous one.
-    record("control_data_out_is_clear_before_kv_operation", all_zero(pre_kv));
+    record("control_kv_readback_differs_from_its_own_baseline",
+           !same(kvroute_out, pre_kv));
     kvroute_is_fresh = any_nonzero(kvroute_out) && !same(kvroute_out, plain_out);
     record("witness_kv_routed_readback_is_this_operations_own_result",
            kvroute_is_fresh);
@@ -498,12 +506,14 @@ module aes_bug_002_tb
     // -------------------------------------------------------------------
     // It uses the same plaintext as the witness run, so the only difference
     // between the two is the concealment input itself.
-    run_operation(1'b1, 1'b1, PTXT_ALT, blocked_out, pre_blocked, c_blocked);
+    run_operation(1'b1, 1'b1, PTXT_ALT, blocked_out, pre_blocked, st_blocked,
+                  c_blocked);
     $display("COV blocked out=[0x%08x 0x%08x 0x%08x 0x%08x] pre=[0x%08x 0x%08x 0x%08x 0x%08x] completed=%0d",
              blocked_out[0], blocked_out[1], blocked_out[2], blocked_out[3],
              pre_blocked[0], pre_blocked[1], pre_blocked[2], pre_blocked[3], c_blocked);
-    record("control_data_out_is_clear_before_blocked_operation",
-           all_zero(pre_blocked));
+    // This run's own evidence that it executed, given its readback is masked to
+    // zero and so cannot itself show movement.
+    record("control_blocked_operation_completed", c_blocked);
     blocked_is_zero = all_zero(blocked_out);
     record("discriminator_block_reg_output_does_conceal", blocked_is_zero);
     if (blocked_is_zero) begin
@@ -516,6 +526,8 @@ module aes_bug_002_tb
     $display("COV err_seen=%0d", err_seen);
     record("containment_no_bus_error", (err_seen === 1'b0));
 
+    $display("COV end_status plain=0x%08x kv=0x%08x blocked=0x%08x",
+             st_plain, st_kv, st_blocked);
     $display("SUMMARY checks=%0d fails=%0d witness_hits=%0d", checks, fails, witness_hits);
     $display("COV plain_visible=%0d kv_route_visible=%0d block_conceals=%0d op_completed=%0d",
              cov_plain_visible, cov_kv_route_visible, cov_block_conceals, cov_op_completed);
@@ -528,7 +540,7 @@ module aes_bug_002_tb
     // asserted, so the defect is the missing kv_en term rather than a mask that
     // never engages. The single expected failure is the invariant check on the
     // KeyVault-routed read.
-    if (checks == 9 && fails == 1 && witness_hits == 2 &&
+    if (checks == 10 && fails == 1 && witness_hits == 2 &&
         cov_op_completed     == 1 &&
         cov_plain_visible    == 1 &&
         cov_kv_route_visible == 1 &&

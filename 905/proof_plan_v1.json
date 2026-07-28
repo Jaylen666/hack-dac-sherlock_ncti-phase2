@@ -1,0 +1,62 @@
+{
+  "module": "pcrvault",
+  "bug_id": "pv_bug_905",
+  "bug_name": "pcr_lock_clears_on_firmware_update_reset_against_specified_powergood_stickiness",
+  "triage_id": "PV-TRIAGE-905",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Caliptra runtime firmware executing at supervisor mode on the Caliptra microcontroller, able to write the SoC interface register that triggers a firmware-update reset and able to write the PCR vault control and clear registers over AHB.",
+    "precondition": "A PCR entry holds a boot measurement, and firmware has set that entry's PCR_CTRL.lock bit to protect the measurement from being cleared. The lock is the only mechanism that stands between the stored measurement and a software clear.",
+    "input": "An AHB write of PCR_CTRL[n].lock to set the lock, then a write of INTERNAL_FW_UPDATE_RESET.core_rst to trigger a microcontroller-only reset, then an AHB write of PCR_CTRL[n].clear.",
+    "protected_asset": "PCR entry contents: boot measurements that an attestation quote is computed over. An attacker who can zero a PCR entry and re-extend it with values of their choosing controls what the platform attests to.",
+    "security_property": "PCR lock stickiness. src/pcrvault/config/pcrvault.md:6 states that the lock bit is sticky and only resets on a powergood cycle. A firmware-update reset is not a powergood cycle, so a set lock must survive it.",
+    "implemented_logic": "src/pcrvault/rtl/pv_reg.rdl:30 declares the lock field as sw=rw; swwel=true; hw=r with resetsignal = core_only_rst_b. src/pcrvault/rtl/pv.sv:176 connects that reset signal to the module's core_only_rst_b input, and src/integration/rtl/caliptra_top.sv:1226 connects that input to cptra_uc_rst_b, the microcontroller-only reset that a firmware-update reset asserts. src/pcrvault/rtl/pv.sv:110-111 feeds the lock value back as the swwel write-enable-low for both the lock field and the clear field, so while the lock is set neither can be written by software. src/pcrvault/rtl/pv.sv:130 makes PCR_CTRL[entry].clear.value drive the entry data hwclr, so a clear write zeroes the entry. The PCR entry data itself is declared at src/pcrvault/rtl/pv_reg.rdl:22 with resetsignal = hard_reset_b, so the data survives the same reset that clears the lock protecting it."
+  },
+  "security_feature_bypassed": "PCR lock stickiness across a firmware-update reset. The lock is specified to survive everything short of a powergood cycle, but is implemented with the microcontroller-only reset as its reset signal, so a firmware-update reset that firmware itself can trigger clears every PCR lock while leaving the measurements in place and then clearable.",
+  "proof_goal": "Determine whether a set PCR_CTRL.lock bit survives a core_only_rst_b assertion as src/pcrvault/config/pcrvault.md:6 requires, and if it does not, whether the resulting unlocked state lets software clear a PCR entry whose data survived the same reset.",
+  "proof_style": {
+    "primary": "directed_sim",
+    "secondary": [
+      "structural_audit"
+    ]
+  },
+  "minimum_attack_sequence": [
+    "Runtime firmware, or an earlier stage, provisions a PCR entry with a measurement and sets that entry's PCR_CTRL.lock bit. From this point the specification says the measurement cannot be cleared until a powergood cycle.",
+    "Firmware confirms the protection is live: a write of PCR_CTRL.clear is rejected because the lock feeds swwel for the clear field.",
+    "Firmware writes INTERNAL_FW_UPDATE_RESET.core_rst, which the boot FSM turns into an assertion of cptra_uc_rst_b. This is a supported firmware operation, not a fault injection.",
+    "The reset de-asserts. The PCR entry data survived because it resets on hard_reset_b, but the lock bit did not because it resets on core_only_rst_b.",
+    "Firmware writes PCR_CTRL.clear, which is now accepted because swwel is no longer held, and the measurement is zeroed. Firmware may then extend the entry with values of its choosing."
+  ],
+  "expected_evidence": [
+    "A single-DUT simulation of the pv module driving real AHB writes and reads, measuring: that a provisioned entry reads back its data; that setting PCR_CTRL.lock reads back as set; that with the lock set a write of PCR_CTRL.clear is suppressed and the entry data survives; the state of the lock bit and of the entry data after a core_only_rst_b pulse; and whether a clear write accepted after that pulse zeroes the entry.",
+    "A structural audit that reads the declared resetsignal of the lock field and of the entry data field, traces the module's core_only_rst_b input to the signal connected at the pv instantiation and that signal's driver, confirms that signal is asserted by a firmware-writable register rather than only by an external reset pin, and collects the in-tree statements on PCR lock stickiness. The audit must also record the equivalent KeyVault declaration as an in-tree contrast, because the KeyVault lock fields carry the same resetsignal and their in-tree table states a different stickiness requirement."
+  ],
+  "success_criteria": [
+    "The claim is upheld only if BOTH the simulation shows a set lock cleared by a core_only_rst_b pulse while the entry data survives the same pulse AND a clear write that was suppressed before the pulse is accepted after it and zeroes the entry, AND the audit shows core_only_rst_b at this instantiation is reachable from a firmware-writable register rather than only from an external pin.",
+    "If the lock survives the core_only_rst_b pulse, the claim is withdrawn: the declared resetsignal would then not have the effect the reading of the register description suggests.",
+    "If the lock clears but the entry data clears with it, the claim is withdrawn as a security finding and recorded as a reset-domain observation only, because a cleared entry holds no measurement to protect.",
+    "If the lock clears and the data survives, but the post-reset clear write is still suppressed by some other mechanism, the claim is downgraded to an integrity-of-lock-state finding and the absence of a data-clearing path is recorded explicitly rather than glossed.",
+    "Pre-committed scope limit: this case does not claim that core_only_rst_b is the wrong reset signal for the KeyVault lock fields. The KeyVault in-tree table at docs/CaliptraHardwareSpecification.md:2459-2460 names core_only_rst_b in its reset column, so the KeyVault declaration matches at least one of its own in-tree statements. The PCR vault has no such table column, only the prose stickiness sentence, and it is that sentence this case tests."
+  ],
+  "non_findings_intent": [
+    "Suspected but unproven at plan time: that the same reset-domain mismatch is exploitable on the KeyVault lock fields. To be excluded from the verdict, because the KeyVault carries its own in-tree reset column naming core_only_rst_b and the resulting ambiguity is a specification question already recorded separately, not a defect this case can decide.",
+    "Suspected but unproven at plan time: that a PCR entry can be usefully re-extended with attacker-chosen values after being cleared. The single hardware write client for the PCR vault is the SHA-512 hash-extend path, which the module-boundary testbench can drive, but whether a complete quote-forging flow is reachable depends on the SHA-512 control sequence and is outside a pv module-boundary measurement. The case will claim the clear, and record re-extension as the consequence it does not itself measure.",
+    "To be measured without a pre-assigned verdict: whether PCR_CTRL.clear is a singlepulse field, and therefore whether the post-reset clear needs one write or a held value. This affects how the attack sequence is written but not whether it succeeds."
+  ],
+  "artifacts": {
+    "scripts": [
+      "proof/scripts/run_pv_bug_905_proof.sh",
+      "proof/scripts/audit_pv_lock_reset_domain.sh"
+    ],
+    "tb": [
+      "proof/tb/pv_lock_reset_domain_tb.sv"
+    ],
+    "logs": [
+      "proof/logs/compile.log",
+      "proof/logs/sim.log",
+      "proof/logs/witness.log",
+      "proof/logs/run.log"
+    ]
+  }
+}

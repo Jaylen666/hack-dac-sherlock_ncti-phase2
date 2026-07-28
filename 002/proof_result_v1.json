@@ -1,0 +1,54 @@
+{
+  "module": "aes",
+  "bug_id": "002",
+  "bug_name": "aes_bug_002",
+  "version": 1,
+  "status": "partial_proof",
+  "blocker": "The concealment gap is proven end to end: a KeyVault-routed result is returned in full by a DATA_OUT read, and the same mask demonstrably works when block_reg_output is asserted. What is not proven is disclosure of a secret the attacker did not already hold. The witness programs its own key and plaintext, so the recovered ciphertext was already known to the software that produced it. Demonstrating recovery of vault-resident material would require driving a KeyVault-sourced key into the block, which this port-boundary witness does not do. The finding is therefore reported as a concealment mechanism that does not cover its stated case, scored on what was measured.",
+  "proof_method_executed": "Twenty-two scripted structural gates over the submitted checkout, a directed VCS W-2024.09-SP1 simulation of one unmodified aes block driven only over TileLink, and a negative control that adds the missing kv_en term to a scratch copy and re-runs the identical testbench.",
+  "result_summary": "One whole aes block was driven over TileLink only, with three configurations each run from its own reset. The plain control (kv_en=0) encrypted plaintext base 0xC0DE0000 and returned 0x4f00e9f0 0xdb431211 0xfcb5c347 0x50bd1e9b with end STATUS 0x00000019, OUTPUT_VALID set. The KeyVault-routed configuration (kv_en=1, block_reg_output=0) encrypted a different plaintext, base 0x5EED0000, and returned 0x19252296 0x0a099156 0x097e61af 0xaee6658f with end STATUS 0x00000011: a complete result, readable through the register API, distinct from both its own pre-operation sample and the control ciphertext, so it is that run's own output rather than a residue. The discriminator (kv_en=1, block_reg_output=1) on the same plaintext returned all zeros with end STATUS 0x00000015, OUTPUT_LOST set, so the mask does engage when armed. Ten checks, one failure, being the invariant on the KeyVault-routed read.",
+  "security_impact_assessment": "A concealment mechanism that does not cover the case its own comment describes. Software that routes an AES result to the KeyVault can also read that result back through DATA_OUT. In an OCP LOCK flow the block_reg_output conjunction covers the ECB-decrypt case, but any other KeyVault-destined result is presented to software in full. Measured impact is a confidentiality gap in the presentation path; no disclosure of previously unknown vault material was demonstrated.",
+  "evidence": {
+    "competition_file": "src/aes/rtl/aes.sv:197",
+    "line_range": "189-204",
+    "run_log": "final_bug_submissions/002/proof/logs/run.log",
+    "compile_log": "final_bug_submissions/002/proof/logs/compile.log",
+    "witness_log": "final_bug_submissions/002/proof/logs/witness.log",
+    "structural_audit_log": "final_bug_submissions/002/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/002/proof/logs/negative_control.log",
+    "dut_selection_log": "final_bug_submissions/002/proof/logs/dut_selection.log",
+    "key_observation": "With kv_en=1 and block_reg_output=0, a DATA_OUT read returned 0x19252296 0x0a099156 0x097e61af 0xaee6658f, the complete result of an operation whose destination was the KeyVault. The same testbench, with block_reg_output=1 on the same plaintext, read all zeros and set STATUS.OUTPUT_LOST, so the mask is functional and the defect is that KeyVault routing does not arm it. Both KeyVault runs completed from their own reset, and the routed readback differs from the plain control's ciphertext, so it is a fresh result rather than a residue.",
+    "negative_evidence": "With the mitigation applied to a scratch copy, rewriting src/aes/rtl/aes.sv:197 to hw2reg_data_out_mask_en <= ~(caliptra2aes.block_reg_output | caliptra2aes.kv_en), the KeyVault-routed readback became all zeros, the invariant check witness_kv_routed_output_is_concealed passed on its own name, the exposure was no longer reported, and the plain control still returned its full ciphertext 0x4f00e9f0 0xdb431211 0xfcb5c347 0x50bd1e9b. The fix is targeted rather than a blanket concealment."
+  },
+  "evidence_items": [
+    "aes.sv:153 states the intent in the tree's own words: a mask to conceal data_out from the reg API when dest is KV.",
+    "aes.sv:154 replicates mask_en across the mask word; aes.sv:174 applies it as a bitwise AND. mask_en=1 is therefore an all-ones mask, meaning visible, which is the opposite of what the name suggests.",
+    "aes.sv:192 resets mask_en to 1, so the default presentation is transparent.",
+    "aes.sv:197 arms the mask from block_reg_output alone, with no kv_en term.",
+    "aes.sv:196 consumes kv_en on the immediately preceding line of the same clocked block, so the signal is in scope at the defect site.",
+    "mask_en has exactly three assignments in the file (reset, arm, release), so no other site supplies the missing term.",
+    "aes_clp_wrapper.sv:473-475 makes block_reg_output a conjunction of ocp_lock_in_progress, a specific KeyVault slot being in use, and an ECB decrypt operation, and it does not depend on kv_en. The state kv_en=1 with block_reg_output=0 is therefore reachable.",
+    "aes_clp_wrapper.sv:500 wires kv_en to the write client's dest_keyvault port, and kv_write_client.sv:98 drives dest_keyvault from a control register's write_en field, so kv_en follows software state.",
+    "aes_reg_top.sv:1793 onward returns data_out_0_qs through data_out_3_qs on DATA_OUT reads, the masked hardware path, so the mask's state is what software observes on all four words.",
+    "No privilege, lifecycle, or debug qualifier guards the DATA_OUT read arms.",
+    "The three simulated configurations completed from independent resets, with end STATUS 0x00000019, 0x00000011 and 0x00000015 respectively."
+  ],
+  "non_findings": [
+    "No secret unknown to the attacker was recovered. The witness supplies its own key and plaintext.",
+    "The OCP LOCK ECB-decrypt flow is not shown to be broken; the discriminator shows concealment works there.",
+    "No claim is made about KeyVault contents, which this witness does not read.",
+    "No claim is made about the value DATA_OUT holds before an operation; it tracks the clearing PRNG and the mask state, and no check depends on it.",
+    "No claim is made that the operation is functionally incorrect. The engine computes correctly; only the presentation of the result to software is at issue."
+  ],
+  "reproduction": {
+    "command": "final_bug_submissions/002/proof/scripts/run_bug_002_proof.sh && final_bug_submissions/002/proof/scripts/run_bug_002_negative_control.sh && final_bug_submissions/002/proof/scripts/run_bug_002_sim.sh",
+    "tools": "VCS W-2024.09-SP1 at /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/bin, bash, python3. CALIPTRA_ROOT, CALIPTRA_PRIM_ROOT and CALIPTRA_PRIM_MODULE_PREFIX are set by the simulation script, which also passes +define+CALIPTRA_MODE_SUBSYSTEM.",
+    "success_marker": "PROOF_RESULT: PASS from the simulation script, result=PASS with structural_gates_passed=22/22 from the audit, and NEGATIVE_CONTROL: PASS from the negative control.",
+    "determinism": "Fully deterministic. The stimulus is a fixed directed TileLink sequence with no randomization, and each configuration is run from its own reset.",
+    "note_on_verdict_markers": "The testbench prints result=PASS only on success. Its failure branch prints PROOF_RESULT: FAIL with no result= line, because the negative control's simulation is supposed to reach that branch and a bare result=FAIL would be read as a real failure by log scanners.",
+    "note_on_filelist": "The simulation script expands src/aes/config/aes.vf with two adjustments that change neither the file set nor the file contents: it appends an include directory for the generated register package, and it buckets entries so packages are compiled before modules.",
+    "note_on_log_order": "The negative control invokes the simulation script with a DUT override, so it overwrites run.log and witness.log. The unmodified-tree simulation must be re-run last for the committed logs to reflect the audited tree.",
+    "note_on_completion_criterion": "Completion is not judged on STATUS.OUTPUT_VALID alone. When kv_data_intercept is set, aes.sv:183 drives data_out[idx].re from output_valid_r, so hardware retires the flag before software can poll it. The testbench accepts OUTPUT_VALID, or a change in DATA_OUT against its pre-operation sample, or STATUS.OUTPUT_LOST, each of which requires the datapath to have produced a block."
+  },
+  "conclusion": "The defect is confirmed and reproducible. The concealment mask in src/aes/rtl/aes.sv is armed from block_reg_output alone, so an AES result routed to the KeyVault is returned in full by a DATA_OUT register read, contrary to the intent stated at aes.sv:153. The mask itself works, as the block_reg_output discriminator shows, and adding the missing kv_en term removes the exposure without affecting non-routed operations. The claim is bounded to the concealment gap: no recovery of previously unknown vault material was demonstrated."
+}

@@ -1,0 +1,41 @@
+== BUG-002 structural audit ==
+tree: /home/smy/hackatdac26-phase-2-caliptra
+
+-- group 1: the concealment mask, and its real polarity --
+gate_ok   aes.sv:153 states the intent: conceal data_out from the reg API when dest is KV
+gate_ok   aes.sv:154 replicates mask_en across the whole mask word
+gate_ok   aes.sv:174 applies the mask as a bitwise AND onto data_out
+gate_ok   aes.sv:192 resets mask_en to 1, i.e. an all-ones AND mask: the default is visible, not concealed
+
+-- group 2: what arms the mask, and what does not --
+gate_ok   aes.sv:197 derives mask_en from block_reg_output alone
+gate_ok   aes.sv:197 contains no kv_en term: KeyVault routing does not arm concealment
+gate_ok   aes.sv:196 uses kv_en on the adjacent line, so the signal is in scope and was not merely forgotten as unavailable
+gate_ok   mask_en has exactly three assignments (reset, arm, release): no other site adds a kv_en term
+
+-- group 3: kv_en and block_reg_output are independent inputs --
+gate_ok   block_reg_output is driven in aes_clp_wrapper.sv, outside the aes block
+gate_ok   aes_clp_wrapper.sv:473 conjoins block_reg_output with ocp_lock_in_progress
+gate_ok   aes_clp_wrapper.sv:475 also requires an ECB decrypt operation
+gate_ok   block_reg_output does not depend on kv_en, so kv_en=1 with block_reg_output=0 is not excluded
+
+-- group 4: kv_en is reachable from a software register write --
+gate_ok   aes_clp_wrapper.sv:500 wires kv_en to the write client's dest_keyvault port
+gate_ok   kv_write_client.sv:98 drives dest_keyvault from a control register's write_en field
+gate_ok   the write_en field is a register input, so kv_en follows software state rather than hardware state alone
+
+-- group 5: block_reg_output is not reachable from software alone --
+gate_ok   ocp_lock_in_progress is not a plain register field assignment in this file
+gate_ok   block_reg_output is a conjunction of at least three terms, so no single software write asserts it
+
+-- group 6: software observes the masked hardware path --
+gate_ok   aes_reg_top.sv:1793 returns data_out_0_qs, the hardware-side value, on a DATA_OUT read
+gate_ok   all four DATA_OUT words read the _qs hardware path, so the mask governs every readable word
+gate_ok   aes.sv augments STATUS.output_lost when output is blocked, the distinct behaviour of the armed case
+
+-- group 7: the exposed read is an ordinary unprivileged access --
+gate_ok   no privilege, lifecycle, or debug qualifier guards the DATA_OUT read arms
+gate_ok   aes_control_fsm.sv gates operations only on mode validity, the precondition the witness satisfies
+
+structural_gates_passed=22/22
+result=PASS

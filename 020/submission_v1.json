@@ -1,0 +1,68 @@
+{
+  "module": "caliptra_top",
+  "bug_id": "020",
+  "bug_name": "boot_flow_bug_020",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_functional_defect",
+  "security_feature_bypassed": "Hardware derivation of the boot phase. No transition detector exists that would observe instruction fetch entering the FMC or RT ICCM region, so every phase-dependent policy in the design takes the boot phase from a software-written register field instead of from observed behaviour.",
+  "finding": "The design contains no hardware-derived boot-phase event. The transition detector that would produce FMC, RT and error phase signals from ICCM access observation is absent from src/integration/rtl, and grep across the entire src tree returns zero references to boot_flow at any level: no instance in the integration top, no reference to any of the three phase outputs, and no dangling port declaration, so the absence is complete rather than a half-disconnected remnant. The surrounding logic is live: src/integration/rtl/caliptra_top.sv:523 instantiates the CPU wrapper whose fetch behaviour the detector would have observed, and :1185 instantiates the key vault, which takes a firmware-update reset window input at src/keyvault/rtl/kv.sv:32 and a debug-unlock or scan mode input at :34 but no boot-phase input. The only phase-adjacent signal reaching the crypto blocks is ss_ocp_lock_in_progress, which src/soc_ifc/rtl/soc_ifc_top.sv:769 assigns directly from the SS_OCP_LOCK_CTRL.LOCK_IN_PROGRESS software register field, exports at :163, and which caliptra_top.sv distributes to six consumers. The ICCM lock at soc_ifc_top.sv:1077 has the same software origin. src/keyvault/config/keyvault.md:253 states the obligation as a software requirement, that ROM MUST set OCP_LOCK_IN_PROGRESS before transitioning to the FMC image, and with no detector present nothing in hardware can check whether it did.",
+  "location_or_code_reference": {
+    "competition_file": "src/soc_ifc/rtl/soc_ifc_top.sv",
+    "line_range": "769",
+    "supporting_references": [
+      "src/soc_ifc/rtl/soc_ifc_top.sv:163",
+      "src/soc_ifc/rtl/soc_ifc_top.sv:769",
+      "src/soc_ifc/rtl/soc_ifc_top.sv:1077",
+      "src/soc_ifc/rtl/soc_ifc_top.sv:1255",
+      "src/integration/rtl/caliptra_top.sv:302",
+      "src/integration/rtl/caliptra_top.sv:523",
+      "src/integration/rtl/caliptra_top.sv:1062",
+      "src/integration/rtl/caliptra_top.sv:1094",
+      "src/integration/rtl/caliptra_top.sv:1124",
+      "src/integration/rtl/caliptra_top.sv:1154",
+      "src/integration/rtl/caliptra_top.sv:1185",
+      "src/integration/rtl/caliptra_top.sv:1189",
+      "src/integration/rtl/caliptra_top.sv:1509",
+      "src/keyvault/rtl/kv.sv:32",
+      "src/keyvault/rtl/kv.sv:34",
+      "src/keyvault/config/keyvault.md:251",
+      "src/keyvault/config/keyvault.md:253"
+    ],
+    "attachment_note": "A structural audit and a negative control accompany this submission under final_bug_submissions/020/proof/. No simulation is included: the module, its instance and every textual reference are gone, so the elaborated design holds nothing that can be driven to expose the omission. The plan's witness construction note records this, and the negative control supplies the non-vacuity evidence a simulation would normally carry."
+  },
+  "detection_method": "The phase signals reaching the crypto blocks were traced back to their drivers. Each resolved to a software register field rather than to observed fetch behaviour, which raised the question of whether any hardware phase derivation existed at all. A census over the whole src tree then established that it does not, and that the removal left no remnant. Anchor gates confirm the census reads live code, and contrast gates enumerate the control inputs the key vault does have, so the missing one is scoped rather than asserted. A negative control reconstructs the shape of the detector on a scratch copy of the tree and requires the census to detect its return.",
+  "security_impact": "The boot phase is taken from the entity it is meant to constrain. Nothing in hardware observes instruction fetch, so a firmware image that sets the phase-indicating bit late, early, or not at all cannot be contradicted, and the four crypto blocks and the key vault apply the policy for the claimed phase rather than the actual one. The documented requirement that ROM must announce the FMC transition has no hardware backstop. This is an absent integrity check on a security-relevant control input; what a misreported phase then yields depends on the downstream policy, which this case does not drive.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "Add a boot-flow transition detector under src/integration/rtl that derives the FMC, RT and error phase signals from ICCM fetch observation, comparing the fetch address against configured FMC and RT region bounds so the phase follows behaviour rather than declaration.",
+    "Instantiate it in src/integration/rtl/caliptra_top.sv and connect it to the CPU wrapper's fetch address and valid, which are already present in the top.",
+    "Make the phase output sticky and clearable only by reset, and raise the error output when the RT region is entered without the FMC phase having been reached, so out-of-order transitions are reported rather than silently accepted.",
+    "Take the hardware phase into the key vault and the crypto blocks alongside the existing software bit, and require both before granting the later phase's policy, so a software claim alone is not sufficient.",
+    "Add a directed test that fetches into the RT region without first entering FMC and confirms the error output asserts, so a future regression that drops the detector again is caught."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:H/UI:N/S:U/C:N/I:L/A:N",
+    "base_score": 2.3,
+    "severity": "Low",
+    "scoring_note": "Scored with the CVSS v3.1 calculator from what the audit establishes and no further. Local vector and high privilege because the actor is firmware running on the Caliptra core, which is the only entity able to write the phase field. Integrity low because the measured consequence is that a security-relevant control input carries no hardware check, so its value can be inaccurate. Confidentiality and availability are none: no key or data disclosure was driven and no denial was driven. The score deliberately does not anticipate the downstream policy consequence that a full boot-sequence test would show, which is the case's stated blocker."
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/020/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/020/proof_result_v1.json",
+    "script": "final_bug_submissions/020/proof/scripts/run_bug_020_proof.sh",
+    "negative_control_script": "final_bug_submissions/020/proof/scripts/run_bug_020_negative_control.sh",
+    "run_log": "final_bug_submissions/020/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/020/proof/logs/witness.log",
+    "structural_audit_log": "final_bug_submissions/020/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/020/proof/logs/negative_control.log",
+    "c_validation_status": "final_bug_submissions/020/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Firmware running on the Caliptra core reaches a point before it has legitimately entered a later boot phase.",
+    "It writes the phase-indicating register field to claim that phase, or omits the write it was required to make.",
+    "No hardware observes ICCM fetch to contradict the claim, because the transition detector that would have done so does not exist anywhere in the design.",
+    "soc_ifc_top drives the claimed value out to the integration top unchanged, where it reaches six consumers including the four crypto blocks.",
+    "Each consumer applies the policy for the claimed phase rather than for the phase the system is actually in."
+  ]
+}

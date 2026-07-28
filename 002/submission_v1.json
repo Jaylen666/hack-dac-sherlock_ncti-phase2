@@ -1,0 +1,75 @@
+{
+  "module": "aes",
+  "bug_id": "002",
+  "bug_name": "aes_bug_002",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_functional_defect",
+  "security_feature_bypassed": "The concealment of KeyVault-destined AES output from the register API. src/aes/rtl/aes.sv:153 describes a mask whose purpose is to conceal data_out from the reg API when the destination is the KeyVault, but the mask is never armed by that condition.",
+  "finding": "src/aes/rtl/aes.sv:197 arms the DATA_OUT concealment mask as hw2reg_data_out_mask_en <= ~caliptra2aes.block_reg_output, with no term for caliptra2aes.kv_en, even though kv_en is consumed on the immediately preceding line of the same clocked block. Because src/aes/rtl/aes.sv:154 replicates mask_en across the mask word and src/aes/rtl/aes.sv:174 applies it as a bitwise AND, mask_en=1 is an all-ones mask meaning visible, and the reset value at src/aes/rtl/aes.sv:192 is 1, so the default presentation is transparent. Concealment therefore engages only for the OCP LOCK ECB-decrypt case that block_reg_output describes, and never for KeyVault routing on its own. Software that routes an AES result to the KeyVault can read that same result back in full through DATA_OUT.",
+  "location_or_code_reference": {
+    "competition_file": "src/aes/rtl/aes.sv",
+    "line_range": "189-204",
+    "supporting_references": [
+      "src/aes/rtl/aes.sv:153",
+      "src/aes/rtl/aes.sv:154",
+      "src/aes/rtl/aes.sv:157",
+      "src/aes/rtl/aes.sv:159",
+      "src/aes/rtl/aes.sv:174",
+      "src/aes/rtl/aes.sv:183",
+      "src/aes/rtl/aes.sv:192",
+      "src/aes/rtl/aes.sv:196",
+      "src/aes/rtl/aes.sv:197",
+      "src/aes/rtl/aes.sv:200",
+      "src/aes/rtl/aes.sv:202",
+      "src/aes/rtl/aes.sv:211",
+      "src/aes/rtl/aes_clp_wrapper.sv:473",
+      "src/aes/rtl/aes_clp_wrapper.sv:474",
+      "src/aes/rtl/aes_clp_wrapper.sv:475",
+      "src/aes/rtl/aes_clp_wrapper.sv:500",
+      "src/keyvault/rtl/kv_write_client.sv:98",
+      "src/aes/rtl/aes_reg_top.sv:1793",
+      "src/aes/rtl/aes_reg_top.sv:1836",
+      "src/aes/rtl/aes_control_fsm.sv:217",
+      "src/aes/rtl/aes_control_fsm.sv:260",
+      "src/aes/rtl/aes_reg_pkg.sv:292"
+    ],
+    "attachment_note": "A witness testbench, simulation script, structural audit and negative control are attached. The testbench drives one unmodified aes block over TileLink only, with the KeyVault routing inputs applied at the block's own port boundary."
+  },
+  "detection_method": "The arming expression was read against the design intent stated in the adjacent comment, and the mask's polarity was computed from the replication and AND operations rather than inferred from the signal name. kv_en was then traced back to a software-writable control register field, and block_reg_output forward to its three-term conjunction, establishing that kv_en=1 with block_reg_output=0 is reachable. The behaviour was confirmed by directed simulation of the whole aes block over its register interface, with a discriminator configuration proving the mask is otherwise functional.",
+  "security_impact": "Software that routes an AES result to the KeyVault can also read that result back through the DATA_OUT registers, so the concealment described at src/aes/rtl/aes.sv:153 does not cover the case it names. The OCP LOCK ECB-decrypt path remains covered by block_reg_output. Measured impact is a confidentiality gap in the result presentation path; recovery of previously unknown vault-resident material was not demonstrated, because the witness supplies its own key and plaintext.",
+  "adversary_profile": "Unprivileged software at user-level mode",
+  "proposed_mitigation": [
+    "Add the missing routing term to the arming expression at src/aes/rtl/aes.sv:197, so concealment follows the KeyVault destination as well as the OCP LOCK condition: hw2reg_data_out_mask_en <= ~(caliptra2aes.block_reg_output | caliptra2aes.kv_en).",
+    "Consider renaming hw2reg_data_out_mask_en or inverting its sense, since a name ending in mask_en that means visible when set invites exactly this class of error.",
+    "Extend the STATUS.output_lost augmentation at src/aes/rtl/aes.sv:157-159 to the KeyVault routing case as well, so software is told its result was withheld rather than silently reading zeros.",
+    "Add a directed test that reads DATA_OUT after a KeyVault-routed operation and requires zero, so the concealment condition is covered by regression rather than by inspection."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
+    "base_score": 3.3,
+    "severity": "Low",
+    "scoring_note": "Scored with the CVSS v3.1 calculator from the impact that was measured, not the impact the mechanism was intended to prevent. Confidentiality is Low rather than High because the demonstrated exposure is of a result the witness itself programmed; the concealment gap is proven, but disclosure of previously unknown vault material is not. Integrity and availability are None: the engine computes correctly and only the presentation of the result is affected."
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/002/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/002/proof_result_v1.json",
+    "script": "final_bug_submissions/002/proof/scripts/run_bug_002_proof.sh",
+    "sim_script": "final_bug_submissions/002/proof/scripts/run_bug_002_sim.sh",
+    "negative_control_script": "final_bug_submissions/002/proof/scripts/run_bug_002_negative_control.sh",
+    "testbench": "final_bug_submissions/002/proof/tb/aes_bug_002_tb.sv",
+    "run_log": "final_bug_submissions/002/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/002/proof/logs/witness.log",
+    "compile_log": "final_bug_submissions/002/proof/logs/compile.log",
+    "structural_audit_log": "final_bug_submissions/002/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/002/proof/logs/negative_control.log",
+    "c_validation_status": "final_bug_submissions/002/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Software enables the KeyVault write path for the AES block, asserting kv_en through the write-control register's write_en field, without satisfying the OCP LOCK conjunction that block_reg_output requires.",
+    "Software programs CTRL_SHADOWED twice for an AES operation and loads both key shares.",
+    "Software writes the four DATA_IN words, which launches the operation with the KeyVault as the declared destination.",
+    "The concealment mask is not armed, because its arming expression ignores kv_en, so hw2reg.data_out retains the full result.",
+    "Software reads the four DATA_OUT words and obtains the complete result that was routed into the KeyVault."
+  ]
+}

@@ -1,0 +1,28 @@
+BUG-035 structural audit
+csr=/tmp/tmp.dtNU5paGdg/sha512_acc_csr.sv
+pkg=/tmp/tmp.dtNU5paGdg/sha512_acc_csr_pkg.sv
+
+gate_ok   [01] csr implementation file is present
+gate_ok   [02] csr package file is present
+gate_ok   [03] LOCK is a flop whose reset value is 1 (lock held out of reset)
+gate_ok   [04] LOCK value is exported to the wrapper as hwif_out
+gate_ok   [05] LOCK update arm 1 of 2 is software set-on-read
+gate_ok   [06] LOCK update arm 2 of 2 is software write-1-clear
+gate_fail [07] LOCK combinational block contains exactly 2 update arms, no more
+gate_fail [08] LOCK combinational block references no hardware set/clear source
+gate_fail [09] the csr consumes nothing from the hwif_in.LOCK namespace
+gate_fail [10] no hardware set or clear input for LOCK is consumed anywhere in the csr
+gate_fail [11] package declares no LOCK input struct type
+gate_fail [12] top-level csr input struct has no LOCK member a hardware agent could drive
+gate_ok   [13] contrast: EXECUTE has an input struct type in the same package
+gate_ok   [14] contrast: at least 7 hwset/hwclr members exist in the package for other fields
+gate_ok   [15] contrast: EXECUTE consumes a hardware clear arm in the same csr
+gate_ok   [16] an input named lock_set does exist in the csr input struct
+gate_ok   [17] lock_set is a hardware write-enable, not a LOCK update source
+gate_ok   [18] lock_set is consumed at exactly one site
+gate_ok   [19] the single lock_set consumer is the USER field, not LOCK
+gate_ok   [20] LOCK arms carry no privilege or debug qualifier beyond valid_user
+gate_ok   [21] reading LOCK returns the stored value, so set-on-read is observable to software
+
+structural_gates_passed=15/21
+STRUCTURAL_AUDIT: FAIL

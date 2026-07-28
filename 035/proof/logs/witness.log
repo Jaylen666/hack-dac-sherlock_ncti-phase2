@@ -1,0 +1,22 @@
+BUG-035 witness extract: the gates that assert the absence of a
+hardware set/clear path for the SHA accelerator LOCK field.
+
+gate_ok   [07] LOCK combinational block contains exactly 2 update arms, no more
+gate_ok   [08] LOCK combinational block references no hardware set/clear source
+gate_ok   [09] the csr consumes nothing from the hwif_in.LOCK namespace
+gate_ok   [10] no hardware set or clear input for LOCK is consumed anywhere in the csr
+gate_ok   [11] package declares no LOCK input struct type
+gate_ok   [12] top-level csr input struct has no LOCK member a hardware agent could drive
+
+supporting contrast gates (a hardware path is expressible here):
+gate_ok   [13] contrast: EXECUTE has an input struct type in the same package
+gate_ok   [14] contrast: at least 7 hwset/hwclr members exist in the package for other fields
+gate_ok   [15] contrast: EXECUTE consumes a hardware clear arm in the same csr
+
+gates that rule out lock_set as a LOCK control:
+gate_ok   [16] an input named lock_set does exist in the csr input struct
+gate_ok   [17] lock_set is a hardware write-enable, not a LOCK update source
+gate_ok   [18] lock_set is consumed at exactly one site
+gate_ok   [19] the single lock_set consumer is the USER field, not LOCK
+
+structural_gates_passed=21/21

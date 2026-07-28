@@ -1,0 +1,62 @@
+{
+  "module": "sha512_masked_core",
+  "bug_id": "034",
+  "bug_name": "sha512_masked_bug_034",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Any observer of the sha512_masked_core digest port able to sample it while digest_valid is low. In the integrated design that is the surrounding sha512 control logic and, through it, software reading the digest registers before the operation retires.",
+    "precondition": "A released reset and an in-flight hash operation. The exposure window is every cycle between init_cmd and the assertion of digest_valid.",
+    "input": "One padded message block and an init_cmd pulse. No unusual configuration is needed; the exposure is on the ordinary path.",
+    "protected_asset": "The intermediate compression state of a masked SHA-512 engine. Masking exists so that the working registers are never observable in unmasked form; recombining the two shares defeats the countermeasure the module is named for.",
+    "security_property": "During cycles when no result is valid, the digest port must not carry a value derived from the live compression state. It should carry a constant, or the retained final digest, and nothing that varies with the round or the message.",
+    "implemented_logic": "src/sha512_masked/rtl/sha512_masked_core.sv drives the digest port from a two-way select on digest_valid_reg. The valid arm returns the eight H hash registers. The invalid arm returns the bitwise xor of the masked shares and the random shares of the eight working registers a through h, which reconstructs their unmasked values. The select carries no debug, lifecycle or zeroize qualifier, so the exposure is unconditional."
+  },
+  "security_feature_bypassed": "The masking countermeasure of the SHA-512 masked core. The unmasked working state is reconstructed and driven off the module on every invalid cycle.",
+  "proof_goal": "Establish on one unmodified core that the digest port carries live, message-dependent compression state during invalid cycles, and that this is distinguishable from both the published initial hash value and any constant placeholder.",
+  "proof_style": "Directed port-driven simulation of one real DUT with per-cycle sampling of the digest port, a scripted structural audit, and a negative control that neutralises the invalid-cycle arm and requires both to stop reporting.",
+  "invariant": "A masked engine must not recombine its shares onto an output port.",
+  "attacker_model": "Unprivileged software at user-level mode",
+  "minimum_attack_sequence": [
+    "Start a hash operation by pulsing init_cmd with a message block loaded.",
+    "Sample the digest port repeatedly while digest_valid is still low.",
+    "Each sample is the unmasked value of the eight working registers at that compression round, so the sequence of samples is a trace of the engine's internal state."
+  ],
+  "controls": [
+    "The engine reaches a valid digest, so the DUT is functional rather than stuck.",
+    "The final digest matches the published SHA-512 value for the empty string, so the engine computes correctly and the exposure is not an artefact of a broken core.",
+    "At least eight invalid-cycle samples are captured, so the trace is long enough to reason about.",
+    "A second message block also completes and produces a different final digest, establishing that the two configurations really differ.",
+    "The final digest still matches the published test vector after the full sampling sweep, so sampling did not perturb the operation."
+  ],
+  "witness_construction_note": "The sampling point is the substance of this case. For the first cycles after init_cmd the working registers still hold the SHA-512 initial hash value, so a witness that captures the first non-zero sample and stops records a published constant and demonstrates no exposure at all. This testbench therefore samples every invalid cycle and keeps the whole trace, then makes three separable statements: samples exist that are neither the initial hash value nor a constant, the value advances from one round to the next, and the trace diverges when the same rounds are reached with a different message block. The third is what rules out the reading that the port merely carries a fixed internal sequence. A bound check records that the initial-hash phase does exist in the trace, so the presence of that phase is documented rather than hidden.",
+  "expected_evidence": [
+    "The digest select's invalid arm reads both the masked and the random shares of the eight working registers and combines them with xor.",
+    "The select carries no debug, lifecycle or zeroize qualifier.",
+    "Per-cycle sampling yields samples that are neither the initial hash value nor zero.",
+    "The sampled value changes across compression rounds.",
+    "The sampled trace differs between two different message blocks at the same positions.",
+    "The initial-hash phase is present in the trace and is recorded as a bound.",
+    "The final digest matches the published test vector for the empty string.",
+    "With the invalid arm neutralised, the audit fails on the unmasking gates and all three witness statements stop holding, while the engine still produces the correct digest."
+  ],
+  "success_criteria": [
+    "All structural gates pass on the unmodified checkout.",
+    "The witness simulation reports exactly three witness statements and prints PROOF_RESULT: PASS.",
+    "The negative control makes all three witness statements stop holding and flips the unmasking gates.",
+    "The negative control leaves the published test vector control passing, proving the remediation is targeted rather than a break of the hash."
+  ],
+  "non_findings": [
+    "No claim that the final digest is wrong. It matches the published value for the empty string.",
+    "No claim about a specific software register path in the sha512 wrapper. This case drives the core over its module ports.",
+    "No claim of a full key or message recovery. What is demonstrated is that live compression state is observable, not a completed attack.",
+    "No claim that the masking scheme is weak in its own right. The finding is that its shares are recombined onto an output port."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/034/proof/tb/sha512_masked_bug_034_tb.sv",
+    "script": "final_bug_submissions/034/proof/scripts/run_bug_034_proof.sh",
+    "sim_script": "final_bug_submissions/034/proof/scripts/run_bug_034_sim.sh",
+    "negative_control": "final_bug_submissions/034/proof/scripts/run_bug_034_negative_control.sh",
+    "logs": "final_bug_submissions/034/proof/logs/"
+  }
+}

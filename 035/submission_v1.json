@@ -1,0 +1,76 @@
+{
+  "module": "sha512_acc_csr",
+  "bug_id": "035",
+  "bug_name": "sha512_acc_bug_035",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_functional_defect",
+  "security_feature_bypassed": "Hardware arbitration of the SHA accelerator lock. src/soc_ifc/rtl/sha512_acc_csr.sv gives the LOCK field two software update arms and no hardware set or clear arm, and src/soc_ifc/rtl/sha512_acc_csr_pkg.sv exposes no LOCK input on the module, so ownership of the accelerator can be taken and released only by software.",
+  "finding": "The SHA accelerator LOCK field is software-only. In src/soc_ifc/rtl/sha512_acc_csr.sv the LOCK combinational block contains exactly two update arms, a software set-on-read and a software write-1-clear qualified by valid_user, and references no hardware set or clear source. The CSR file consumes nothing from the hwif_in.LOCK namespace. In src/soc_ifc/rtl/sha512_acc_csr_pkg.sv there is no LOCK input struct type and the top-level sha512_acc_csr__in_t carries no LOCK member, so no hardware agent has a port to drive. The same package declares seven hwset or hwclr members for other fields and EXECUTE consumes a hardware clear arm in the same CSR file, so the omission is specific to LOCK rather than a property of the generated code. Out of reset LOCK is 1, so an agent that reads the register to acquire ownership and then declines to write 1 back holds the accelerator with no hardware reclaim path available.",
+  "location_or_code_reference": {
+    "competition_file": "src/soc_ifc/rtl/sha512_acc_csr.sv",
+    "line_range": "585-609",
+    "supporting_references": [
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:585",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:588",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:589",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:591",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:595",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:598",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:599",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:603",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:604",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:605",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:608",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:616",
+      "src/soc_ifc/rtl/sha512_acc_csr.sv:1631",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:84",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:83",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:95",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:18",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:40",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:48",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:52",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:56",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:60",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:71",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:90",
+      "src/soc_ifc/rtl/sha512_acc_csr_pkg.sv:91"
+    ],
+    "attachment_note": "A structural audit and a negative control accompany this submission under final_bug_submissions/035/proof/. No simulation is included: the claim is the absence of a hardware port, and the plan's witness construction note records why driving a port cannot establish that. The negative control supplies the non-vacuity evidence instead."
+  },
+  "detection_method": "The LOCK field's generated update logic was read against the register description and against sibling fields in the same block. The field's complete update set was enumerated and found to be two software arms; the module's complete input surface was then enumerated and found to contain no LOCK member, while seven hardware set or clear members exist for other fields. A scripted audit fixes both enumerations, and a negative control restores the hardware path on a scratch copy to show the audit detects its return.",
+  "security_impact": "Ownership of the SHA accelerator rests entirely on software cooperation. A hardware API user cannot assert the lock on its own behalf, and no flow-control or reclaim logic can clear it, because no such input reaches the field. Any agent able to read the LOCK register acquires the accelerator, and only that agent can give it back. Holding the lock indefinitely denies the engine to every other requester, including hardware ones, for as long as the holder chooses.",
+  "adversary_profile": "Unprivileged software at user-level mode",
+  "proposed_mitigation": [
+    "Add hwset and hwclr members for the LOCK field to the CSR input structure in src/soc_ifc/rtl/sha512_acc_csr_pkg.sv, matching the pattern the same package already uses for the seven sibling fields that carry them.",
+    "Add a highest-priority hardware clear and hardware set arm to the LOCK combinational block in src/soc_ifc/rtl/sha512_acc_csr.sv, ahead of the software set-on-read arm, so hardware arbitration wins over a software acquire that races it.",
+    "Drive those inputs from the sha512_acc_top wrapper's arbitration logic so a hardware API user can acquire the accelerator and flow control can reclaim it.",
+    "Keep the existing software set-on-read and write-1-clear arms unchanged; they are correct and the remediation should not disturb them.",
+    "Add a directed test that acquires the lock from software, asserts the hardware clear, and confirms ownership transfers, so a future regression that drops the hardware path again is caught."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:L",
+    "base_score": 3.3,
+    "severity": "Low",
+    "scoring_note": "Scored with the CVSS v3.1 calculator from what the audit establishes. Local vector and low privilege because ordinary register access to the CSR block is the only requirement. Availability low because the measured consequence is that accelerator ownership cannot be reclaimed by hardware; confidentiality and integrity are none because no digest data was computed or observed in this case. The score deliberately does not anticipate the denial that a wrapper-level test would show."
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/035/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/035/proof_result_v1.json",
+    "script": "final_bug_submissions/035/proof/scripts/run_bug_035_proof.sh",
+    "negative_control_script": "final_bug_submissions/035/proof/scripts/run_bug_035_negative_control.sh",
+    "run_log": "final_bug_submissions/035/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/035/proof/logs/witness.log",
+    "structural_audit_log": "final_bug_submissions/035/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/035/proof/logs/negative_control.log",
+    "c_validation_status": "final_bug_submissions/035/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Ordinary unprivileged software issues a single read of the SHA accelerator LOCK register.",
+    "Set-on-read latches LOCK to 1 and the reading agent now owns the accelerator.",
+    "The agent simply never writes 1 back to LOCK. Release is the only path that clears the field.",
+    "No hardware set or clear input exists on the CSR module, so neither a competing hardware API user nor flow-control logic can preempt the holder.",
+    "The accelerator stays owned until reset, denying it to all other requesters."
+  ]
+}

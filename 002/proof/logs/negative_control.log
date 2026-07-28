@@ -1,0 +1,25 @@
+-- remediation applied to scratch copy --
+197:          hw2reg_data_out_mask_en <= ~(caliptra2aes.block_reg_output | caliptra2aes.kv_en);
+-- witness output under the remediated copy --
+COV plain out=[0x4f00e9f0 0xdb431211 0xfcb5c347 0x50bd1e9b] pre=[0x2cb12cb1 0xb1edb1ed 0x394d394d 0xfabffabf] completed=1 idle_polls=2
+CHECK_PASS control_plain_operation_completed
+CHECK_PASS control_plain_output_is_readable
+CHECK_PASS control_plain_readback_differs_from_its_own_baseline
+COV kv_route out=[0x00000000 0x00000000 0x00000000 0x00000000] pre=[0x00000000 0x00000000 0x00000000 0x00000000] completed=0
+CHECK_PASS witness_kv_routed_output_is_concealed
+CHECK_FAIL control_kv_readback_differs_from_its_own_baseline
+CHECK_FAIL witness_kv_routed_readback_is_this_operations_own_result
+CHECK_PASS bound_kv_readback_is_not_the_written_plaintext
+COV blocked out=[0x00000000 0x00000000 0x00000000 0x00000000] pre=[0x00000000 0x00000000 0x00000000 0x00000000] completed=1
+CHECK_PASS control_blocked_operation_completed
+CHECK_PASS discriminator_block_reg_output_does_conceal
+WITNESS mask_works_when_armed blocked_out0=0x00000000
+COV err_seen=0
+CHECK_PASS containment_no_bus_error
+COV end_status plain=0x00000019 kv=0x00000011 blocked=0x00000015
+SUMMARY checks=10 fails=2 witness_hits=1
+COV plain_visible=1 kv_route_visible=0 block_conceals=1 op_completed=1
+PROOF_RESULT: FAIL
+sim_exit_rc=1
+NEGATIVE_CONTROL: PASS
+The witness depends on the missing kv_en term in the mask arming expression, not on the testbench setup.
