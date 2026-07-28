@@ -1,0 +1,27 @@
+=== kv_bug_023 measured decisions ===
+CONTROL_A unlocked entry read_data=0xdeadbe01 rd_error=0
+ok:   CONTROL_A unlocked entry is readable by its granted client value=0xdeadbe01 as expected
+CONTROL_B KEY_CTRL[1] readback=0x00000202 lock_use=1
+ok:   CONTROL_B software write set lock_use value=1 as expected
+CONTROL_B locked entry read_data=0x00000000 rd_error=1
+ok:   CONTROL_B lock_use suppresses the read to zero value=0x00000000 as expected
+ok:   CONTROL_B lock_use raises the client read error value=1 as expected
+CONTROL_C after software write of zero KEY_CTRL[1]=0x00000202 lock_use=1
+ok:   CONTROL_C software cannot clear a set lock_use value=1 as expected
+CONTROL_C read after clear attempt read_data=0x00000000
+ok:   CONTROL_C read stays suppressed after the clear attempt value=0x00000000 as expected
+CONTROL_D unlocked write attempt wr_error=0
+ok:   CONTROL_D an unlocked write raises no error value=0 as expected
+ok:   CONTROL_D software write set lock_wr value=1 as expected
+CONTROL_D locked write attempt wr_error=1
+ok:   CONTROL_D lock_wr raises the client write error value=1 as expected
+CONTROL_D locked entry data after the suppressed write=0x11112222
+ok:   CONTROL_D the suppressed write did not change the entry value=0x11112222 as expected
+PROBE_A   fw_update_rst_window=1 KEY_CTRL[1]=0x00000202 lock_use_bit=1 read_data=0xdeadbe01
+probe_locked_entry_readable_in_fw_window=1
+PROBE_A   after the window closes read_data=0x00000000
+PROBE_B   after core_only_rst_b pulse KEY_CTRL[1]=0x00000200 lock_use_bit=0 read_data=0xdeadbe01
+probe_lock_use_survives_core_only_reset=0
+probe_key_data_survives_core_only_reset=1
+checks_run=10 checks_failed=0
+result=PASS

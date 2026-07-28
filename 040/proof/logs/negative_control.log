@@ -1,0 +1,32 @@
+=== BUG-040 negative control ===
+claim: CONTROL's write-enable is qualified with two address hits, so a
+       write to the read-only STATUS register also commits into CONTROL.
+method: correct the qualifier in a scratch copy, rerun the same bench.
+
+--- 1. patch ---
+  ok   scratch copy has the corrected single-address qualifier
+  ok   scratch copy no longer contains the two-hit qualifier
+  ok   audited source is untouched (still has the two-hit qualifier)
+  scratch_code_lines_added=1 removed=2
+  ok   the patch adds exactly 1 line
+  ok   the patch removes exactly 2 lines
+
+--- 2. rerun the same bench, unmodified ---
+  sim_script_rc=2 (2 = SIGNATURE_MISMATCH, which is what this control wants)
+  ok   the patched build compiled and ran
+  ok   the corrected qualifier yields no witness (witness_hits=0)
+  ok   no check fails on the corrected qualifier (fails=0)
+  ok   the bench reports the signature as absent, not as a pass
+  ok   the STATUS write no longer modifies CONTROL
+  ok   the STATUS write no longer sets sw_rst or clears spien
+  ok   the anti-vacuity control still holds: a direct CONTROL write still lands
+  ok   the bench still reached the STATUS read, so it ran to the same depth
+
+--- 3. the audited run is unaffected ---
+  ok   the audited simulation log still records the defect signature
+  ok   the audited run still witnesses the out-of-bounds update
+  ok   the audited run still shows the update is silent (intg_err stays low)
+
+gates_ok=16 gates_bad=0
+NEGATIVE CONTROL: PASS
+result=PASS

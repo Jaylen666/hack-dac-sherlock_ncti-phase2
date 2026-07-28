@@ -1,0 +1,66 @@
+{
+  "module": "keyvault",
+  "bug_id": "023",
+  "bug_name": "kv_bug_023",
+  "team_name": null,
+  "version": 1,
+  "status": "false_alarm_not_submitted",
+  "security_feature_bypassed": "None. No hardware set path for the KeyVault lock bits is specified for this design, and the lock enforcement and lock stickiness that are specified were measured working.",
+  "finding": "The candidate alleged that hardware must set KEY_CTRL.lock_wr and KEY_CTRL.lock_use on a boot-stage transition through an hwset interface with priority over the software value, and that this interface is absent. The absence is real: src/keyvault/rtl/kv_reg.rdl:28-31 declares both fields as sw=rw; swwel=true; hw=r with resetsignal=core_only_rst_b, carrying no hwset, no hw=w and no we property. It is not a bug, on three independent counts. First, nothing in the tree attempts such a set, so no driven connection is being silently discarded: src/keyvault/rtl/kv.sv drives exactly two lock hwif inputs, both the swwel feedback at :187-188, a tree-wide search for a hwif_in path into either lock field with .next, .hwset or .we returns none, and the generated register block's only assignment to each lock next value is the software-write branch guarded by !swwel at src/keyvault/rtl/kv_reg.sv:197 and :218. Second, no boot-stage transition exists to key a set from: a case-insensitive sweep of every .sv, .svh, .v and .rdl file under src/ for boot_stage, boot_flow, stable_owner, rt_stage, fmc_stage, stage_transition, transition_lock and lock_policy returns zero hits, and the kv module's 23 ports include none that could carry a stage indication. Third, the in-tree specifications assign the setting to firmware: docs/CaliptraHardwareSpecification.md:2459-2460 describes each lock as preventing microcontroller writes or cryptographic use, no in-tree sentence requires hardware to perform the set, and where a stage lock policy is stated it is a ROM requirement, at src/keyvault/config/keyvault.md:209-210 and :225. What the specification does place on hardware was measured holding through real AHB transactions to KEY_CTRL: an unlocked entry reads 0xdeadbe01 with rd_error=0; after an AHB write of lock_use the register reads 0x00000202, the read is suppressed to zero and rd_error is raised; an AHB write of zero leaves the bit set and the read suppressed, which is the stickiness the specification requires; and with lock_wr set, a write client raises kv_wr_resp.error where an unlocked write did not, and the entry data is unchanged. checks_run=10 checks_failed=0.",
+  "location_or_code_reference": {
+    "competition_file": "src/keyvault/rtl/kv_reg.rdl:28",
+    "line_range": "28-31",
+    "supporting_references": [
+      "src/keyvault/rtl/kv_reg.rdl:22",
+      "src/keyvault/rtl/kv_reg.rdl:31",
+      "src/keyvault/rtl/kv_reg.rdl:48",
+      "src/keyvault/rtl/kv.sv:176",
+      "src/keyvault/rtl/kv.sv:187",
+      "src/keyvault/rtl/kv.sv:188",
+      "src/keyvault/rtl/kv.sv:193",
+      "src/keyvault/rtl/kv.sv:234",
+      "src/keyvault/rtl/kv.sv:240",
+      "src/keyvault/rtl/kv.sv:251",
+      "src/keyvault/rtl/kv_reg.sv:197",
+      "src/keyvault/rtl/kv_reg.sv:218",
+      "src/soc_ifc/rtl/soc_ifc_boot_fsm.sv:90",
+      "src/keyvault/config/keyvault.md:209",
+      "src/keyvault/config/keyvault.md:225",
+      "docs/CaliptraHardwareSpecification.md:2459",
+      "docs/CaliptraHardwareSpecification.md:2460"
+    ],
+    "attachment_note": "The detection code and scripts are included in the attachment: the directed testbench that drives real AHB writes and reads to KEY_CTRL and measures lock enforcement, lock stickiness and the write-client error through the module's own response ports, plus the structural audit script that enumerates the lock field properties, every driver of the lock fields in the RTL and in the generated register block, every boot-stage-like signal name in the tree, the in-tree specification statements on who sets the locks, and the enforcement consumers of the lock terms. Both the field-property detector and the hardware-set detector carry a contrast check against a field that is hardware-writable, so a zero reading is known not to be a pattern that matches nothing."
+  },
+  "detection_method": "Competition-only RTL review of the KeyVault lock fields and their drivers, followed by a directed single-DUT simulation of src/keyvault/rtl/kv.sv driving real AHB writes and reads to KEY_CTRL, and a 5-gate structural audit of the submitted tree covering the lock field properties, every lock field driver in the hand-written RTL and in the generated register block, every boot-stage-like signal name under src/, the in-tree specification assignment of the lock-setting duty, and the enforcement consumers of the lock terms.",
+  "security_impact": "No impact from the claim as stated. The hwset interface said to be missing is not a feature this design is specified to have, nothing in the tree drives a lock set that would be dropped, and the enforcement and stickiness the specification does require are present and were measured working. The mechanism is fully reachable from the party the specification assigns it to: both bits are software-writable per entry, and once set neither can be cleared by software, so an earlier stage can permanently lock a slot with a single register write. Two behaviors were measured and are recorded as open questions rather than claims, because each is a different proposition than the one under test. src/keyvault/rtl/kv.sv:176-177 qualifies both lock terms with ~fw_update_rst_window, so a locked entry becomes readable while that window is asserted; whether a client can present a read during it is unsettled, since src/integration/rtl/caliptra_top.sv:434 and :828 idle the buses and gate the microcontroller clock during the window, while the crypto engines at :1037 and :1069 run on the ungated clk_cg. Separately, a set lock_use is cleared by a core_only_rst_b pulse while the key data survives, and here the in-tree table disagrees with itself: the reset column at docs/CaliptraHardwareSpecification.md:2459-2460 gives core_only_rst_b, which the RDL implements, while the description sentence in the same rows says a set lock cannot be reset until cptra_rst_b de-asserts. Which is normative is a specification question the RTL cannot answer, so no verdict is recorded.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "No RTL change is warranted for this candidate. The lock fields are software-only by design, nothing in the tree attempts a hardware set, no boot-stage transition exists to key one from, and no in-tree statement requires hardware to perform the set. Stage-specific lock policy is a ROM requirement per src/keyvault/config/keyvault.md:209-210 and :225, and the mechanism ROM needs is exactly these software-writable sticky bits.",
+    "Reconcile the lock reset domain in the specification and the register description before treating either as correct. The reset column at docs/CaliptraHardwareSpecification.md:2459-2460 names core_only_rst_b and src/keyvault/rtl/kv_reg.rdl:28-31 implements it, but the description sentence in the same table rows states a set lock cannot be reset until cptra_rst_b de-asserts. The measurement in this case shows lock_use clearing on a core_only_rst_b pulse while the key data survives, so the two readings have materially different security consequences and only one can be the intent.",
+    "If a hardware-enforced lock policy is ever wanted, note that wiring a stage signal into src/keyvault/rtl/kv.sv would not be sufficient on its own. Both fields are declared hw=r, so the register interface would need a hardware-settable path first, and it would have to take priority over the software value to be meaningful.",
+    "Keep the lock regression shipped with this case, proof/tb/kv_lock_enforcement_tb.sv, in the KeyVault regression set. Its four control groups assert the enforcement and stickiness properties the specification does require, so a future change that weakens the read suppression, the write error or the swwel feedback is caught, and its probes keep the fw_update_rst_window and core_only_rst_b behaviors on record."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:H/PR:H/UI:N/S:U/C:N/I:N/A:N",
+    "base_score": 0.0,
+    "severity": "None"
+  },
+  "test_submitted": {
+    "proof_plan": "proof_plan_v1.json",
+    "proof_result": "proof_result_v1.json",
+    "script": "proof/scripts/run_kv_bug_023_proof.sh",
+    "audit_script": "proof/scripts/audit_kv_lock_set_sources.sh",
+    "tb": "proof/tb/kv_lock_enforcement_tb.sv",
+    "run_log": "proof/logs/run.log",
+    "witness_log": "proof/logs/witness.log",
+    "sim_log": "proof/logs/sim.log",
+    "compile_log": "proof/logs/compile.log",
+    "c_validation_status": "c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Precondition: an earlier boot stage provisions a KeyVault entry that a stage policy designates as locked from the next stage onward, and does not set that entry's lock bits. Measured: the entry is provisioned and readable by its granted client, read_data=0xdeadbe01 with rd_error=0.",
+    "The boot flow advances and no hardware sets the lock bits. This step has no hardware event behind it: the audit finds no boot-stage signal anywhere under src/ (boot_stage_signal_hits_in_rtl=0) and no kv port that could carry one (kv_boot_stage_ports=0 over 23 ports), so there is nothing an hwset interface could have been keyed from even if one existed.",
+    "Later-stage firmware programs a crypto engine whose dest_valid bit is set to read the entry, or writes it through a write client. This succeeds only because the earlier stage left the entry unlocked. Measured on the same DUT: had the earlier stage written lock_use, the read returns 0x00000000 with rd_error=1; had it written lock_wr, the write client raises kv_wr_resp.error=1 and the entry data is unchanged; and in neither case can the later stage clear the bit, since an AHB write of zero leaves KEY_CTRL at 0x00000202.",
+    "Outcome: no bypass. Nothing gated the access that the earlier stage did not itself leave open, and the gate it declined to use is a single sticky register write that hardware then enforces for every client. The attack describes firmware not using its own controls rather than hardware failing to enforce a property, and the specification assigns those controls to firmware at src/keyvault/config/keyvault.md:225."
+  ]
+}

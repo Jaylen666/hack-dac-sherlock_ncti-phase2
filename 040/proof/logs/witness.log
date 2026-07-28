@@ -1,0 +1,27 @@
+=== BUG-040 witness ===
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+claim: a bus write to the read-only STATUS register (offset 0x14) also commits
+       new values into every CONTROL field (offset 0x10), and the spurious
+       write-enable checker does not raise the integrity error.
+
+--- measured on one unmodified spi_host_reg_top ---
+case=control_reset_values_present PASS rx=7f spien=0 sw_rst=0 intg_err=0
+case=control_direct_control_write_takes_effect PASS rx=aa tx=11 spien=1
+case=control_configopts_write_leaves_control_alone PASS rx=aa tx=11 spien=1
+case=control_status_address_is_mapped_and_readable PASS hresp=0 rdata=00000000
+TBFAIL case=violating_status_write_must_not_modify_control rx=bb(was aa) tx=22(was 11) spien=0(was 1)
+TBFAIL case=violating_status_write_must_not_set_sw_rst_or_clear_spien sw_rst=1(was 0) spien=0(was 1)
+TBFAIL case=violating_out_of_bounds_update_must_raise_intg_err witness_hits=1 intg_err=0
+case=containment_reset_clears_the_injected_control_state PASS rx=7f sw_rst=0 spien=0
+cov_reset=1 cov_control_write=1 cov_unrelated_inert=1 cov_status_reaches_control=1 cov_status_read=1
+witness_hits=1
+checks=8 fails=3
+result=PASS
+
+--- reading of the witness ---
+CONTROL was left at rx=aa tx=11 spien=1 by a legitimate write to its own address.
+A single write of 0x4000_22BB to STATUS then moved it to rx=bb tx=22 spien=0 sw_rst=1.
+0xbb/0x22 appear in no earlier transaction, so the new contents can only have
+come from the STATUS write. intg_err stayed low throughout that transaction.
+
+result=PASS

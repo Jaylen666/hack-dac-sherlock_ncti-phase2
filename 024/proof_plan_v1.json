@@ -1,0 +1,60 @@
+{
+  "module": "keyvault",
+  "bug_id": "kv_bug_024",
+  "bug_name": "kv_flush_not_triggered_by_fatal_error_and_kv_errors_not_reported_fatal",
+  "triage_id": "KV-TRIAGE-024",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "An attacker who has already induced a Caliptra fatal hardware error, plus later-stage Caliptra firmware or an authorized debug agent that may observe KeyVault state afterwards. The fatal error itself is the precondition, not the payload: the question is what the KeyVault does about it.",
+    "precondition": "KeyVault entries hold live key material and a Caliptra fatal hardware error condition occurs, or a KeyVault internal error condition occurs such as a simultaneous multi-client write to one entry.",
+    "input": "The kv module's debugUnlock_or_scan_mode_switch and cptra_in_debug_scan_mode inputs, an AHB write to CLEAR_SECRETS, and concurrent write requests from more than one KeyVault write client.",
+    "protected_asset": "KeyVault key material that must not survive into a state the design considers unrecoverable, and the integrity of the SoC-facing fatal error report.",
+    "security_property": "Two separable properties. (A) Secret containment on an unrecoverable error: if the design requires KeyVault secrets to be destroyed when a fatal error is latched, the flush must actually fire on that condition. (B) Error reporting completeness: if the design requires a KeyVault error condition to be reported as a Caliptra fatal error, CPTRA_HW_ERROR_FATAL must carry a field for it.",
+    "implemented_logic": "src/keyvault/rtl/kv.sv:122-123 computes flush_keyvault from debugUnlock_or_scan_mode_switch, or from cptra_in_debug_scan_mode qualified by the software-poked CLEAR_SECRETS.wr_debug_values. src/keyvault/rtl/kv.sv:210-217 makes flush_keyvault force a write of debug_value into every dword of every entry, and src/keyvault/rtl/kv.sv:211 lets debugUnlock_or_scan_mode_switch bypass the per-entry lock bits so a locked entry is flushed too. src/keyvault/rtl/kv.sv:147 raises kv_multi_write_err when more than one write client asserts write_en, and src/keyvault/rtl/kv.sv:159 routes it into key_entry_clear for every entry. src/soc_ifc/rtl/soc_ifc_top.sv:1378-1381 enumerates the four write-enables of CPTRA_HW_ERROR_FATAL as crypto_error, the ICCM and DCCM uncorrectable ECC errors, and nmi_intr; src/soc_ifc/rtl/soc_ifc_external_reg.rdl:27-31 declares the matching four fields plus a 28-bit reserved field."
+  },
+  "security_feature_bypassed": "The claim under test is that the KeyVault flush path responds only to a debug or scan mode transition and therefore does not destroy secrets when a Caliptra fatal error is latched, and separately that no KeyVault error condition is reported through CPTRA_HW_ERROR_FATAL.",
+  "proof_goal": "Determine, for each of the two separable propositions, whether the alleged absence is real at the module boundary and whether it violates a requirement this design actually carries. Proposition A is whether a fatal error fails to reach the KeyVault flush. Proposition B is whether a KeyVault error condition is required to be reported as a Caliptra fatal error and is not.",
+  "proof_style": {
+    "primary": "structural_audit",
+    "secondary": [
+      "directed_sim"
+    ]
+  },
+  "minimum_attack_sequence": [
+    "KeyVault entries are provisioned with live key material by an earlier boot stage, and at least one entry is locked so the lock-bypass behavior of the flush is also exercised.",
+    "A Caliptra fatal hardware error condition is induced, for example a parallel-crypto-operation error, so cptra_error_fatal asserts.",
+    "For proposition A, the attacker or a debug agent then observes whether the KeyVault entries still hold their key material, on the claim that no flush fired.",
+    "For proposition B, a KeyVault error condition is induced instead, for example two write clients targeting one entry in the same cycle, and the SoC-facing CPTRA_HW_ERROR_FATAL report is examined for a field describing it."
+  ],
+  "expected_evidence": [
+    "A single-DUT simulation of the kv module that provisions entries, locks one of them, and then measures what a pulse on debugUnlock_or_scan_mode_switch does to both the unlocked and the locked entry, establishing whether the flush path is live and whether it bypasses the lock bits as src/keyvault/rtl/kv.sv:211 suggests. This is what decides whether an absent trigger would matter: a flush that reaches a locked entry is a real containment mechanism, and a flush that does not is not worth wiring anything into. The same simulation measures whether a simultaneous two-client write to one entry raises the per-entry clear and destroys that entry's data, since that is the KeyVault's own internal error response.",
+    "A structural audit that traces, in the submitted tree only, every producer term of the signal actually connected to the kv module's debugUnlock_or_scan_mode_switch port at its instantiation, rather than reading the port name; enumerates every write-enable and every field of CPTRA_HW_ERROR_FATAL; enumerates every KeyVault error observability path available to software; and collects the in-tree specification statements on what a fatal error must do and on how KeyVault errors are reported."
+  ],
+  "success_criteria": [
+    "Proposition A is upheld only if the audit shows that the signal connected to the kv module's flush input at its instantiation genuinely excludes every fatal error condition, AND the simulation shows the flush path is otherwise a working containment mechanism, AND an in-tree statement requires KeyVault secrets to be destroyed on a fatal error. If the connected signal already includes a fatal error term, proposition A is withdrawn regardless of how the port is named, because the module-internal expression at src/keyvault/rtl/kv.sv:122-123 is then only half of the delivered logic.",
+    "Proposition B is upheld only if the audit identifies an in-tree statement requiring a KeyVault error condition to be reported through CPTRA_HW_ERROR_FATAL or as a Caliptra fatal error, AND no such field or write-enable exists. The mere absence of a kv_error field in CPTRA_HW_ERROR_FATAL will not be reported as a defect on its own.",
+    "Pre-committed withdrawal: if KeyVault error conditions are observable to software through some other in-tree path, and the in-tree specifications describe the fatal error register as carrying a specific enumerated set of conditions that does not include KeyVault errors, then proposition B is withdrawn as a design scope statement rather than a missing report. If both propositions are withdrawn the case is recorded as false_alarm."
+  ],
+  "non_findings_intent": [
+    "Suspected but unproven at plan time: that no fatal error condition reaches the KeyVault flush. To be checked by tracing the actual signal connected to the kv instance's debugUnlock_or_scan_mode_switch port at src/integration/rtl/caliptra_top.sv, not by reading src/keyvault/rtl/kv.sv:122-123 alone. To be withdrawn if that signal carries a fatal error term, since a port name is not a contract and the module-internal expression would then be only part of the delivered condition.",
+    "Suspected but unproven at plan time: that an in-tree statement requires KeyVault errors to be reported as Caliptra fatal errors. To be checked against docs/CaliptraIntegrationSpecification.md, docs/CaliptraHardwareSpecification.md and src/keyvault/config/keyvault.md; to be withdrawn if the fatal error register is specified as an enumerated set that does not include them and KeyVault errors are reported elsewhere.",
+    "To be measured, with the verdict deferred to what the in-tree documents say rather than decided in advance: whether the flush bypasses the per-entry lock bits. src/keyvault/rtl/kv.sv:211 admits debugUnlock_or_scan_mode_switch as an alternative to the ~lock_wr_q & ~lock_use_q qualifier, so a locked entry appears to be flushable while an ordinary client write to it is not. If that is what the measurement shows, the plan will record it and identify which in-tree sentence governs it, rather than asserting that a lock ought to have blocked the flush.",
+    "To be measured, with no verdict attached: whether the kv_error_intr and kv_notif_intr interrupt lines are driven. If they are tied off, that is recorded as a measurement about interrupt-based observability and is deliberately not merged into proposition B, which is about the SoC-facing fatal error register. Conflating the two would let a weakness in one path stand in as evidence for the other."
+  ],
+  "artifacts": {
+    "scripts": [
+      "proof/scripts/run_kv_bug_024_proof.sh",
+      "proof/scripts/audit_kv_flush_and_error_report.sh"
+    ],
+    "tb": [
+      "proof/tb/kv_flush_and_error_tb.sv"
+    ],
+    "logs": [
+      "proof/logs/compile.log",
+      "proof/logs/sim.log",
+      "proof/logs/witness.log",
+      "proof/logs/run.log"
+    ]
+  }
+}

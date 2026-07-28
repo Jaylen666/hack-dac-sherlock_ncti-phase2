@@ -1,0 +1,58 @@
+{
+  "module": "keyvault",
+  "bug_id": "kv_bug_022",
+  "bug_name": "kv_boot_stage_transition_entry_clear",
+  "triage_id": "KV-TRIAGE-022",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Later-stage Caliptra firmware (FMC or Runtime) executing after an earlier boot stage has provisioned KeyVault entries. The attacker is privileged software at supervisor mode on the Caliptra microcontroller.",
+    "precondition": "An earlier boot stage (ROM, or FMC) has written key material into KeyVault entries and has NOT locked them for use, and the boot flow then advances to the next stage.",
+    "input": "A KeyVault read request from a crypto engine whose dest_valid bit is set for an entry provisioned by the earlier stage.",
+    "protected_asset": "KeyVault key material belonging to a previous boot stage, which the next stage is not entitled to consume.",
+    "security_property": "Stage isolation: on a boot-stage transition, key material that is not part of the next stage's retained set must be cleared atomically, so a later stage cannot consume an earlier stage's assets.",
+    "implemented_logic": "src/keyvault/rtl/kv.sv:154-164 derives key_entry_clear only from kv_multi_write_err and the software-poked KEY_CTRL.clear bit (itself suppressed by lock_wr/lock_use), and src/keyvault/rtl/kv.sv:122-123 derives flush_keyvault only from debugUnlock_or_scan_mode_switch and cptra_in_debug_scan_mode & CLEAR_SECRETS.wr_debug_values. The kv module port list at src/keyvault/rtl/kv.sv:27-56 carries no boot-stage or boot-policy input, so no per-entry stage-transition clear mask exists."
+  },
+  "security_feature_bypassed": "Boot-stage asset isolation for the KeyVault: the claim under test is that a hardware transition-clear, with a stable-owner / OCP-lock retention exception set, must wipe non-retained entries when the boot flow advances.",
+  "proof_goal": "Determine whether the KeyVault retains an unlocked entry's key material across a boot-stage advance in a way that violates a security property this design is actually required to enforce, and whether any stage-transition input exists that could drive such a clear.",
+  "proof_style": {
+    "primary": "structural_audit",
+    "secondary": [
+      "directed_sim"
+    ]
+  },
+  "minimum_attack_sequence": [
+    "An earlier boot stage writes key material into a KeyVault entry with a dest_valid bit set for some crypto engine, and leaves lock_use clear.",
+    "The boot flow advances to the next stage (ROM to FMC, or FMC to Runtime).",
+    "Later-stage firmware programs the crypto engine whose dest_valid bit is set to read that entry.",
+    "The engine consumes the earlier stage's key material, which stage isolation should have made unavailable."
+  ],
+  "expected_evidence": [
+    "A single-DUT simulation of the kv module that provisions an entry, advances every stage-like input the module actually has, and records whether the entry's data survives and remains readable, together with a control showing the debug/scan flush path does clear it.",
+    "A structural audit that enumerates every producer of key_entry_clear and flush_keyvault, every port of the kv module, and every signal in the tree that could represent a boot-stage transition, plus a search of the in-tree specifications for who is assigned the duty of clearing KeyVault entries on a stage transition."
+  ],
+  "success_criteria": [
+    "The claim is upheld only if BOTH the simulation shows an earlier stage's key material remains readable after a stage advance AND the audit identifies an in-tree requirement that HARDWARE perform this clear, together with a stage-transition signal that reaches or could reach the kv module.",
+    "If the in-tree specifications assign KeyVault clearing on stage transition to ROM or firmware rather than to hardware, and no boot-stage signal exists anywhere in the tree that reaches the KeyVault, then the claim is withdrawn and the case is recorded as false_alarm: the absent logic is not a required hardware feature of this design.",
+    "Pre-committed withdrawal: this plan does not claim that fw_update_rst_window is a boot-stage transition marker, and will not treat KeyVault data surviving that window as a violation unless an in-tree statement requires clearing there."
+  ],
+  "non_findings_intent": [
+    "Suspected but unproven at plan time: that a boot-stage or lifecycle-stage signal exists in the tree and simply fails to reach the KeyVault. To be checked by enumerating the kv port list and grepping the tree for stage-tracking signals; to be withdrawn if no such signal exists at all.",
+    "Suspected but unproven at plan time: that the in-tree specification requires a hardware transition clear. To be checked against the KeyVault configuration document and the hardware and integration specifications; to be withdrawn if those documents assign the duty to ROM or firmware."
+  ],
+  "artifacts": {
+    "scripts": [
+      "proof/scripts/run_kv_bug_022_proof.sh",
+      "proof/scripts/audit_kv_entry_clear_sources.sh"
+    ],
+    "tb": [
+      "proof/tb/kv_stage_transition_retention_tb.sv"
+    ],
+    "logs": [
+      "proof/logs/compile.log",
+      "proof/logs/sim.log",
+      "proof/logs/witness.log",
+      "proof/logs/run.log"
+    ]
+  }
+}

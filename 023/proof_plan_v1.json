@@ -1,0 +1,59 @@
+{
+  "module": "keyvault",
+  "bug_id": "kv_bug_023",
+  "bug_name": "kv_lock_bits_not_hardware_set_on_transition",
+  "triage_id": "KV-TRIAGE-023",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Later-stage Caliptra firmware (FMC or Runtime) executing at supervisor mode on the Caliptra microcontroller, after an earlier stage has provisioned a KeyVault slot that should be permanently locked for the remainder of the boot.",
+    "precondition": "A KeyVault entry holds key material that a policy says must be locked for use or for writes from a given boot stage onward, and no software has set that entry's KEY_CTRL.lock_use or KEY_CTRL.lock_wr bit.",
+    "input": "A KeyVault read or write request from a crypto engine whose dest_valid bit is set for that entry, plus AHB writes to the entry's KEY_CTRL register.",
+    "protected_asset": "KeyVault key material in a slot that a stage policy designates as locked, for example a DICE slot after the transition into FMC or Runtime.",
+    "security_property": "Lock enforcement and lock stickiness: an entry designated as locked must be unreadable or unwritable as the lock states, and once a lock bit is set it must not be clearable by software until the designated reset de-asserts.",
+    "implemented_logic": "src/keyvault/rtl/kv.sv:176-188 reads lock_wr and lock_use from the existing register values, qualifies them with ~fw_update_rst_window, and feeds them back as the swwel write-enable-low so a set lock suppresses further software writes to itself. src/keyvault/rtl/kv_reg.rdl:28-31 declares both fields as sw=rw; swwel=true; hw=r with resetsignal=core_only_rst_b, so no hwset, hw=w or we property exists and hardware has no path to set either bit. src/keyvault/rtl/kv.sv:233-234 makes lock_use_q suppress the read mux for every client, and src/keyvault/rtl/kv.sv:180-181 makes lock_wr_q and lock_use_q suppress the control write enable."
+  },
+  "security_feature_bypassed": "Boot-stage lock policy for KeyVault slots: the claim under test is that hardware must set lock_wr and lock_use on a stage transition through an hwset interface, with the hardware set taking priority over the software register value, and that this interface is absent.",
+  "proof_goal": "Determine whether the KeyVault's lock enforcement and lock stickiness hold as the in-tree specification states, and whether the absence of a hardware set path for lock_wr and lock_use violates a requirement this design actually carries.",
+  "proof_style": {
+    "primary": "directed_sim",
+    "secondary": [
+      "structural_audit"
+    ]
+  },
+  "minimum_attack_sequence": [
+    "An earlier boot stage provisions a KeyVault entry that a stage policy designates as locked from the next stage onward, and does not set that entry's lock bits.",
+    "The boot flow advances, and no hardware sets the lock bits because no hardware set path exists.",
+    "Later-stage firmware programs a crypto engine whose dest_valid bit is set to read the entry, or writes the entry through a write client.",
+    "The access succeeds where the stage policy says the slot should have been locked."
+  ],
+  "expected_evidence": [
+    "A single-DUT simulation of the kv module that drives real AHB writes to KEY_CTRL, and measures: that setting lock_use suppresses the read for a client whose dest_valid bit is set; that a subsequent software write of zero to a set lock bit does not clear it; that setting lock_wr suppresses a write client and raises its write error; and what happens to a set lock bit across a core_only_rst_b pulse.",
+    "A structural audit that enumerates every hwset, we and hw=w property on the lock fields in the KeyVault register description, every driver of the lock fields in the RTL, every boot-stage-like signal in the tree that could key a hardware set, and the in-tree specification statements about who sets the lock bits and when they clear."
+  ],
+  "success_criteria": [
+    "The claim is upheld only if BOTH the simulation shows a lock enforcement or lock stickiness property failing AND the audit identifies an in-tree requirement that HARDWARE set the lock bits, together with a stage-transition signal that reaches or could reach the kv module.",
+    "If the simulation shows lock enforcement and stickiness holding as docs/CaliptraHardwareSpecification.md:2459-2460 states, and the in-tree specifications assign lock setting to ROM or firmware rather than to hardware, then the claim is withdrawn and the case is recorded as false_alarm: the absent hwset interface is not a required hardware feature of this design.",
+    "Pre-committed withdrawal: the mere absence of an hwset property in the register description will not be reported as a defect on its own. A missing hardware set path is a defect only if some in-tree statement requires hardware to perform the set, or some in-tree logic attempts the set and is silently dropped."
+  ],
+  "non_findings_intent": [
+    "Suspected but unproven at plan time: that the in-tree specification requires hardware to set the lock bits on a stage transition. To be checked against docs/CaliptraHardwareSpecification.md:2455-2461, src/keyvault/config/keyvault.md and the integration specification; to be withdrawn if those documents describe the lock bits as microcontroller-set.",
+    "Suspected but unproven at plan time: that some module in the tree drives a lock set that the register description silently discards, which would be a real broken connection. To be checked by enumerating every assignment to the lock fields in the RTL; to be withdrawn if the only writers are the swwel feedback and the software register interface.",
+    "To be measured, with the verdict deferred to what the in-tree documents say rather than decided in advance: the state of a set lock bit after a core_only_rst_b pulse, given that src/keyvault/rtl/kv_reg.rdl:28-31 names core_only_rst_b as the lock fields' resetsignal while the key data fields at src/keyvault/rtl/kv_reg.rdl:22 reset on hard_reset_b. If a set lock clears there while the key data persists, the plan will record the measurement and identify precisely which in-tree sentence would have to be violated for it to be a defect, rather than asserting one."
+  ],
+  "artifacts": {
+    "scripts": [
+      "proof/scripts/run_kv_bug_023_proof.sh",
+      "proof/scripts/audit_kv_lock_set_sources.sh"
+    ],
+    "tb": [
+      "proof/tb/kv_lock_enforcement_tb.sv"
+    ],
+    "logs": [
+      "proof/logs/compile.log",
+      "proof/logs/sim.log",
+      "proof/logs/witness.log",
+      "proof/logs/run.log"
+    ]
+  }
+}

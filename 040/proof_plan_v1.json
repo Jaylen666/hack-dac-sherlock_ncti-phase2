@@ -1,0 +1,41 @@
+{
+  "triage_id": "spi_host_control_write_enable_qualified_with_status_address",
+  "bug_id": "040",
+  "module": "spi_host",
+  "status": "planned",
+  "candidate_summary": "spi_host_reg_top qualifies CONTROL's write-enable with two address hits instead of one, so a bus write aimed at the read-only STATUS register also commits new values into every CONTROL field. The onehot spurious-write-enable checker cannot see it, because the vector bit for the STATUS index is tied low, so the out-of-bounds update raises no integrity error.",
+  "implemented_logic": "src/spi_host/rtl/spi_host_reg_top.sv:2019 reads assign control_we = (~&{~addr_hit[4], ~addr_hit[5]}) & reg_we & !reg_error, which is addr_hit[4] | addr_hit[5] after De Morgan. Index 4 decodes CONTROL at offset 0x10 and index 5 decodes STATUS at offset 0x14. The twelve other write-enable assignments in the same generated file all use the single form addr_hit[N] & reg_we & !reg_error. All five CONTROL fields take their enable from this one qualifier, and the write data is the raw bus word, so a STATUS write drives rx_watermark, tx_watermark, output_en, sw_rst and spien from bits 7:0, 15:8, 29, 30 and 31 of whatever value software wrote. At :2122 the checker vector has reg_we_check[4] = control_we while reg_we_check[5] = 1'b0, so on a STATUS write exactly one bit is asserted, the onehot condition holds, and intg_err_o stays low.",
+  "expected_logic": "A register's write-enable is qualified with its own address hit and nothing else. The tree's own generated register blocks show this: every other write-enable in this file, and the file's other read-only register, follow it. A write to a software-read-only register commits nothing, and if a write-enable ever asserted outside its own address, the spurious-write-enable checker is the mechanism meant to flag it.",
+  "security_frame": {
+    "attacker": "An agent that can issue writes to the block's AHB-Lite slave port at the STATUS offset. The register spec declares STATUS swaccess ro / hwaccess hwo, so no legitimate write path to it exists; an agent restricted to that register, or one whose access policy permits only read-only registers, nevertheless obtains a full write into CONTROL. The same path also fires for entirely benign firmware: a driver that writes STATUS, which the contract says is harmless, silently corrupts CONTROL instead.",
+    "precondition": "The SPI host block is attached to a bus the agent can issue writes on, and its register file has been configured normally, so CONTROL holds live settings: spien set and both FIFO watermarks at their intended levels. No debug state, no fault injection and no prior privileged access is required. STATUS's offset is a published parameter of the block's register package (src/spi_host/rtl/spi_host_reg_pkg.sv:320), so the address is known from the block's own deliverable.",
+    "input": "One 32-bit AHB-Lite write to the STATUS offset 0x14 with bit 30 set and bit 31 clear, then a read of CONTROL at offset 0x10 to observe the result, then a check that intg_err_o did not assert.",
+    "protected_asset": "The CONTROL register of the SPI host block, specifically sw_rst (software reset of the block) and spien (the enable that takes the SPI host offline), plus the two FIFO watermarks that drive its interrupt thresholds.",
+    "security_property": "Two properties. First the read-only contract of STATUS, and with it the address isolation of the register file: a write must affect only the register it addresses. Second the spurious-write-enable countermeasure, which exists to detect a write-enable asserting outside its own decode and does not detect this one.",
+    "implemented_logic": "src/spi_host/rtl/spi_host_reg_top.sv:2019 reads assign control_we = (~&{~addr_hit[4], ~addr_hit[5]}) & reg_we & !reg_error, which is addr_hit[4] | addr_hit[5] after De Morgan. Index 4 decodes CONTROL at offset 0x10 and index 5 decodes STATUS at offset 0x14. The twelve other write-enable assignments in the same generated file all use the single form addr_hit[N] & reg_we & !reg_error. All five CONTROL fields take their enable from this one qualifier, and the write data is the raw bus word, so a STATUS write drives rx_watermark, tx_watermark, output_en, sw_rst and spien from bits 7:0, 15:8, 29, 30 and 31 of whatever value software wrote. At :2122 the checker vector has reg_we_check[4] = control_we while reg_we_check[5] = 1'b0, so on a STATUS write exactly one bit is asserted, the onehot condition holds, and intg_err_o stays low.",
+    "attacker_model": "Unprivileged software at user-level mode. No fault injection, no physical access and no debug state is required: one ordinary 32-bit bus write to a mapped, documented-read-only address.",
+    "impact_if_exploited": "Setting sw_rst resets the SPI host mid-transaction and clearing spien takes it offline, so the block's availability is controllable from an address that is supposed to be inert. The watermark fields shift the interrupt thresholds, which changes when firmware is told the FIFOs need service. Because intg_err_o stays low, nothing upstream is informed that a register was written out of bounds, so the corruption is silent and would be diagnosed as a driver bug rather than a register-file defect.",
+    "minimum_attack_sequence": [
+      "Write any 32-bit value to the SPI host STATUS offset 0x14 with bit 30 set and bit 31 clear.",
+      "CONTROL at offset 0x10 now holds that value's fields: sw_rst asserted, spien deasserted, both watermarks replaced.",
+      "Observe that intg_err_o did not assert, so the out-of-bounds write is not reported."
+    ]
+  },
+  "proof_strategy": [
+    "Structural audit computing in-tree censuses without naming the audited signal: how many write-enables in the file use the single-address form, how many depart from it, how often the NAND-of-inverted-hits idiom occurs tree-wide, how many checker bits are tied low, and how the file's other read-only register is handled.",
+    "Directed simulation of one unmodified spi_host_reg_top driven only through its ports, with anti-vacuity controls: a direct CONTROL write must land, an unrelated CONFIGOPTS write must not touch CONTROL, and STATUS must be readable so the address is genuinely mapped.",
+    "A witness that is unambiguous by construction: the STATUS payload carries byte values used in no earlier transaction, so CONTROL holding them afterwards can only have come from the STATUS write.",
+    "A silence check on intg_err_o, conditional on the witness having fired, so the countermeasure's blindness is measured rather than asserted.",
+    "A containment check that a reset restores CONTROL's reset values, bounding the finding to a register state rather than something permanent.",
+    "A negative control that rewrites the qualifier into the single-address form its twelve siblings use, in a size-gated scratch copy, and reruns the same bench to show the witness disappears."
+  ],
+  "falsifiable_predictions": [
+    "On the audited RTL: three violating checks fail, four controls and the containment check pass, witness_hits=1.",
+    "With the qualifier corrected: the same bench reports checks=8 fails=0 witness_hits=0.",
+    "The censuses come out at 12 single-address write-enables of 13 total, 1 tree-wide use of the NAND idiom, 2 checker bits tied low, and 0 write-enables referencing the other read-only register's address hit."
+  ],
+  "non_goals": [
+    "No claim that the block is mapped into the Caliptra SoC address space; no design file in this tree instantiates it, so reach is stated at its own bus boundary.",
+    "No claim that this creates a write capability that software lacks entirely, since CONTROL is software-writable at its own address. The claim is that the write is reachable from an address where it must not be, and that it is silent."
+  ]
+}

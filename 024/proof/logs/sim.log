@@ -1,0 +1,35 @@
+--- simulate ---
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 21:34 2026
+=== kv_bug_024 KeyVault flush coverage and internal error response ===
+open_entry=3 locked_entry=4 race_entry=5 read_dest=HMAC_KEY(idx 0)
+expected_debug_value=0xaaaaaaaa
+CONTROL_A open entry read_data=0xc0de0001 rd_error=0
+ok:   CONTROL_A open entry is readable by its granted client value=0xc0de0001 as expected
+CONTROL_A to-be-locked entry read_data=0xc0de0002
+ok:   CONTROL_A to-be-locked entry is readable before locking value=0xc0de0002 as expected
+CONTROL_B KEY_CTRL[4] readback=0x00000202 lock_use=1
+ok:   CONTROL_B software write set lock_use value=1 as expected
+CONTROL_B locked entry read_data=0x00000000 rd_error=1
+ok:   CONTROL_B lock_use suppresses the read to zero value=0x00000000 as expected
+PROBE_A   cptra_in_debug_scan_mode=1 with no CLEAR_SECRETS poke open entry read_data=0xc0de0001
+probe_entry_flushed_by_debug_scan_mode_alone=0
+CONTROL_C after the flush pulse open entry read_data=0xaaaaaaaa
+ok:   CONTROL_C the flush overwrote the unlocked entry with the debug value value=0xaaaaaaaa as expected
+CONTROL_D after the flush pulse KEY_CTRL[4]=0x00000202 lock_use=1 locked entry read_data=0x00000000
+ok:   CONTROL_D the locked entry no longer returns its original key material value=0 as expected
+CONTROL_E race entry before the simultaneous write read_data=0xc0de0003
+ok:   CONTROL_E race entry is provisioned before the simultaneous write value=0xc0de0003 as expected
+CONTROL_E simultaneous two-client write wr_error_a=0 wr_error_b=0
+CONTROL_E race entry after the simultaneous write read_data=0x00000000
+ok:   CONTROL_E the multi-write error destroyed the entry contents value=0 as expected
+ok:   CONTROL_E neither racing write landed as itself value=0 as expected
+checks_run=9 checks_failed=0
+result=PASS
+$finish called from file "./proof/tb/kv_flush_and_error_tb.sv", line 406.
+$finish at simulation time               396000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 396000 ps
+CPU Time:      0.440 seconds;       Data structure size:   0.1Mb
+Tue Jul 28 21:34:47 2026

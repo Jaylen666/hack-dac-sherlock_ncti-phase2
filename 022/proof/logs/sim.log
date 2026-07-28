@@ -1,0 +1,22 @@
+--- simulate ---
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 19:22 2026
+=== kv_bug_022 KeyVault retention across stage-like inputs ===
+test_entry=0 read_dest=HMAC_KEY(idx 0) kv_num_keys=24
+SETUP     provisioned unlocked entry read_data=0xa5a51234 rd_error=0
+ok:   SETUP entry is provisioned and readable value=0xa5a51234 as expected
+PROBE_A   fw_update_rst_window=1 read_data=0xa5a51234 retained=1
+probe_retained_in_fw_update_window=1
+PROBE_B   after core_only_rst_b pulse read_data=0xa5a51234 retained=1
+probe_retained_across_core_only_reset=1
+CONTROL   debug/scan switch read_data=0xaaaaaaaa expected_debug_value=0xaaaaaaaa
+ok:   CONTROL debug/scan transition overwrites the entry value=0xaaaaaaaa as expected
+checks_run=2 checks_failed=0
+result=PASS
+$finish called from file "./proof/tb/kv_stage_transition_retention_tb.sv", line 227.
+$finish at simulation time               304000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 304000 ps
+CPU Time:      0.270 seconds;       Data structure size:   0.1Mb
+Tue Jul 28 19:22:16 2026

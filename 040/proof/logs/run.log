@@ -1,0 +1,73 @@
+=== BUG-040 structural audit ===
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+target=src/spi_host/rtl/spi_host_reg_top.sv:2019 (CONTROL write-enable qualifier)
+
+--- 1. the qualifier, and how its siblings are written ---
+  ok   CONTROL's write-enable is qualified with two address hits (soc line: spi_host_reg_top.sv:2019)
+single_address_write_enables=12
+  ok   12 write-enables in this file use the single-address form (measured 12)
+total_write_enable_assignments=13
+  ok   the file has 13 write-enable assignments in total (measured 13)
+  ok   exactly 1 write-enable departs from the single-address form (measured 1)
+nand_of_inverted_addr_hit_uses_tree_wide=1
+  ok   the NAND-of-inverted-address-hits idiom appears exactly once in the whole tree (measured 1)
+register_update_qualification_comments=1
+  ok   the 'Register update qualification.' comment appears once, on this assignment (measured 1)
+  ok   the generator's own section comment for this block is 'Generate write-enables' (measured 1)
+  ok   that section comment is the generator idiom shared by other register blocks in the tree
+register_blocks_carrying_that_comment=1
+  ok   no other register block in the tree carries that comment (measured 1 file)
+
+--- 2. which address the second hit is, and whether it is writable ---
+  ok   CONTROL lives at offset 0x10 (spi_host_reg_pkg.sv)
+  ok   STATUS lives at offset 0x14, the next word up (spi_host_reg_pkg.sv)
+  ok   address hit index 4 decodes CONTROL
+  ok   address hit index 5 decodes STATUS, so the extra term in the qualifier is the STATUS address
+status_own_write_enables=0
+  ok   STATUS has no write-enable of its own, i.e. it is a read-only register (measured 0)
+  ok   STATUS is generated as a stored, hardware-driven register (R[status]: V(False))
+  ok   the register spec declares STATUS software-read-only (spi_host.hjson)
+  ok   and hardware-write-only, so software has no legitimate write path to it at all
+
+--- 3. why the spurious-write-enable checker does not catch it ---
+  ok   the checker vector's bit 4 is driven by CONTROL's write-enable
+  ok   the checker vector's bit 5, the STATUS index, is tied low
+  ok   the checker is a 15-wide onehot check over that vector
+  ok   its error output is the block's integrity error, latched permanently for alerting
+checker_bits_tied_low=2
+  ok   2 checker bits are tied low, the two read-only registers (measured 2)
+  ok   the other tied-low bit is index 10, RXDATA, also read-only
+readonly_rxdata_hit_inside_write_enables=0
+  ok   the other read-only register's address hit appears in no write-enable at all (measured 0)
+status_hit_inside_write_enables=1
+  ok   the STATUS address hit appears inside exactly 1 write-enable, the one under audit (measured 1)
+readonly_rxdata_hit_total_uses=4
+  ok   that hit is used 4 times: decoder, permit check, read-enable and readback (measured 4)
+status_hit_total_uses=4
+  ok   the STATUS hit is used 4 times as well, but one of them is a write-enable rather than a read-enable (measured 4)
+
+--- 4. what lands in CONTROL, and why those fields matter ---
+  ok   the write data feeding CONTROL is the raw bus word, bits 7:0 to rx_watermark
+  ok   bits 15:8 to tx_watermark
+  ok   bit 29 to output_en
+  ok   bit 30 to sw_rst, the block's software reset
+  ok   bit 31 to spien, the enable that takes the SPI host offline when cleared
+control_fields_sharing_the_qualifier=5
+  ok   all 5 CONTROL fields take their write-enable from that one qualifier (measured 5)
+  ok   those fields are software-writable at their own address, so the defect is a reach across addresses, not a new write capability
+  ok   sw_rst is consumed by the block, so a spurious set has an effect beyond the register file
+  ok   spien is consumed by the block as well
+
+--- 5. reach: the register is software-addressable ---
+spi_host_instantiations_in_design=0
+spi_host_instantiations_in_testbenches=1
+  ok   no design file instantiates the block, so reach is stated at its own bus boundary (measured 0)
+  ok   the only instantiation in the tree is the block's own testbench, which confirms the pattern matches something and is not silently returning zero (measured 1)
+  ok   that boundary is an AHB-Lite slave port, i.e. any master on the bus it is attached to
+  ok   the block returns an explicit error only for unmapped accesses; STATUS is mapped, so a write to it is accepted at the bus level
+  ok   STATUS's offset is a published parameter of the block's register package, so the address is part of its programming interface
+  ok   the block ships a register description, so its software-visible contract is documented in-tree
+
+gates_passed=42 gates_failed=0
+RESULT: PASS - all structural gates confirm BUG-040
+result=PASS

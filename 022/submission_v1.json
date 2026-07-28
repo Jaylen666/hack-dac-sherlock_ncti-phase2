@@ -1,0 +1,64 @@
+{
+  "module": "keyvault",
+  "bug_id": "022",
+  "bug_name": "kv_bug_022",
+  "team_name": null,
+  "version": 1,
+  "status": "false_alarm_not_submitted",
+  "security_feature_bypassed": "None. No boot-stage transition clear is specified for this hardware, and the KeyVault clearing paths that are specified are present and were measured working.",
+  "finding": "The candidate alleged that src/keyvault/rtl/kv.sv lacks a per-entry clear on boot-stage advance, so key material provisioned by an earlier stage and left unlocked survives into the next stage. The retention is real and was measured at the module's read response port: an unlocked entry 0 with dest_valid granted to the HMAC-key destination reads back 0xa5a51234 after provisioning, still reads back 0xa5a51234 while fw_update_rst_window is asserted, and still reads back 0xa5a51234 after a core_only_rst_b pulse. It is not a bug. A structural audit shows no boot-stage transition exists to clear on: key_entry_clear at src/keyvault/rtl/kv.sv:159-161 has three producer terms and flush_keyvault at src/keyvault/rtl/kv.sv:122-123 has two, none stage-dependent; the kv module's 23 ports include none that could carry a stage indication, and all 23 are connected at src/integration/rtl/caliptra_top.sv:1189; and a case-insensitive sweep of every .sv, .svh, .v and .rdl file under src/ for boot_stage, boot_flow, stable_owner, rt_stage, fmc_stage, stage_transition and related names returns zero hits. The one OCP LOCK mode bit that exists, CPTRA_HW_CONFIG.OCP_LOCK_MODE_en, is driven from the ss_ocp_lock_en strap at src/soc_ifc/rtl/soc_ifc_top.sv:521, so it is a static configuration bit rather than a transition, and it never reaches the KeyVault. The in-tree specifications also assign the duty elsewhere: src/keyvault/config/keyvault.md:14 enumerates the clearing mechanisms as the control register and pwrgood de-assertion, both implemented; docs/CaliptraIntegrationSpecification.md:249-250 requires hardware clearing only on a debug or scan mode transition, which src/keyvault/rtl/kv.sv:122-123 implements and the simulation control confirms by measuring the entry overwritten with 0xaaaaaaaa; and stage-specific slot policy is a ROM requirement per src/keyvault/config/keyvault.md:209-210 and :225. The measured retention across the firmware-update reset is itself specified behavior, since docs/CaliptraHardwareSpecification.md:63 states all registers within the targets are intact after that reset.",
+  "location_or_code_reference": {
+    "competition_file": "src/keyvault/rtl/kv.sv:159",
+    "line_range": "122-164",
+    "supporting_references": [
+      "src/keyvault/rtl/kv.sv:122",
+      "src/keyvault/rtl/kv.sv:123",
+      "src/keyvault/rtl/kv.sv:27",
+      "src/keyvault/rtl/kv.sv:176",
+      "src/keyvault/rtl/kv.sv:233",
+      "src/keyvault/rtl/kv_reg.rdl:22",
+      "src/keyvault/rtl/kv_reg.rdl:28",
+      "src/keyvault/rtl/kv_reg.rdl:31",
+      "src/integration/rtl/caliptra_top.sv:1189",
+      "src/soc_ifc/rtl/soc_ifc_top.sv:521",
+      "src/keyvault/config/keyvault.md:14",
+      "src/keyvault/config/keyvault.md:209",
+      "src/keyvault/config/keyvault.md:225",
+      "docs/CaliptraIntegrationSpecification.md:249",
+      "docs/CaliptraIntegrationSpecification.md:250",
+      "docs/CaliptraHardwareSpecification.md:63"
+    ],
+    "attachment_note": "The detection code and scripts are included in the attachment: the directed testbench that provisions an unlocked entry and measures its readability across every stage-like input the kv module exposes, with a control on the debug/scan clearing path, and the structural audit script that enumerates the clear producers, the module port list, every boot-stage-like signal name in the tree, and the in-tree specification assignment of the clearing duty."
+  },
+  "detection_method": "Competition-only RTL review of the KeyVault clear and flush logic, followed by a 5-gate structural audit of the submitted tree and a directed single-DUT simulation of src/keyvault/rtl/kv.sv measuring entry retention across the firmware-update reset window and the microcontroller-only reset, with an asserted control on the debug/scan flush path.",
+  "security_impact": "No impact. The mechanism said to be missing is not a hardware feature this design is specified to have, and the clearing mechanisms it is specified to have are present and measured working. Stage isolation is a firmware obligation here: an earlier stage that must not leak an entry can set KEY_CTRL.clear to wipe it or KEY_CTRL.lock_use to suppress every client's read at src/keyvault/rtl/kv.sv:233-234. An earlier stage that leaves an entry unlocked has declined those mechanisms rather than been denied them. Worth recording for a future reviewer: src/keyvault/rtl/kv_reg.rdl:28-31 declares lock_wr and lock_use as hw=r with no hwset, hw=w or we property, so a hardware-enforced retention policy could not be added by wiring a new signal alone; it would require a register interface change.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "No RTL change is warranted for this candidate. The KeyVault clearing mechanisms enumerated in src/keyvault/config/keyvault.md:14 and the debug/scan flush required by docs/CaliptraIntegrationSpecification.md:249-250 are all implemented, and no boot-stage transition exists in this hardware for a per-entry transition clear to be driven from.",
+    "If a hardware-enforced stage retention policy is ever wanted, note that wiring a stage signal into src/keyvault/rtl/kv.sv would not be sufficient on its own. The lock fields at src/keyvault/rtl/kv_reg.rdl:28-31 are declared hw=r, so hardware cannot set them; the register interface would have to gain a hardware-settable path before any policy could express a retained set through them.",
+    "Keep the retention regression shipped with this case, proof/tb/kv_stage_transition_retention_tb.sv, in the KeyVault regression set. Its control asserts that a debugUnlock_or_scan_mode_switch pulse overwrites a provisioned entry with the selected debug value, which is the one hardware clearing obligation the specifications do place on this module, and its probes document the intended retention across the firmware-update reset window so a future change there is noticed."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:H/PR:H/UI:N/S:U/C:N/I:N/A:N",
+    "base_score": 0.0,
+    "severity": "None"
+  },
+  "test_submitted": {
+    "proof_plan": "proof_plan_v1.json",
+    "proof_result": "proof_result_v1.json",
+    "script": "proof/scripts/run_kv_bug_022_proof.sh",
+    "audit_script": "proof/scripts/audit_kv_entry_clear_sources.sh",
+    "tb": "proof/tb/kv_stage_transition_retention_tb.sv",
+    "run_log": "proof/logs/run.log",
+    "witness_log": "proof/logs/witness.log",
+    "sim_log": "proof/logs/sim.log",
+    "compile_log": "proof/logs/compile.log",
+    "c_validation_status": "c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Precondition: an earlier boot stage writes key material into a KeyVault entry with a dest_valid bit set for some crypto engine, and leaves both lock_wr and lock_use clear. Measured: the entry is provisioned and readable, read_data=0xa5a51234 with rd_error=0.",
+    "The boot flow advances to the next stage. This step has no hardware event behind it: the audit finds no boot-stage signal anywhere in the tree (boot_stage_signal_hits_in_rtl=0) and no kv port that could carry one (kv_boot_stage_ports=0 over 23 ports). The nearest hardware events are the firmware-update reset window and the microcontroller-only reset, and the entry survives both, as docs/CaliptraHardwareSpecification.md:63 specifies it should.",
+    "Later-stage firmware programs the crypto engine whose dest_valid bit is set to read that entry. This step succeeds, and it is meant to: dest_valid was granted at provisioning time by the earlier stage and, per src/keyvault/config/keyvault.md, cannot be modified afterwards.",
+    "Outcome: no bypass. Nothing gated the read that the earlier stage did not itself leave open. The isolation the design offers is the earlier stage setting KEY_CTRL.lock_use, which suppresses the read for every client at src/keyvault/rtl/kv.sv:233-234, or KEY_CTRL.clear, which wipes the entry at src/keyvault/rtl/kv.sv:160. The attack describes firmware not using its own controls, not hardware failing to enforce a property."
+  ]
+}

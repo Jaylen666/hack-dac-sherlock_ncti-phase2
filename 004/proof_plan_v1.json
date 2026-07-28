@@ -1,0 +1,61 @@
+{
+  "module": "aes_reg_top",
+  "bug_id": "004",
+  "bug_name": "aes_reg_top_bug_004",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Any software able to issue a read to the AES register block. The sixteen affected addresses carry no privilege, lifecycle or debug qualifier, so the lowest privilege level that can reach the block's MMIO window can perform the access.",
+    "precondition": "A released reset with the AES block reachable over its TileLink register interface. For the key-load half of the sequence the block must additionally be idle, which src/aes/data/aes.rdl requires for key register updates and which AES_STATUS.IDLE reports.",
+    "input": "Write the eight KEY_SHARE0 words at offset 0x04 and the eight KEY_SHARE1 words at offset 0x24 with chosen patterns, then issue an ordinary Get to those same sixteen addresses.",
+    "protected_asset": "The software access policy the audited tree's own register description declares for these registers. src/aes/data/aes.rdl:8 and :27 declare every KEY_SHARE0 and KEY_SHARE1 field sw = w, write-only, while the adjacent IV register at src/aes/data/aes.rdl:46 declares sw = rw. The asset under the write-only declaration is the initial key material: the same RDL states the actual initial key is share 0 XORed with share 1, and src/aes/rtl/aes_core.sv:480 implements exactly that.",
+    "security_property": "An address whose fields are declared sw = w must not return register content in its read response. The audited file states this property in its own idiom twice over: addr_hit[0] at src/aes/rtl/aes_reg_top.sv:1731-1733 drives reg_rdata_next bits to constant '0, and eight other arms in the same case statement read a *_qs hardware value for registers that are genuinely readable. Both correct shapes are therefore available to this generator, which is what makes the sixteen key-share arms legible as a defect rather than as a generator limitation.",
+    "implemented_logic": "The read-response multiplexer at src/aes/rtl/aes_reg_top.sv:1735-1765 assigns reg_rdata_next[31:0] = reg2hw.key_share0[i].q and reg2hw.key_share1[i].q on all sixteen write-only addresses, and src/aes/rtl/aes_reg_top.sv:125 drives the bus read data straight from reg_rdata_next. Which value that actually returns is decided by the primitive: src/caliptra_prim/rtl/caliptra_prim_subreg_ext.sv:28 assigns q = wd while :27 assigns qs = d, and the module contains no sequential element. For these instances wd is the bus write data (src/aes/rtl/aes_reg_top.sv:1569 assigns key_share0_0_wd from reg_wdata, and src/caliptra_tlul/rtl/caliptra_tlul_adapter_reg.sv:84 assigns wdata_o from tl_i.a_data), so the returned value is a combinational function of the requester's own A-channel data. The stored shares are on the other port: src/aes/rtl/aes_core.sv:1028-1029 drives hw2reg.key_share*[i].d from key_init_q, which reaches qs, and src/aes/rtl/aes_reg_top.sv:298 leaves that qs port unconnected on the key-share instances."
+  },
+  "security_feature_bypassed": "The write-only software access policy of the AES initial key registers, as declared by the audited tree's own register description. Whether the exposure carries key material or only the requester's own bus data is the question the witness must decide, and the claim will be written to whichever the RTL produces.",
+  "proof_goal": "Establish on one unmodified aes block, compiled from the audited checkout through the project's own aes filelist and driven only over its TileLink register interface, that the sixteen addresses declared write-only return non-zero data in their read response; and then determine what that data is, so the claim is bounded to what the hardware actually exposes.",
+  "proof_style": "Directed TileLink register-bus simulation of one real DUT, paired with a scripted structural audit of the surrounding tree and a negative control that applies the proposed mitigation to a scratch copy.",
+  "invariant": "A read of any of the sixteen KEY_SHARE0 or KEY_SHARE1 addresses must return zero, because src/aes/data/aes.rdl declares every field in those registers sw = w and the same file's addr_hit[0] arm shows that constant zero is this generator's own idiom for that case.",
+  "attacker_model": "Unprivileged software at user-level mode, being the lowest privilege level that can reach the AES MMIO window; no privilege, lifecycle or debug qualifier guards the sixteen defective arms.",
+  "minimum_attack_sequence": [
+    "Poll AES_STATUS.IDLE until the block reports idle, which the RDL requires before key registers can be updated.",
+    "Write the sixteen KEY_SHARE0 and KEY_SHARE1 words with chosen patterns.",
+    "Issue an ordinary Get to those same addresses and observe the read response is not zero."
+  ],
+  "controls": [
+    "control_core_idle_before_key_load: read AES_STATUS.IDLE before loading the key shares. Without it the writes might not have landed and every later read would be vacuous, since the RDL states key registers can only be updated while the unit is idle.",
+    "control_key_share_writes_raised_no_error: confirm no bus error on the sixteen writes, so the key load is known to have been accepted rather than rejected by the register block's integrity checker.",
+    "control_iv_readback_is_not_the_request_filler: read the IV address, which is declared sw = rw and whose arm reads iv_0_qs. This establishes that a hardware-backed readback is observable in this same DUT, so a key-share readback that does not match the stored value is a statement about the path rather than about the testbench.",
+    "discriminator_readback_is_the_request_data_not_stored_key: re-read one key-share address with a different value held on the A-channel a_data field. If the response tracks that value, the exposed path is a combinational echo of the requester's own bus data and not stored key material. This is the check that decides between a key-disclosure claim and a register-contract claim.",
+    "bound_stored_key_shares_are_not_returned: assert positively that the written patterns are not what comes back, so the boundary of the claim is measured rather than assumed.",
+    "containment_no_bus_error: confirm no register-bus error was raised across the whole run, so no measurement is an artefact of a rejected access."
+  ],
+  "witness_construction_note": "The testbench instantiates the whole aes block, not aes_reg_top alone, and drives it only through its declared ports. This is a deliberate choice: the key-share subregisters are caliptra_prim_subreg_ext instances with two distinct read paths, and in a standalone aes_reg_top build hw2reg is an input the testbench would drive, so such a build cannot distinguish 'the defect exposes the stored key' from 'the defect echoes the requester's bus data'. Only with the real aes_core attached is hw2reg.key_share*[i].d driven by key_init_q. Three mutually distinguishable payload families are used so the readback identifies its own source: the written pattern, the a_data filler, and zero. The register interface is TileLink Uncached Lightweight, and the block gates writes on its command-integrity checker, so an in-tree caliptra_tlul_cmd_intg_gen instance signs the A channel; without it every write would be silently rejected. An EDN responder acknowledges the masking PRNG reseed request, because without it the block never reaches idle and the key writes would be ignored. No force, no deposit, no hierarchical assignment into the DUT, and no second checkout.",
+  "expected_evidence": [
+    "A simulation line showing AES_STATUS.IDLE set before the key load, with the number of polls it took.",
+    "A line showing the sixteen key-share writes raised no bus error.",
+    "A line showing the IV readback differs from the request filler, so a hardware-backed readback is observable here.",
+    "Lines showing the first and last word of each share returning non-zero data on addresses declared write-only.",
+    "A line from a second read of the same address with a different a_data value, identifying what the exposed path carries.",
+    "A line showing no bus error anywhere in the run."
+  ],
+  "success_criteria": [
+    "checks=10 and fails=4 in the directed simulation, the four failures being the four invariant checks on the write-only addresses.",
+    "cov_core_idle=1, cov_iv_hw_path=1, cov_share0_exposed=1 and cov_share1_exposed=1 in the same run, so the exposure and both enabling controls are measured on one DUT.",
+    "structural_gates_passed=32/32 in the audit.",
+    "The negative control fails the witness testbench once the sixteen arms are rewritten to constant zero, with the readback measured at 0x00000000 and the idle precondition and IV control unchanged."
+  ],
+  "non_findings": [
+    "No claim is planned that the stored key shares are disclosed unless the witness measures the written patterns coming back. The defective arms read the subreg_ext q port, which src/caliptra_prim/rtl/caliptra_prim_subreg_ext.sv:28 drives from wd rather than from the hardware-side d, so the plausible reading of this defect as a key leak has to be tested before it can be claimed. If the readback is the requester's own bus data, the case is a register-contract violation and a bus-data echo, and it will be filed that way.",
+    "No claim is planned about the write path. onwrite = woclr and the write enables are unaffected by this defect; only the read response is at issue.",
+    "No claim is planned about the IV registers. They are declared sw = rw and their arms read a hardware value, so they are used here as a control rather than reported as a finding.",
+    "No claim is planned that reading these addresses perturbs AES state. The key-share instances are tied to re = 1'b0, so the read raises no register-side effect."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/004/proof/tb/aes_bug_004_tb.sv",
+    "script": "final_bug_submissions/004/proof/scripts/run_bug_004_proof.sh",
+    "sim_script": "final_bug_submissions/004/proof/scripts/run_bug_004_sim.sh",
+    "negative_control": "final_bug_submissions/004/proof/scripts/run_bug_004_negative_control.sh",
+    "logs": "final_bug_submissions/004/proof/logs/"
+  }
+}

@@ -1,0 +1,23 @@
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid re-execution or '-suppress=ASLR_DETECTED_INFO' to suppress this message.
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 20:23 2026
+case=control_serial_byte_is_received_and_readable PASS rdata=5a expected=5a
+case=control_second_byte_reads_back_as_itself PASS rdata=c3 expected=c3
+case=control_status_reports_rxempty_after_drain PASS status=0000003c rxempty=1
+case=violating_rdata_after_documented_rxrst_must_not_return_payload PASS rdata=00 received_earlier=5a rxempty=1
+case=violating_residual_must_not_persist_across_repeated_empty_reads PASS rdata=00 rxempty=1
+case=violating_block_reset_must_clear_received_payload PASS rdata=00 after rst_ni rxempty=1
+case=control_new_traffic_displaces_the_residual PASS rdata=96 expected=96
+cov_byte_a=1 cov_byte_b=1 cov_status_empty=1 cov_residual=0 cov_displaced=1
+witness_hits=0
+checks=7 fails=0
+result=NOT_THE_AUDITED_SIGNATURE
+PROOF_RESULT: SIGNATURE_MISMATCH
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/041/proof/scripts/../tb/uart_bug_041_tb.sv", line 303.
+$finish at simulation time             13230000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 13230000 ps
+CPU Time:      0.430 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 20:23:27 2026

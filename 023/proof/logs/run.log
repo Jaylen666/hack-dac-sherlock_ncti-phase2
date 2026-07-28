@@ -1,0 +1,111 @@
+=== kv_bug_023 proof run ===
+dut=src/keyvault/rtl/kv.sv
+tb=proof/tb/kv_lock_enforcement_tb.sv
+dut_instances_compiled=1
+=== kv_bug_023 structural audit: hardware set path for the KV lock bits ===
+tree_relative_paths_only=yes
+--- gate 1: lock field properties in the register description ---
+  28-       field {desc="Lock writes to this entry. Writes will be suppressed and an error will be recorded.";
+  29:              sw=rw; swwel=true; hw=r; resetsignal=core_only_rst_b;} lock_wr=0; //fw upd reset
+  30-       field {desc="Lock use of this entry. Reads will be suppressed and an error will be recorded.";
+  31:              sw=rw; swwel=true; hw=r; resetsignal=core_only_rst_b;} lock_use=0; //fw upd reset
+lock_field_declarations=2
+lock_fields_with_hwset=0
+lock_fields_with_hw_write_access=0
+lock_fields_with_hardware_write_enable=0
+lock_fields_hardware_settable=0
+  contrast: a hardware-writable field in the same description
+    48:              sw=r; hw=rw; we=true; hwclr; resetsignal = hard_reset_b;} dest_valid[9]=0;
+contrast_field_hardware_writable=1
+--- gate 2: drivers of the lock fields ---
+  assignments to the lock hwif inputs in src/keyvault/rtl/kv.sv:
+    187:        kv_reg_hwif_in.KEY_CTRL[entry].lock_wr.swwel = lock_wr_q[entry];
+    188:        kv_reg_hwif_in.KEY_CTRL[entry].lock_use.swwel = lock_use_q[entry];
+kv_lock_hwif_in_assignments=2
+kv_lock_swwel_assignments=2
+kv_lock_attempted_hardware_set_assignments=0
+  hardware set attempts on the lock fields anywhere in the tree:
+    none
+lock_field_hardware_set_attempts_in_tree=0
+  contrast: hardware writes to a field that does accept them
+    src/keyvault/rtl/kv.sv:193:        kv_reg_hwif_in.KEY_CTRL[entry].dest_valid.we = key_entry_ctrl_we[entry] & ~key_entry_clear[entry];
+    src/keyvault/rtl/kv.sv:194:        kv_reg_hwif_in.KEY_CTRL[entry].dest_valid.next = {3'd0,key_entry_dest_valid_next[entry]};
+contrast_field_hardware_write_attempts=2
+  how the generated register block updates the lock fields:
+    195:            next_c = field_storage.KEY_CTRL[i0].lock_wr.value;
+    197:            if(decoded_reg_strb.KEY_CTRL[i0] && decoded_req_is_wr && !(hwif_in.KEY_CTRL[i0].lock_wr.swwel)) begin // SW write
+    198:                next_c = (field_storage.KEY_CTRL[i0].lock_wr.value & ~decoded_wr_biten[0:0]) | (decoded_wr_data[0:0] & decoded_wr_biten[0:0]);
+    201:            field_combo.KEY_CTRL[i0].lock_wr.next = next_c;
+    202:            field_combo.KEY_CTRL[i0].lock_wr.load_next = load_next_c;
+    207:            end else if(field_combo.KEY_CTRL[i0].lock_wr.load_next) begin
+    208:                field_storage.KEY_CTRL[i0].lock_wr.value <= field_combo.KEY_CTRL[i0].lock_wr.next;
+    211:        assign hwif_out.KEY_CTRL[i0].lock_wr.value = field_storage.KEY_CTRL[i0].lock_wr.value;
+    216:            next_c = field_storage.KEY_CTRL[i0].lock_use.value;
+    218:            if(decoded_reg_strb.KEY_CTRL[i0] && decoded_req_is_wr && !(hwif_in.KEY_CTRL[i0].lock_use.swwel)) begin // SW write
+    219:                next_c = (field_storage.KEY_CTRL[i0].lock_use.value & ~decoded_wr_biten[1:1]) | (decoded_wr_data[1:1] & decoded_wr_biten[1:1]);
+    222:            field_combo.KEY_CTRL[i0].lock_use.next = next_c;
+    223:            field_combo.KEY_CTRL[i0].lock_use.load_next = load_next_c;
+    228:            end else if(field_combo.KEY_CTRL[i0].lock_use.load_next) begin
+    229:                field_storage.KEY_CTRL[i0].lock_use.value <= field_combo.KEY_CTRL[i0].lock_use.next;
+    232:        assign hwif_out.KEY_CTRL[i0].lock_use.value = field_storage.KEY_CTRL[i0].lock_use.value;
+    446:        assign readback_array[i0*1 + 0][0:0] = (decoded_reg_strb.KEY_CTRL[i0] && !decoded_req_is_wr) ? field_storage.KEY_CTRL[i0].lock_wr.value : '0;
+    447:        assign readback_array[i0*1 + 0][1:1] = (decoded_reg_strb.KEY_CTRL[i0] && !decoded_req_is_wr) ? field_storage.KEY_CTRL[i0].lock_use.value : '0;
+generated_register_block_lock_hwset_paths=0
+--- gate 3: boot-stage signal names anywhere in the tree ---
+  stage_name boot_stage: rtl_hits=0
+  stage_name boot_flow: rtl_hits=0
+  stage_name stable_owner: rtl_hits=0
+  stage_name stable_owner_key_en: rtl_hits=0
+  stage_name boot_flow_key_clear: rtl_hits=0
+  stage_name rt_stage: rtl_hits=0
+  stage_name fmc_stage: rtl_hits=0
+  stage_name rom_stage: rtl_hits=0
+  stage_name stage_transition: rtl_hits=0
+  stage_name transition_lock: rtl_hits=0
+  stage_name lock_policy: rtl_hits=0
+boot_stage_signal_hits_in_rtl=0
+kv_port_count=23
+kv_boot_stage_ports=0
+--- gate 4: in-tree specification statements on the lock bits ---
+  docs/CaliptraHardwareSpecification.md: KV entry control field table
+    2459:| Lock wr\[0\]              | core_only_rst_b   | Setting the lock wr field prevents the entry from being written by the microcontroller. Keys are always locked. After a lock is set, it cannot be reset until cptra_rst_b is de-asserted.               |
+    2460:| Lock use\[1\]             | core_only_rst_b   | Setting the lock use field prevents the entry from being used in any cryptographic blocks. After the lock is set, it cannot be reset until cptra_rst_b is de-asserted.                                  |
+  src/keyvault/config/keyvault.md: who sets the locks
+    209:- **KV22 (HEK)**: **locked for writes until warm reset** (ROM requirement).
+    210:- **KV16 (MDK)**: **locked for writes until warm reset** (ROM requirement).
+    225:- Caliptra ROM shall lock **KV22** for writes immediately it has derived the **HEK** into that slot.
+spec_statements_requiring_hardware_to_set_locks=0
+spec_statements_assigning_locks_to_firmware=10
+  the stickiness requirement the simulation measures:
+    2459:| Lock wr\[0\]              | core_only_rst_b   | Setting the lock wr field prevents the entry from being written by the microcontroller. Keys are always locked. After a lock is set, it cannot be reset until cptra_rst_b is de-asserted.               |
+    2460:| Lock use\[1\]             | core_only_rst_b   | Setting the lock use field prevents the entry from being used in any cryptographic blocks. After the lock is set, it cannot be reset until cptra_rst_b is de-asserted.                                  |
+spec_lock_stickiness_requirements=2
+--- gate 5: enforcement consumers of the lock terms ---
+  74:logic [KV_NUM_KEYS-1:0] lock_wr_q;
+  75:logic [KV_NUM_KEYS-1:0] lock_use_q;
+  160:                                            (kv_reg_hwif_out.KEY_CTRL[g_entry].clear.value & ~lock_wr_q[g_entry] & ~lock_use_q[g_entry]) |
+  176:        lock_wr_q[entry] = kv_reg_hwif_out.KEY_CTRL[entry].lock_wr.value & ~fw_update_rst_window;
+  177:        lock_use_q[entry] = kv_reg_hwif_out.KEY_CTRL[entry].lock_use.value & ~fw_update_rst_window;
+  181:                                        ~lock_wr_q[entry] & ~lock_use_q[entry]; 
+  187:        kv_reg_hwif_in.KEY_CTRL[entry].lock_wr.swwel = lock_wr_q[entry];
+  188:        kv_reg_hwif_in.KEY_CTRL[entry].lock_use.swwel = lock_use_q[entry];
+  211:                                              ((~lock_wr_q[entry] & ~lock_use_q[entry]) | debugUnlock_or_scan_mode_switch));
+  234:                                                ~lock_use_q[entry] & kv_reg_hwif_out.KEY_CTRL[entry].dest_valid.value[client] ? 
+  240:                                    (lock_use_q[entry] | ~kv_reg_hwif_out.KEY_CTRL[entry].dest_valid.value[client]);
+  251:                                        (key_entry_clear[entry] | lock_wr_q[entry] | lock_use_q[entry]);
+lock_term_reference_sites=12
+lock_use_read_mux_enforcement_sites=2
+lock_wr_enforcement_sites=5
+--- audit summary ---
+lock_fields_hardware_settable=0
+kv_lock_attempted_hardware_set_assignments=0
+lock_field_hardware_set_attempts_in_tree=0
+boot_stage_signal_hits_in_rtl=0
+kv_boot_stage_ports=0
+spec_statements_requiring_hardware_to_set_locks=0
+spec_lock_stickiness_requirements=2
+lock_term_reference_sites=12
+audit_conclusion=no_hardware_lock_set_is_attempted_keyable_or_required
+audit_result=PASS
+=== proof run complete ===
+result=PASS

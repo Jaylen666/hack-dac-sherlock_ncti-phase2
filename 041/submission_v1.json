@@ -1,0 +1,79 @@
+{
+  "module": "uart",
+  "bug_id": "041",
+  "bug_name": "uart_rxfifo_output_not_zeroed_when_empty_leaks_consumed_payload",
+  "team_name": "CSBC",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "security_feature_bypassed": "The library guarantee that a synchronous FIFO drives zero on its read data output when empty, which is the mechanism preventing a drained FIFO from disclosing what it held. The UART receive FIFO overrides that default off, and because its output is the only one in the tree that reaches a software-readable register, bytes received on the serial line stay readable through the RDATA register after software has consumed them, while the same block reports through STATUS.RXEMPTY that nothing is present.",
+  "finding": "src/uart/rtl/uart_core.sv:274 instantiates the receive FIFO as caliptra_prim_fifo_sync #(8, 1'b0, 32, 1'b0). The fourth positional argument is OutputZeroIfEmpty, whose library default is 1'b1 and which the library documents as controlling whether the output is zeroed when the FIFO is empty (src/caliptra_prim/rtl/caliptra_prim_fifo_sync.sv:13). This is the only positional instantiation of that cell in the tree, measured against 36 instantiations in total, and the transmit FIFO 100 lines above it in the same module passes its parameters by name and takes the default (:172-176). With the override in place, caliptra_prim_fifo_sync.sv:170 selects assign rdata_o = rdata_int, and with Pass=1'b0 that is storage[fifo_rptr] unconditionally (:135, :163). 15 other instances also set the parameter to zero, so the value alone is not the defect; what distinguishes this one is that its output reaches software. rdata_o leaves on uart_rdata (uart_core.sv:285), is assigned to hw2reg.rdata.d (:133), and is returned on readback with no empty-condition qualifier (src/uart/rtl/uart_reg_top.sv:1739), the read strobe being qualified only by address and bus validity (:1632). The same module simultaneously reports the FIFO empty from its own valid signal, hw2reg.status.rxempty.d = ~rx_fifo_rvalid (uart_core.sv:135), so one agent reads two contradictory facts. Neither clear available to software removes the data: resetOnClear defaults to 0 (caliptra_prim_fifo_sync.sv:15) and this instance does not enable it, so clr_i does not wipe storage even though it is wired to the software-writable FIFO reset (uart_core.sv:277); and the storage array is the no-reset variant (:147-152), a bare always_ff @(posedge clk_i) with no reset branch, so a block reset does not clear it either. Directed simulation of one unmodified uart top confirms it: two real serial frames 0x5a and 0xc3 were received and read back as themselves, STATUS then reported rxempty=1, and after writing FIFO_CTRL.RXRST a read of RDATA returned 0x5a while STATUS still reported rxempty=1. The residue survived a repeated read and survived pulling rst_ni low; a third byte 0x96 sent afterwards was returned, establishing that the location tracks the serial line.",
+  "location_or_code_reference": {
+    "competition_file": "src/uart/rtl/uart_core.sv:274",
+    "line_range": "273-288",
+    "supporting_references": [
+      "src/uart/rtl/uart_core.sv:133",
+      "src/uart/rtl/uart_core.sv:135",
+      "src/uart/rtl/uart_core.sv:172",
+      "src/uart/rtl/uart_core.sv:176",
+      "src/uart/rtl/uart_core.sv:277",
+      "src/uart/rtl/uart_core.sv:285",
+      "src/caliptra_prim/rtl/caliptra_prim_fifo_sync.sv:13",
+      "src/caliptra_prim/rtl/caliptra_prim_fifo_sync.sv:15",
+      "src/caliptra_prim/rtl/caliptra_prim_fifo_sync.sv:135",
+      "src/caliptra_prim/rtl/caliptra_prim_fifo_sync.sv:147",
+      "src/caliptra_prim/rtl/caliptra_prim_fifo_sync.sv:152",
+      "src/caliptra_prim/rtl/caliptra_prim_fifo_sync.sv:163",
+      "src/caliptra_prim/rtl/caliptra_prim_fifo_sync.sv:170",
+      "src/uart/rtl/uart_reg_top.sv:1632",
+      "src/uart/rtl/uart_reg_top.sv:1739",
+      "src/uart/rtl/uart_reg_pkg.sv:332",
+      "src/uart/rtl/uart_reg_pkg.sv:333",
+      "src/uart/rtl/uart_reg_pkg.sv:335",
+      "src/uart/data/uart.hjson:162",
+      "src/uart/data/uart.hjson:168",
+      "src/uart/data/uart.hjson:191",
+      "src/uart/data/uart.hjson:200"
+    ]
+  },
+  "detection_method": "Located by CSBC, an LLM-driven convergence method that reads the submitted tree on its own terms and looks for places where the design contradicts itself. Here the contradiction is internal and layered: one instantiation of a widely used library FIFO departs from the tree's naming idiom to override a parameter off, the sibling FIFO in the same module takes it, the library's own comment says what the parameter protects against, and the same module then tells software the FIFO is empty on the very cycle its data register returns a received byte. The candidate was then made falsifiable by measurement rather than by inspection. A structural audit computes the in-tree censuses without naming the audited signal, and the sibling extraction and instantiation census each carry a control gate requiring the pattern to match something, so a pattern that stopped matching reports a wrong count and fails a gate instead of passing silently. A directed simulation drives real serial frames into one unmodified uart top and observes only over its bus, with four of seven checks acting as controls including one that requires new traffic to displace the residue. A negative control rewrites only the audited instantiation to take the library default, size-gated at one line removed and five added, and shows the identical bench flips to a distinct verdict. No external repository, no other revision of this design, and no expected-answer list was consulted at any point.",
+  "security_impact": "Bytes that crossed the UART serial line remain readable through the RDATA register after software has consumed them, while the same block reports through STATUS.RXEMPTY that there is nothing to read. An agent that can read these registers but was not present for the traffic recovers a byte of it. What raises this above a transient artifact is that nothing available to software removes the residue: draining does not, FIFO_CTRL.RXRST -- the control the register description provides precisely for clearing the receive FIFO -- does not, and neither does a block reset, because the FIFO's storage flops carry no reset at all. RXRST in fact makes the disclosure worse rather than better: by returning the read pointer to zero it aligns the ungated output onto the first byte of the session, converting an indeterminate read into a deterministic disclosure of real payload. The exposure is one byte per storage location and is displaced only by new traffic arriving at that location.",
+  "adversary_profile": "Unprivileged software at user-level mode",
+  "proposed_mitigation": [
+    "In src/uart/rtl/uart_core.sv:274, drop the fourth positional argument and instantiate the receive FIFO with named parameters so OutputZeroIfEmpty takes its library default of 1'b1, matching the transmit FIFO at :172-176. The negative control shows this alone removes the behaviour, with reception unaffected.",
+    "As defence in depth, gate the readback in the register block: return zero for the RDATA field unless the FIFO reports data present, so the value at src/uart/rtl/uart_reg_top.sv:1739 cannot expose storage while status.rxempty is asserted at src/uart/rtl/uart_core.sv:135.",
+    "If any instance of caliptra_prim_fifo_sync must keep OutputZeroIfEmpty off while its output is software-readable, set resetOnClear so that clr_i clears storage, and give the storage flops a reset, so that FIFO_CTRL.RXRST and a block reset both actually clear received payload rather than leaving it in place.",
+    "Add a directed regression case that receives a byte, drains it, and requires RDATA to read zero whenever STATUS.RXEMPTY is asserted, so a future parameter change cannot silently reintroduce the disclosure.",
+    "Review the remaining positional instantiation as a lint rule: requiring named parameters for this cell would have made the override visible at the call site instead of hiding it as a bare 1'b0 in fourth position."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:L/I:N/A:N",
+    "base_score": 3.3,
+    "severity": "Low"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/041/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/041/proof_result_v1.json",
+    "script": "final_bug_submissions/041/proof/scripts/run_bug_041_proof.sh",
+    "sim_script": "final_bug_submissions/041/proof/scripts/run_bug_041_sim.sh",
+    "negative_control_script": "final_bug_submissions/041/proof/scripts/run_bug_041_negative_control.sh",
+    "testbench": "final_bug_submissions/041/proof/tb/uart_bug_041_tb.sv",
+    "run_log": "final_bug_submissions/041/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/041/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/041/proof/logs/sim.log",
+    "compile_log": "final_bug_submissions/041/proof/logs/compile.log",
+    "negative_control_sim_log": "final_bug_submissions/041/proof/negative_control_run/sim.log",
+    "negative_control_stdout_log": "final_bug_submissions/041/proof/negative_control_run/negative_control_stdout.log",
+    "c_validation_status": "final_bug_submissions/041/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "The UART receiver is enabled and traffic crosses the serial line: console output, a boot log, a command echoed back, whatever the deployment carries on cio_rx_i. Measurement drives two real 8N1 frames, 0x5a then 0xc3.",
+    "Whoever owns the console drains the receive FIFO by reading RDATA at offset 0x18 (src/uart/rtl/uart_reg_pkg.sv:333). Each read returns its byte correctly, and the FIFO empties. From the reader's point of view the data has been consumed and is gone.",
+    "The bytes are still in the FIFO's storage array. Nothing wrote over them: the storage flops are the no-reset variant (src/caliptra_prim/rtl/caliptra_prim_fifo_sync.sv:147-152), so a byte written there persists until new traffic lands on the same location.",
+    "The adversary is any agent that can read the block's registers over its AHB-Lite slave port. It reads STATUS at 0x14 (src/uart/rtl/uart_reg_pkg.sv:332) and sees RXEMPTY asserted (src/uart/rtl/uart_core.sv:135, documented at src/uart/data/uart.hjson:162), so by the block's own account there is nothing to read and no reason for an access policy to object.",
+    "It writes FIFO_CTRL.RXRST at 0x20 (src/uart/rtl/uart_reg_pkg.sv:335, documented at src/uart/data/uart.hjson:200). This is the control software is given to clear the receive FIFO, so it is an unremarkable thing for a driver to do. It resets the FIFO pointers but does not clear storage, because resetOnClear defaults to 0 (src/caliptra_prim/rtl/caliptra_prim_fifo_sync.sv:15) and this instance does not enable it.",
+    "Resetting the read pointer to zero aligns the FIFO's ungated output onto storage[0] (src/caliptra_prim/rtl/caliptra_prim_fifo_sync.sv:135), the first byte of the session. Without this step the pointer sits past the consumed bytes on a location never written, so the read would be indeterminate; the documented clear is what makes the disclosure deterministic.",
+    "It reads RDATA at 0x18. Because OutputZeroIfEmpty is overridden off (src/uart/rtl/uart_core.sv:274), the FIFO drives storage rather than zero (:170, :163); that value becomes hw2reg.rdata.d (src/uart/rtl/uart_core.sv:133) and is returned with no empty-condition qualifier (src/uart/rtl/uart_reg_top.sv:1739). Measurement returns 0x5a, a byte received earlier, while STATUS still reports rxempty.",
+    "The byte is not a fixed value the read would produce regardless: sending a third byte 0x96 afterwards makes RDATA return 0x96, so the location tracks what actually arrived on the line.",
+    "Neither clear available to software helps. The read repeats with the same result, and pulling rst_ni low and reading again still returns 0x5a, because the storage flops have no reset. The residue is displaced only when new traffic arrives at the same location."
+  ]
+}

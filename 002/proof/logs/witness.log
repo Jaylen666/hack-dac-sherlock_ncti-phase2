@@ -1,0 +1,19 @@
+COV plain out=[0x4f00e9f0 0xdb431211 0xfcb5c347 0x50bd1e9b] pre=[0x2cb12cb1 0xb1edb1ed 0x394d394d 0xfabffabf] completed=1 idle_polls=2
+CHECK_PASS control_plain_operation_completed
+CHECK_PASS control_plain_output_is_readable
+CHECK_FAIL control_data_out_is_clear_before_plain_operation
+COV kv_route out=[0x19252296 0x0a099156 0x097e61af 0xaee6658f] pre=[0x2cb12cb1 0xb1edb1ed 0x394d394d 0xfabffabf] completed=0
+CHECK_FAIL witness_kv_routed_output_is_concealed
+WITNESS kv_routed_output_readable out0=0x19252296
+CHECK_FAIL control_data_out_is_clear_before_kv_operation
+CHECK_PASS witness_kv_routed_readback_is_this_operations_own_result
+CHECK_PASS bound_kv_readback_is_not_the_written_plaintext
+COV blocked out=[0x00000000 0x00000000 0x00000000 0x00000000] pre=[0x00000000 0x00000000 0x00000000 0x00000000] completed=0
+CHECK_PASS control_data_out_is_clear_before_blocked_operation
+CHECK_PASS discriminator_block_reg_output_does_conceal
+WITNESS mask_works_when_armed blocked_out0=0x00000000
+COV err_seen=0
+CHECK_PASS containment_no_bus_error
+SUMMARY checks=10 fails=3 witness_hits=2
+COV plain_visible=1 kv_route_visible=1 block_conceals=1 op_completed=1
+PROOF_RESULT: FAIL

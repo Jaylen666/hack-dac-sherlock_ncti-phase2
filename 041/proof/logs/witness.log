@@ -1,0 +1,43 @@
+=== BUG-041 witness ===
+
+Transcript of the directed run on the audited RTL (proof/logs/sim.log):
+
+case=control_serial_byte_is_received_and_readable PASS rdata=5a expected=5a
+case=control_second_byte_reads_back_as_itself PASS rdata=c3 expected=c3
+case=control_status_reports_rxempty_after_drain PASS status=0000003c rxempty=1
+TBFAIL case=violating_rdata_after_documented_rxrst_must_not_return_payload rdata=5a received_earlier=5a rxempty=1
+TBFAIL case=violating_residual_must_not_persist_across_repeated_empty_reads rdata=5a rxempty=1
+TBFAIL case=violating_block_reset_must_clear_received_payload rdata=5a after rst_ni rxempty=1
+case=control_new_traffic_displaces_the_residual PASS rdata=96 expected=96
+cov_byte_a=1 cov_byte_b=1 cov_status_empty=1 cov_residual=1 cov_displaced=1
+witness_hits=1
+checks=7 fails=3
+result=PASS
+
+--- reading of the witness ---
+
+Two real serial frames were driven into cio_rx_i, 0x5a then 0xc3, and each read
+back over the AHB port as itself. STATUS then reported rxempty=1, so by the
+block's own account to software the receive FIFO held nothing.
+
+FIFO_CTRL.RXRST was then written. That is the control the register description
+gives software to clear the receive FIFO. A read of RDATA afterwards returned
+0x5a -- the first byte of the session, already consumed -- while STATUS still
+reported rxempty=1. The value is not a constant the bench would see regardless:
+the final control sent a third byte, 0x96, and RDATA then returned 0x96, so the
+location being read tracks what actually arrived.
+
+The residual survived a repeated read, and it survived pulling rst_ni low: after
+a full block reset, with the receiver disabled and STATUS reporting empty, RDATA
+still returned 0x5a.
+
+Why RXRST is what exposes it rather than what contains it: with Pass=0 the
+FIFO's output is storage[fifo_rptr] unconditionally. After the drain, fifo_rptr
+has advanced past both consumed bytes to a location never written, so the read
+is indeterminate. RXRST resets the pointer to 0, which aligns the ungated output
+onto storage[0] -- a byte software already received. The documented clear is
+what makes the stale payload deterministic and readable.
+
+The three failing checks are the defect speaking; the four passing controls
+establish that reception, readback, the empty report, and displacement by new
+traffic all work as intended, so the failures are not a broken bench.

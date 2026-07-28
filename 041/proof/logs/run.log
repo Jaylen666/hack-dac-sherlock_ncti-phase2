@@ -1,0 +1,55 @@
+=== BUG-041 structural audit ===
+
+--- 1. the audited instantiation and its form ---
+  ok   the rx FIFO is instantiated with four positional parameters, the fourth being 1'b0
+  ok   the library's default for that fourth parameter is 1'b1
+  ok   the library documents that parameter as controlling whether the output is zeroed when empty
+fifo_sync_instantiations_in_tree=36
+fifo_sync_positional_instantiations=1
+  ok   the FIFO is a widely used library cell, so its idiom is well established (measured 36)
+  ok   exactly one instantiation in the whole tree passes parameters positionally (measured 1)
+
+--- 2. the sibling in the same file disagrees ---
+  ok   the same module instantiates a second FIFO of the same library cell
+  ok   that sibling passes its parameters by name
+  ok   the sibling does not override OutputZeroIfEmpty, so it takes the documented default
+  ok   the extracted block really is the sibling's, so the gate above is not passing on empty text
+  ok   there is exactly one rx FIFO instance, so the finding is not ambiguous about which
+
+--- 3. why this instance is different from the others that set it to 0 ---
+named_ozie_zero_instances=15
+  ok   other instances do set that parameter to zero, so the value alone is not the finding (measured 15)
+  ok   the audited instance's read data leaves the FIFO on a named signal
+  ok   that signal is assigned directly to a register field's hardware-to-software input
+  ok   that field belongs to a register with a published software offset
+
+--- 4. the readback path is ungated ---
+  ok   the register block returns the field's stored value on readback with no empty-condition qualifier
+  ok   the read strobe is qualified only by address and bus validity, not by whether data is present
+  ok   the field is an external subreg fed straight from the hardware input
+
+--- 5. software is simultaneously told the FIFO is empty ---
+  ok   the same module reports emptiness to software from the FIFO's own valid signal
+  ok   that bit is a documented field of the status register
+  ok   the status register has a published software offset, so both facts are readable by the same agent
+
+--- 6. neither software-visible clear removes the data ---
+  ok   the library's clear-the-storage behaviour is off by default
+  ok   the audited instance does not enable it, so its documented clear does not wipe storage
+  ok   the clear input is nevertheless wired to the software-writable FIFO reset
+  ok   that reset is a documented software control, i.e. the mechanism software is given to clear the FIFO
+  ok   the storage array has a no-reset variant, which is the one selected here
+  ok   in that variant the storage flops are clocked with no reset in their sensitivity list
+  ok   so a block reset does not clear received payload either
+
+--- 7. reach: the register is software-addressable ---
+uart_instantiations_in_design=0
+uart_instantiations_elsewhere=1
+  ok   the pattern finds at least one instantiation, so a zero below would be a real absence and not a regex miss (measured 1)
+  ok   the block presents an AHB-Lite slave port, so its registers are reachable by any master on that bus
+  ok   the block ships a register description, so its software-visible contract is documented in-tree
+  ok   that description marks read-only registers, i.e. it defines a software-visible contract to violate
+
+gates_passed=31 gates_failed=0
+RESULT: PASS - all structural gates confirm BUG-041
+result=PASS

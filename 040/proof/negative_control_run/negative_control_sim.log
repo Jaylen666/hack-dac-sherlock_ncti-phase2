@@ -1,0 +1,27 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/040/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/040/proof/scripts/../negative_control_run/negative_control_sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 18:50 2026
+"/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv", 153: spi_host_reg_top_bug_040_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A: started at 1ps failed at 1ps
+	Offending '((unused_assert_connected === 1'b1) || (!EnableAlertTriggerSVA))'
+Error: "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv", 153: spi_host_reg_top_bug_040_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A: at time 1 ps
+0: (/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv:153) [spi_host_reg_top_bug_040_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A] [CALIPTRA_ASSERT FAILED] AssertConnected_A
+case=control_reset_values_present PASS rx=7f spien=0 sw_rst=0 intg_err=0
+case=control_direct_control_write_takes_effect PASS rx=aa tx=11 spien=1
+case=control_configopts_write_leaves_control_alone PASS rx=aa tx=11 spien=1
+case=control_status_address_is_mapped_and_readable PASS hresp=0 rdata=00000000
+case=violating_status_write_must_not_modify_control PASS rx=aa(was aa) tx=11(was 11) spien=1(was 1)
+case=violating_status_write_must_not_set_sw_rst_or_clear_spien PASS sw_rst=0(was 0) spien=1(was 1)
+case=violating_out_of_bounds_update_must_raise_intg_err PASS witness_hits=0 intg_err=0
+case=containment_reset_clears_the_injected_control_state PASS rx=7f sw_rst=0 spien=0
+cov_reset=1 cov_control_write=1 cov_unrelated_inert=1 cov_status_reaches_control=0 cov_status_read=1
+witness_hits=0
+checks=8 fails=0
+result=NOT_THE_AUDITED_SIGNATURE
+PROOF_RESULT: SIGNATURE_MISMATCH
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/040/proof/tb/spi_host_reg_top_bug_040_tb.sv", line 306.
+$finish at simulation time               235000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 235000 ps
+CPU Time:      0.320 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 18:50:21 2026

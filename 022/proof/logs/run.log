@@ -1,0 +1,108 @@
+=== kv_bug_022 proof run ===
+dut=src/keyvault/rtl/kv.sv
+tb=proof/tb/kv_stage_transition_retention_tb.sv
+dut_instances_compiled=1
+=== kv_bug_022 structural audit: boot-stage transition clear ===
+tree_relative_paths_only=yes
+--- gate 1: producers of key_entry_clear ---
+  key_entry_clear[g_entry] <= '0;
+  key_entry_clear[g_entry] <= kv_multi_write_err |
+  (kv_reg_hwif_out.KEY_CTRL[g_entry].clear.value & ~lock_wr_q[g_entry] & ~lock_use_q[g_entry]) |
+  (key_entry_clear[g_entry] & key_entry_ctrl_we[g_entry]);
+  at 156:                key_entry_clear[g_entry] <= '0;
+  at 159:                key_entry_clear[g_entry] <= kv_multi_write_err |
+  term_present: kv_multi_write_err
+  term_present: KEY_CTRL\[g_entry\].clear.value
+  term_present: key_entry_clear\[g_entry\] & key_entry_ctrl_we
+key_entry_clear_producer_terms=3
+key_entry_clear_stage_dependent_terms=0
+--- gate 2: producers of flush_keyvault ---
+  always_comb flush_keyvault = debugUnlock_or_scan_mode_switch | 
+  (cptra_in_debug_scan_mode & kv_reg_hwif_out.CLEAR_SECRETS.wr_debug_values.value);
+  at 122:always_comb flush_keyvault = debugUnlock_or_scan_mode_switch | 
+  term_present: debugUnlock_or_scan_mode_switch
+  term_present: cptra_in_debug_scan_mode
+  term_present: wr_debug_values
+flush_keyvault_producer_terms=3
+flush_keyvault_stage_dependent_terms=0
+--- gate 3: kv module port list ---
+kv_port_count=23
+  port: clk
+  port: core_only_rst_b
+  port: cptra_in_debug_scan_mode
+  port: cptra_pwrgood
+  port: debugUnlock_or_scan_mode_switch
+  port: fw_update_rst_window
+  port: haddr_i
+  port: hrdata_o
+  port: hready_i
+  port: hreadyout_o
+  port: hresp_o
+  port: hsel_i
+  port: hsize_i
+  port: htrans_i
+  port: hwdata_i
+  port: hwrite_i
+  port: kv_rd_resp
+  port: kv_read
+  port: kv_write
+  port: kv_wr_resp
+  port: pcr_ecc_signing_key
+  port: pcr_mldsa_signing_key
+  port: rst_b
+kv_boot_stage_ports=0
+kv_instantiation_connected_ports=23
+kv_instantiation_stage_ports=0
+--- gate 4: boot-stage signal names anywhere in the tree ---
+  stage_name boot_stage: rtl_hits=0
+  stage_name boot_flow: rtl_hits=0
+  stage_name stable_owner: rtl_hits=0
+  stage_name stable_owner_key_en: rtl_hits=0
+  stage_name boot_flow_key_clear: rtl_hits=0
+  stage_name boot_flow_error: rtl_hits=0
+  stage_name rt_stage: rtl_hits=0
+  stage_name fmc_stage: rtl_hits=0
+  stage_name rom_stage: rtl_hits=0
+  stage_name stage_transition: rtl_hits=0
+  stage_name kv_monitor_alert: rtl_hits=0
+boot_stage_signal_hits_in_rtl=0
+  ocp lock mode declaration sites (rtl + rdl, excluding testbench and uvm):
+    src/soc_ifc/rtl/soc_ifc_reg_pkg.sv:209:    } soc_ifc_reg__CPTRA_HW_CONFIG__OCP_LOCK_MODE_en__in_t;
+    src/soc_ifc/rtl/soc_ifc_reg_pkg.sv:217:        soc_ifc_reg__CPTRA_HW_CONFIG__OCP_LOCK_MODE_en__in_t OCP_LOCK_MODE_en;
+    src/soc_ifc/rtl/soc_ifc_external_reg.rdl:338:    field {desc = "Caliptra configured to operate in OCP LOCK Mode"; sw=r; hw=w;} OCP_LOCK_MODE_en;
+    src/soc_ifc/rtl/soc_ifc_subsystem_reg.rdl:177:            is only permitted if both CPTRA_HW_CONFIG.OCP_LOCK_MODE_en and SS_OCP_LOCK_CTRL.LOCK_IN_PROGRESS are set to 1. Otherwise, HW will return a command error on
+    src/soc_ifc/rtl/soc_ifc_subsystem_reg.rdl:188:            is only permitted if both CPTRA_HW_CONFIG.OCP_LOCK_MODE_en and SS_OCP_LOCK_CTRL.LOCK_IN_PROGRESS are set to 1. Otherwise, HW will return a command error on
+    src/soc_ifc/rtl/soc_ifc_subsystem_reg.rdl:208:    desc = "Programmed by Caliptra firmware to enable OCP LOCK operations. Writable only when CPTRA_HW_CONFIG.OCP_LOCK_MODE_en
+    src/soc_ifc/rtl/soc_ifc_reg.sv:7376:    assign readback_array[56][6:6] = (decoded_reg_strb.CPTRA_HW_CONFIG && !decoded_req_is_wr) ? hwif_in.CPTRA_HW_CONFIG.OCP_LOCK_MODE_en.next : '0;
+    src/soc_ifc/rtl/soc_ifc_top.sv:521:    always_comb soc_ifc_reg_hwif_in.CPTRA_HW_CONFIG.OCP_LOCK_MODE_en.next = ss_ocp_lock_en;
+    src/soc_ifc/rtl/soc_ifc_top.sv:524:    always_comb soc_ifc_reg_hwif_in.CPTRA_HW_CONFIG.OCP_LOCK_MODE_en.next = 1'b0;
+ocp_lock_mode_declaration_sites=9
+ocp_lock_mode_references_in_kv_sv=0
+--- gate 5: in-tree specification assignment of the clearing duty ---
+  src/keyvault/config/keyvault.md: enumerated clearing mechanisms
+    14:Entries in the KV must be cleared via control register, or by de-assertion of pwrgood.  
+  src/keyvault/config/keyvault.md: who sets the locks
+    209:- **KV22 (HEK)**: **locked for writes until warm reset** (ROM requirement).
+    210:- **KV16 (MDK)**: **locked for writes until warm reset** (ROM requirement).
+    225:- Caliptra ROM shall lock **KV22** for writes immediately it has derived the **HEK** into that slot.
+  docs/CaliptraIntegrationSpecification.md: hardware-initiated key vault clearing
+    249:| security_state | 3 | Input Strap | Synchronous to clk | Security state that Caliptra should take (for example, manufacturing, secure, unsecure, etc.). The key is latched by Caliptra on cptra_noncore_rst_b deassertion. Any time the state changes to debug mode, all keys, assets, and secrets stored in fuses or key vault are cleared. Cryptography core states are also flushed if they were being used. |
+    250:| scan_mode | 1 | Input Strap | Synchronous to clk | Must be set before entering scan mode. This is a separate signal than the scan chain enable signal that goes into scan cells. This allows Caliptra to flush any assets or secrets present in key vault and flops if the transition is happening from a secure state. |
+  docs/CaliptraHardwareSpecification.md: register state across a firmware-update reset
+    63:When a firmware update is initiated, Runtime FW writes to fw\_update\_reset register to trigger the FW update reset. When this register is written, only the RISC-V core is reset using cptra\_uc\_rst\_b pin and all AHB targets are still active. All registers within the targets and ICCM/DCCM memories are intact after the reset. Reset is deasserted synchronously after a programmable number of cycles; the minimum allowed number of wait cycles is 5, which is also the default configured value. Reset de-assertion is done through a two flip-flop synchronizer. Since ICCM is locked during runtime, the boot FSM unlocks it when the RISC-V reset is asserted. Following FW update reset deassertion, normal boot flow updates the ICCM with the new FW from the mailbox SRAM.
+spec_hardware_clear_conditions=2
+spec_boot_stage_clear_requirements=0
+  src/keyvault/rtl/kv_reg.rdl: lock field properties
+    29:              sw=rw; swwel=true; hw=r; resetsignal=core_only_rst_b;} lock_wr=0; //fw upd reset
+    31:              sw=rw; swwel=true; hw=r; resetsignal=core_only_rst_b;} lock_use=0; //fw upd reset
+lock_fields_hardware_settable=0
+--- audit summary ---
+kv_boot_stage_ports=0
+boot_stage_signal_hits_in_rtl=0
+spec_boot_stage_clear_requirements=0
+spec_hardware_clear_conditions=2
+lock_fields_hardware_settable=0
+audit_conclusion=no_boot_stage_transition_exists_and_none_is_required
+audit_result=PASS
+=== proof run complete ===
+result=PASS

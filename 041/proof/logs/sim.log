@@ -1,0 +1,22 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/041/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/041/proof/scripts/../logs/sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 19:17 2026
+case=control_serial_byte_is_received_and_readable PASS rdata=5a expected=5a
+case=control_second_byte_reads_back_as_itself PASS rdata=c3 expected=c3
+case=control_status_reports_rxempty_after_drain PASS status=0000003c rxempty=1
+TBFAIL case=violating_rdata_after_documented_rxrst_must_not_return_payload rdata=5a received_earlier=5a rxempty=1
+TBFAIL case=violating_residual_must_not_persist_across_repeated_empty_reads rdata=5a rxempty=1
+TBFAIL case=violating_block_reset_must_clear_received_payload rdata=5a after rst_ni rxempty=1
+case=control_new_traffic_displaces_the_residual PASS rdata=96 expected=96
+cov_byte_a=1 cov_byte_b=1 cov_status_empty=1 cov_residual=1 cov_displaced=1
+witness_hits=1
+checks=7 fails=3
+result=PASS
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/041/proof/scripts/../tb/uart_bug_041_tb.sv", line 303.
+$finish at simulation time             13230000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 13230000 ps
+CPU Time:      0.300 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 19:17:40 2026

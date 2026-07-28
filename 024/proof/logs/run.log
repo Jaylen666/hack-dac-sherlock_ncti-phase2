@@ -1,0 +1,108 @@
+=== kv_bug_024 proof run ===
+dut=src/keyvault/rtl/kv.sv
+tb=proof/tb/kv_flush_and_error_tb.sv
+dut_instances_compiled=1
+=== kv_bug_024 structural audit: KV flush coverage and KV error reporting ===
+tree_relative_paths_only=yes
+--- gate 1: the flush expression inside the kv module ---
+  122:always_comb flush_keyvault = debugUnlock_or_scan_mode_switch | 
+  123-                             (cptra_in_debug_scan_mode & kv_reg_hwif_out.CLEAR_SECRETS.wr_debug_values.value);
+  124-//Pick between keyvault debug mode 0 or 1
+flush_expression_switch_terms=1
+flush_expression_debug_scan_terms=1
+  sites where the switch input is used outside the flush expression:
+    34:    input logic debugUnlock_or_scan_mode_switch,
+    211:                                              ((~lock_wr_q[entry] & ~lock_use_q[entry]) | debugUnlock_or_scan_mode_switch));
+flush_switch_lock_bypass_sites=2
+--- gate 2: the signal connected to the kv flush port, and its producers ---
+  the flush port connection at the kv instantiation:
+        .debugUnlock_or_scan_mode_switch (debug_lock_or_scan_mode_switch),
+kv_flush_port_connected_signal=debug_lock_or_scan_mode_switch
+  driver of debug_lock_or_scan_mode_switch:
+    770:    assign debug_lock_or_scan_mode_switch = debug_lock_switch | scan_mode_switch | device_lifecycle_switch | cptra_error_fatal;
+kv_flush_signal_driver_sites=1
+kv_flush_signal_producer_terms=4
+  producer terms of debug_lock_or_scan_mode_switch:
+    term: debug_lock_switch
+    term: scan_mode_switch
+    term: device_lifecycle_switch
+    term: cptra_error_fatal
+kv_flush_signal_fatal_error_terms=1
+  the fatal error signal at the top level:
+    90:    output logic             cptra_error_fatal,
+    834:    .cptra_error_fatal(cptra_error_fatal),
+    1446:    .cptra_error_fatal    (cptra_error_fatal),
+cptra_error_fatal_is_top_level_output=1
+--- gate 3: the fields and write-enables of the fatal error register ---
+  declared fields of CPTRA_HW_ERROR_FATAL in src/soc_ifc/rtl/soc_ifc_external_reg.rdl:
+    10:    rw_rw_sticky_hw iccm_ecc_unc=0;     /* Uncorrectable double-bit error in ICCM */
+    11:    rw_rw_sticky_hw dccm_ecc_unc=0;     /* Uncorrectable double-bit error in DCCM */
+    12:    rw_rw_sticky_hw nmi_pin=0;          /* Non-Maskable Interrupt due to WDT timeout */
+    13:    rw_rw_sticky_hw crypto_err=0;       /* Crypto parallel operation error No Mask */ 
+    14:    field {sw=r; hw=w;} rsvd[28]=28'h0;
+fatal_register_error_fields=4
+fatal_register_keyvault_fields=0
+  write-enables of CPTRA_HW_ERROR_FATAL in src/soc_ifc/rtl/soc_ifc_top.sv:
+    1378:always_comb soc_ifc_reg_hwif_in.CPTRA_HW_ERROR_FATAL.crypto_err  .we = crypto_error;
+    1379:always_comb soc_ifc_reg_hwif_in.CPTRA_HW_ERROR_FATAL.iccm_ecc_unc.we = rv_ecc_sts.cptra_iccm_ecc_double_error & ~fw_update_rst_window;
+    1380:always_comb soc_ifc_reg_hwif_in.CPTRA_HW_ERROR_FATAL.dccm_ecc_unc.we = rv_ecc_sts.cptra_dccm_ecc_double_error & ~fw_update_rst_window;
+    1381:always_comb soc_ifc_reg_hwif_in.CPTRA_HW_ERROR_FATAL.nmi_pin     .we = nmi_intr;
+fatal_register_write_enable_sites=4
+fatal_register_keyvault_write_enables=0
+  KeyVault-related ports on soc_ifc_top:
+    kv_read
+    kv_rd_resp
+soc_ifc_keyvault_ports=2
+soc_ifc_keyvault_error_ports=0
+--- gate 4: KeyVault error observability paths ---
+  the KeyVault error status field in src/keyvault/rtl/kv_def.rdl:
+    34-                };
+    35-            };
+    36:            sw=r; hw=w; encode = kv_error_e;} ERROR[8]=0;
+    37-    };
+    38-
+keyvault_error_status_encodings=2
+  engine register packages exposing a KeyVault error status field:
+    src/aes/rtl/aes_clp_reg_pkg.sv
+    src/ecc/rtl/ecc_reg_pkg.sv
+    src/hmac/rtl/hmac_reg_pkg.sv
+    src/sha512/rtl/sha512_reg_pkg.sv
+engine_register_blocks_with_keyvault_error_status=4
+keyvault_client_error_assignment_sites=4
+  the KeyVault interrupt lines at the top level:
+    254:    wire kv_error_intr;
+    255:    wire kv_notif_intr;
+    473:assign kv_error_intr = 1'b0; // TODO
+    474:assign kv_notif_intr = 1'b0; // TODO
+    485:    intr[`VEER_INTR_VEC_KV_ERROR     -1]          = kv_error_intr;
+    486:    intr[`VEER_INTR_VEC_KV_NOTIF     -1]          = kv_notif_intr;
+keyvault_interrupt_tieoff_sites=2
+--- gate 5: in-tree specification statements ---
+  what a fatal error requires, per docs/CaliptraIntegrationSpecification.md:
+    949:| Error reporting                  | SoC shall only recover Caliptra fatal errors via SoC power-good reset.                                                                                                                                                                                                         | Statement of conformance | Required for Caliptra threat model                |
+spec_fatal_error_recovery_requirements=1
+  what the fatal error register is specified to carry, per src/soc_ifc/rtl/soc_ifc_external_reg.rdl:
+    2:    desc = "Indicates fatal hardware error. Assertion of any bit in this
+    7:            Only a Caliptra reset will clear the fatal error interrupt.
+  in-tree statements requiring KeyVault errors to be reported as fatal:
+spec_statements_requiring_keyvault_errors_reported_fatal=0
+  in-tree statements on hardware clearing of the KeyVault:
+    249:| security_state | 3 | Input Strap | Synchronous to clk | Security state that Caliptra should take (for example, manufacturing, secure, unsecure, etc.). The key is latched by Caliptra on cptra_noncore_rst_b deassertion. Any time the state changes to debug mode, all keys, assets, and secrets stored in fuses or key vault are cleared. Cryptography core states are also flushed if they were being used. |
+    250:| scan_mode | 1 | Input Strap | Synchronous to clk | Must be set before entering scan mode. This is a separate signal than the scan chain enable signal that goes into scan cells. This allows Caliptra to flush any assets or secrets present in key vault and flops if the transition is happening from a secure state. |
+spec_hardware_keyvault_clear_conditions=0
+--- audit summary ---
+kv_flush_port_connected_signal=debug_lock_or_scan_mode_switch
+kv_flush_signal_producer_terms=4
+kv_flush_signal_fatal_error_terms=1
+flush_switch_lock_bypass_sites=2
+fatal_register_error_fields=4
+fatal_register_keyvault_fields=0
+fatal_register_write_enable_sites=4
+soc_ifc_keyvault_error_ports=0
+engine_register_blocks_with_keyvault_error_status=4
+spec_statements_requiring_keyvault_errors_reported_fatal=0
+proposition_a_conclusion=a_fatal_error_already_reaches_the_keyvault_flush
+proposition_b_conclusion=no_in_tree_requirement_and_keyvault_errors_are_reported_per_engine
+audit_result=PASS
+=== proof run complete ===
+result=PASS

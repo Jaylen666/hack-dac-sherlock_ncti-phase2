@@ -1,0 +1,35 @@
+Command: /tmp/bug004_sim.Fz4oVA/simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/004/proof/logs/run.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 19:10 2026
+COV status_idle=1 status=0x00000011 idle_polls=2
+CHECK_PASS control_core_idle_before_key_load
+COV write_err_seen=0
+CHECK_PASS control_key_share_writes_raised_no_error
+COV iv0_readback=0x5a8e97d9 written=0x11112222 filler=0xdeadbeef
+CHECK_PASS control_iv_readback_is_not_the_request_filler
+COV s0_0=0xdeadbeef expect_written=0xa5a50001 filler=0xdeadbeef
+COV s0_7=0xdeadbeef expect_written=0xa5a50008
+COV s1_0=0xdeadbeef expect_written=0x5a5a0001
+COV s1_7=0xdeadbeef expect_written=0x5a5a0008
+CHECK_FAIL witness_key_share0_address_reads_as_zero
+CHECK_FAIL witness_key_share1_address_reads_as_zero
+CHECK_FAIL witness_key_share0_last_word_reads_as_zero
+CHECK_FAIL witness_key_share1_last_word_reads_as_zero
+WITNESS write_only_addresses_return_data s0_0=0xdeadbeef s1_0=0xdeadbeef
+COV s0_0_alt=0x21524110 alt_filler=0x21524110 first=0xdeadbeef
+CHECK_PASS discriminator_readback_is_the_request_data_not_stored_key
+WITNESS readback_is_request_echo first=0xdeadbeef alt=0x21524110
+CHECK_PASS bound_stored_key_shares_are_not_returned
+COV err_seen=0
+CHECK_PASS containment_no_bus_error
+SUMMARY checks=10 fails=4 witness_hits=2
+COV core_idle=1 share0_exposed=1 share1_exposed=1 iv_hw_path=1 echo=1
+result=PASS
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/004/proof/tb/aes_bug_004_tb.sv", line 411.
+$finish at simulation time              1775000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 1775000 ps
+CPU Time:      0.340 seconds;       Data structure size:   0.3Mb
+Tue Jul 28 19:10:08 2026

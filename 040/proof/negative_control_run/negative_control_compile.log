@@ -1,0 +1,99 @@
+Command: vcs -full64 -sverilog -timescale=1ns/1ps -assert svaext -assert filter_names=AssertConnected_A \
++lint=none -f filelist.f -top spi_host_reg_top_bug_040_tb -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/040/proof/scripts/../negative_control_run/negative_control_compile.log \
+-o simv
+                         Chronologic VCS (TM)
+       Version W-2024.09-SP1_Full64 -- Tue Jul 28 18:50:10 2026
+
+                    Copyright (c) 1991 - 2024 Synopsys, Inc.
+   This software and the associated documentation are proprietary to Synopsys,
+ Inc. This software may only be used in accordance with the terms and conditions
+ of a written license agreement with Synopsys, Inc. All other use, reproduction,
+   or distribution of this software is strictly prohibited.  Licensed Products
+     communicate with Synopsys servers for the purpose of providing software
+    updates, detecting software piracy and verifying that customers are using
+    Licensed Products in conformity with the applicable License Key for such
+  Licensed Products. Synopsys will use information gathered in connection with
+    this process to deliver software updates and pursue software pirates and
+                                   infringers.
+
+ Inclusivity & Diversity - Visit SolvNetPlus to read the "Synopsys Statement on
+            Inclusivity and Diversity" (Refer to article 000036315 at
+                        https://solvnetplus.synopsys.com)
+
+
+Warning-[SVAA-RNF] Invalid compile time argument to -assert
+  Switch "-assert filter_names=AssertConnected_A" is a runtime option. This 
+  option cannot be given at compile time. Ignoring -assert 
+  filter_names=AssertConnected_A.
+  Please provide this option at runtime.
+
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/libs/rtl/ahb_defines_pkg.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_util_pkg.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv'
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert.sv'.
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/libs/rtl/caliptra_sva.svh'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert.sv'.
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert_standard_macros.svh'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert.sv'.
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert_sec_cm.svh'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert.sv'.
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_flop_macros.sv'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert.sv'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv'.
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_pkg.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_subreg_pkg.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim_generic/rtl/caliptra_prim_generic_buf.sv'
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert.sv'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim_generic/rtl/caliptra_prim_generic_buf.sv'.
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim_generic/rtl/caliptra_prim_generic_flop.sv'
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert.sv'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim_generic/rtl/caliptra_prim_generic_flop.sv'.
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_buf.sv'
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_module_name_macros.svh'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_buf.sv'.
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_flop.sv'
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_module_name_macros.svh'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_flop.sv'.
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv'
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert.sv'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv'.
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_reg_we_check.sv'
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert.sv'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_reg_we_check.sv'.
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_subreg_arb.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_subreg.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_subreg_ext.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/libs/rtl/ahb_slv_sif.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/libs/rtl/ahb_to_reg_adapter.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/spi_host/rtl/spi_host_reg_pkg.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/040/proof/scripts/../scratch/spi_host_reg_top.sv'
+Parsing included file '/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert.sv'.
+Back to file '/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/040/proof/scripts/../scratch/spi_host_reg_top.sv'.
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/040/proof/tb/spi_host_reg_top_bug_040_tb.sv'
+Top Level Modules:
+       spi_host_reg_top_bug_040_tb
+TimeScale is 1 ns / 1 ps
+Starting vcs inline pass...
+8 modules and 0 UDP read.
+recompiling package ahb_defines_pkg
+recompiling package caliptra_prim_util_pkg
+recompiling package caliptra_prim_mubi_pkg
+recompiling package caliptra_prim_pkg
+recompiling package caliptra_prim_subreg_pkg
+recompiling module caliptra_prim_subreg
+recompiling package spi_host_reg_pkg
+recompiling module spi_host_reg_top_bug_040_tb
+All of 8 modules done
+rm -f _cuarc*.so _csrc*.so pre_vcsobj_*.so share_vcsobj_*.so
+if [ -x ../simv ]; then chmod a-x ../simv; fi
+g++  -o ../simv   -no-pie  -Wl,--no-as-needed    -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu \
+-Wl,--no-as-needed -rdynamic  -Wl,-rpath='$ORIGIN'/simv.daidir -Wl,-rpath=./simv.daidir \
+-Wl,-rpath=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib -L/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib \
+-Wl,-rpath-link=./ -Wl,--no-as-needed   objs/amcQw_d.o   _869341_archive_1.so   SIM_l.o \
+rmapats_mop.o rmapats.o rmar.o rmar_nd.o  rmar_llvm_0_1.o rmar_llvm_0_0.o        \
+-lnuma -lvirsim -lerrorinf -lsnpsmalloc -lvfs    -lvcsnew -lsimprofile -luclinative \
+/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_tls.o   -Wl,-whole-archive \
+-lvcsucli    -Wl,-no-whole-archive       ./../simv.daidir/vc_hdrs.o    /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_save_restore_new.o \
+-ldl  -lc -lm -lpthread -ldl 
+../simv up to date
+CPU time: 1.046 seconds to compile + .617 seconds to elab + .287 seconds to link

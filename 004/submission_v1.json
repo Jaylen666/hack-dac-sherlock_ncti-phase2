@@ -1,0 +1,76 @@
+{
+  "module": "aes_reg_top",
+  "bug_id": "004",
+  "bug_name": "aes_reg_top_bug_004",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_functional_defect",
+  "security_feature_bypassed": "The write-only software access policy of the AES initial key registers. src/aes/data/aes.rdl declares every KEY_SHARE0 and KEY_SHARE1 field sw = w, so those sixteen addresses are meant to have no read path at all, and the generated read multiplexer gives them one. The measured consequence is a register-model and access-policy divergence: the addresses answer reads with non-zero data where the same generated case statement uses constant zero for a write-only address. The consequence a reviewer will reach for first, disclosure of the initial key shares, was tested on the full block and does not hold; the arms read the register primitive's bus-write-data port rather than its hardware-value port, so the response is the requester's own transaction data. That boundary is stated rather than glossed.",
+  "finding": "The read-response multiplexer in src/aes/rtl/aes_reg_top.sv assigns reg_rdata_next[31:0] = reg2hw.key_share0[i].q on the eight KEY_SHARE0 addresses at lines 1735-1749 and reg2hw.key_share1[i].q on the eight KEY_SHARE1 addresses at lines 1751-1765, and src/aes/rtl/aes_reg_top.sv:125 drives the bus read data straight from reg_rdata_next. All sixteen registers are declared sw = w in src/aes/data/aes.rdl at lines 8 and 27. The same case statement shows what a write-only address should do: addr_hit[0] at lines 1731-1733 drives reg_rdata_next bits to constant '0. It also shows what a readable register should do: eight other arms, including the adjacent sw = rw IV register at line 1768, read a *_qs hardware value. On one unmodified aes block driven over TileLink, with the core confirmed idle and the sixteen shares confirmed written without bus error, reads of the first and last word of each share returned non-zero data on all four addresses rather than zero. The returned value equals whatever the requester holds on the A-channel a_data field: reading with 0xDEADBEEF there returned 0xDEADBEEF, and reading the same address with 0x21524110 returned 0x21524110, while the written patterns 0xA5A50001 and 0x5A5A0001 never appeared. This follows from the primitive: src/caliptra_prim/rtl/caliptra_prim_subreg_ext.sv:28 assigns q = wd and :27 assigns qs = d, with no sequential element in the module, and the loaded shares reach only d, via src/aes/rtl/aes_core.sv:1028-1029. On these sixteen instances the qs port is left unconnected at src/aes/rtl/aes_reg_top.sv:298 and no key_share*_qs signal exists in the file, so no arm in this multiplexer can return stored key material. The defect is therefore a read path that should not exist, returning the reader's own bus content.",
+  "location_or_code_reference": {
+    "competition_file": " ",
+    "line_range": "1727-1765",
+    "supporting_references": [
+      "src/aes/rtl/aes_reg_top.sv:1731",
+      "src/aes/rtl/aes_reg_top.sv:1733",
+      "src/aes/rtl/aes_reg_top.sv:1765",
+      "src/aes/rtl/aes_reg_top.sv:1768",
+      "src/aes/rtl/aes_reg_top.sv:125",
+      "src/aes/rtl/aes_reg_top.sv:290",
+      "src/aes/rtl/aes_reg_top.sv:292",
+      "src/aes/rtl/aes_reg_top.sv:296",
+      "src/aes/rtl/aes_reg_top.sv:298",
+      "src/aes/rtl/aes_reg_top.sv:634",
+      "src/aes/rtl/aes_reg_top.sv:1569",
+      "src/aes/data/aes.rdl:8",
+      "src/aes/data/aes.rdl:24",
+      "src/aes/data/aes.rdl:27",
+      "src/aes/data/aes.rdl:43",
+      "src/aes/data/aes.rdl:46",
+      "src/caliptra_prim/rtl/caliptra_prim_subreg_ext.sv:27",
+      "src/caliptra_prim/rtl/caliptra_prim_subreg_ext.sv:28",
+      "src/caliptra_tlul/rtl/caliptra_tlul_adapter_reg.sv:84",
+      "src/aes/rtl/aes_core.sv:480",
+      "src/aes/rtl/aes_core.sv:1028",
+      "src/aes/rtl/aes_core.sv:1029",
+      "src/aes/rtl/aes_reg_pkg.sv:268"
+    ],
+    "attachment_note": "A witness testbench, simulation script, structural audit and negative control are attached under submission_record/004/. The testbench drives one whole aes block over its TileLink register interface only, with no force, no deposit and no hierarchical assignment into the DUT."
+  },
+  "detection_method": "The read-response multiplexer was read against the audited tree's own register description, then against itself. The RDL declares the key shares sw = w and the adjacent IV register sw = rw, so the two are a deliberate distinction; the same case statement then handles a write-only address with constant zero at addr_hit[0] and a readable register with a *_qs hardware value on eight other arms, which makes the sixteen key-share arms the only shape in the file that matches neither idiom. Before writing any claim, the assignment was traced through the register primitive rather than assumed: caliptra_prim_subreg_ext is combinational with q = wd and qs = d, so the arms read bus write data, not stored state, and the qs port is left unconnected on exactly these instances. The witness was then built to distinguish the three possible sources with three mutually distinguishable values, on the whole aes block rather than the register file alone, because only with the real core attached is the hardware-side input driven by the registers that hold the loaded shares. The negative control rewrites the sixteen arms to constant zero and requires the same testbench to stop reporting the exposure.",
+  "security_impact": "A register-model and access-policy divergence with no demonstrated confidentiality, integrity or availability loss, which is why the CVSS base score is 0.0 rather than rounded up to look severe. Sixteen addresses declared write-only answer reads with non-zero data, so software, an RDL-generated register model, and any conformance test asserting write-only-reads-zero all disagree with the hardware. The exposure is confined to the requesting transaction: the read returns what the reader itself placed on the bus, and because the primitive holds no state between transactions a reader cannot learn what another agent wrote earlier. The residual concern is defence in depth. The write-only declaration exists precisely so these registers have no read path, and this defect creates one; it happens to be wired to the harmless source today, and any later change that connected the hardware-value port, or any reuse of this arm pattern on a register whose q does reflect stored state, would turn it into a disclosure without touching the line that is wrong. It is reported at the impact that was measured, not at the impact it resembles.",
+  "adversary_profile": "Unprivileged software at user-level mode",
+  "proposed_mitigation": [
+    "Drive reg_rdata_next to constant zero on all sixteen key-share arms at src/aes/rtl/aes_reg_top.sv:1735-1765, matching the idiom the same case statement already uses for a write-only address at addr_hit[0], lines 1731-1733. This is the change the negative control applies, and under it all four sampled addresses read 0x00000000 and stop tracking the requester's bus data.",
+    "Regenerate the register file from src/aes/data/aes.rdl rather than editing the arms by hand, so the sw = w declaration on KEY_SHARE0 and KEY_SHARE1 and the emitted read response cannot drift apart again. The divergence between the declaration and the generated multiplexer is the actual root cause.",
+    "Add a directed conformance check that every field declared sw = w in the RDL reads back as zero over the register bus, and run it across the block rather than only on these sixteen addresses. The witness testbench is that check for the key shares and can be extended.",
+    "Where an arm must read a register value, prefer the *_qs port over reg2hw.*.q. In caliptra_prim_subreg_ext the former is the hardware-side value and the latter is the bus write data, so reading .q in a read multiplexer is never the intended source regardless of the register's access policy."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:N",
+    "base_score": 0.0,
+    "severity": "None",
+    "scoring_note": "Scored with the CVSS v3.1 calculator from the impact that was measured, not the impact the defect resembles. All three impact metrics are None because the read returns the requester's own A-channel data: no key material or other asset leaves the block, no state is altered, and no service is denied. AV:L, AC:L, PR:L and UI:N describe the access, since the sixteen arms carry no privilege, lifecycle or debug qualifier and the read is a single ordinary bus transaction. A base score of 0.0 is the honest arithmetic for a confirmed register-contract violation with no demonstrated CIA effect; the case is submitted as a functional and access-policy defect on that basis."
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/004/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/004/proof_result_v1.json",
+    "script": "final_bug_submissions/004/proof/scripts/run_bug_004_proof.sh",
+    "sim_script": "final_bug_submissions/004/proof/scripts/run_bug_004_sim.sh",
+    "negative_control_script": "final_bug_submissions/004/proof/scripts/run_bug_004_negative_control.sh",
+    "testbench": "final_bug_submissions/004/proof/tb/aes_bug_004_tb.sv",
+    "run_log": "final_bug_submissions/004/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/004/proof/logs/witness.log",
+    "compile_log": "final_bug_submissions/004/proof/logs/compile.log",
+    "structural_audit_log": "final_bug_submissions/004/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/004/proof/logs/negative_control.log",
+    "c_validation_status": "final_bug_submissions/004/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Software polls AES_STATUS at offset 0x84 until IDLE is set. src/aes/data/aes.rdl requires the AES unit to be idle before key registers can be updated, so without this the writes would be ignored and the rest of the sequence would prove nothing. In the witness run this read 0x00000011 after two polls.",
+    "Software writes the eight KEY_SHARE0 words starting at offset 0x04 and the eight KEY_SHARE1 words starting at offset 0x24, with a distinct pattern per word. No bus error is raised, so the loads are accepted; src/aes/rtl/aes_core.sv:1028-1029 shows these are the values that reach the hardware-side port of the key-share subregisters.",
+    "Software issues an ordinary Get to those same sixteen addresses. src/aes/rtl/aes_reg_top.sv:1735-1765 selects reg2hw.key_share*.q for the response and src/aes/rtl/aes_reg_top.sv:125 places it on the bus, so the read completes with non-zero data on addresses that src/aes/data/aes.rdl declares write-only. The RDL-conformant response would be zero, as addr_hit[0] produces at lines 1731-1733.",
+    "Software repeats one of the reads with a different value on the A-channel a_data field. The response changes to match it: 0xDEADBEEF then 0x21524110 in the witness run. This identifies the exposed path as the register primitive's wd input, reached via src/aes/rtl/aes_reg_top.sv:1569 and src/caliptra_tlul/rtl/caliptra_tlul_adapter_reg.sv:84, and establishes that the flow ends here. It does not continue to key recovery, because src/aes/rtl/aes_reg_top.sv:298 leaves the port carrying the loaded shares unconnected on all sixteen instances.",
+    "For contrast within the same run, software reads the IV address at offset 0x44, which is declared sw = rw and whose arm reads iv_0_qs. It returns hardware state, 0x5A8E97D9, rather than the A-channel filler, confirming the read path itself is live and that the key-share result is a statement about which port those sixteen arms select."
+  ]
+}
