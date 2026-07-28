@@ -13,18 +13,26 @@ CMP="${CMP_ROOT:-/home/smy/hackatdac26-phase-2-caliptra}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGS="$(cd "$HERE/../logs" && pwd)"
 W="$LOGS/witness.log"
+RUN_LOG="$LOGS/run.log"
 CORE="$CMP/src/hmac/rtl/hmac_core.sv"
 REG="$CMP/src/hmac/rtl/hmac.sv"
 
 PASS=0; FAIL=0
 : > "$W"
+{
+  echo "BUG-018 structural audit (single-tree)"
+  echo "audit_root=$CMP"
+  echo "date=$(date -Is)"
+} > "$RUN_LOG"
 
 gate() {
   local cmd="$1" desc="$2"
   if eval "$cmd" >/dev/null 2>&1; then
     PASS=$((PASS+1)); echo "  PASS: $desc" | tee -a "$W"
+    echo "gate_ok: $desc" >> "$RUN_LOG"
   else
     FAIL=$((FAIL+1)); echo "  FAIL: $desc" | tee -a "$W"
+    echo "gate_fail: $desc" >> "$RUN_LOG"
   fi
 }
 show() { echo "$1" | tee -a "$W"; }
@@ -86,12 +94,16 @@ gate "grep -q 'unique case (hmac_ctrl_reg)' '$CORE'" \
 show ""
 show "----- 3. both commands can genuinely be asserted in one cycle -----"
 
-gate "grep -q 'init_cmd(hmac_cmd_reg\[0\])\|init_cmd(init_reg)\|\.init_cmd(' '$REG'" \
-     "hmac.sv drives hmac_core's init_cmd from the register block"
-gate "grep -q '\.next_cmd(' '$REG'" \
-     "hmac.sv drives hmac_core's next_cmd from the register block"
-gate "grep -qE 'INIT.*value|hwif_out.HMAC512_CTRL' '$REG'" \
-     "both commands originate in the software-written HMAC512_CTRL register, so one MMIO write can set both bits"
+gate "sed -n '173p' '$REG' | grep -q '.init_cmd(init_reg)'" \
+     "hmac.sv:173 drives hmac_core's init_cmd from init_reg"
+gate "sed -n '174p' '$REG' | grep -q '.next_cmd(next_reg)'" \
+     "hmac.sv:174 drives hmac_core's next_cmd from next_reg"
+gate "sed -n '257p' '$REG' | grep -q 'init_reg = hwif_out.HMAC512_CTRL.INIT.value'" \
+     "hmac.sv:257 sources init_reg from the HMAC512_CTRL.INIT field"
+gate "sed -n '258p' '$REG' | grep -q 'next_reg = hwif_out.HMAC512_CTRL.NEXT.value'" \
+     "hmac.sv:258 sources next_reg from the NEXT field of the same register, so one MMIO write can set both bits"
+gate "sed -n '251,252p' '$REG' | grep -q 'INIT.swwe = ready_reg' && sed -n '251,252p' '$REG' | grep -q 'NEXT.swwe = ready_reg'" \
+     "hmac.sv:251-252 gate both fields on the same ready_reg, so nothing makes them mutually exclusive"
 gate "sed -n '337p' '$CORE' | grep -q \"ready_flag = 1'b1\"" \
      "CTRL_IDLE reports ready, so such a write is accepted rather than rejected (hmac_core.sv:337)"
 
@@ -116,9 +128,14 @@ sed -n '353,372p' "$CORE" | tee -a "$W"
 
 show ""
 show "structural_gates_passed=$PASS/$((PASS+FAIL))"
+echo "structural_gates_passed=$PASS/$((PASS+FAIL))" >> "$RUN_LOG"
 if [ "$FAIL" -eq 0 ]; then
   show "RESULT: PASS"
+  echo "RESULT: PASS - all structural gates confirm BUG-018" >> "$RUN_LOG"
+  echo "result=PASS" >> "$RUN_LOG"
 else
   show "RESULT: FAIL"
+  echo "RESULT: FAIL - at least one structural gate did not hold" >> "$RUN_LOG"
+  echo "result=FAIL" >> "$RUN_LOG"
   exit 1
 fi

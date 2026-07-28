@@ -37,7 +37,7 @@
     {
       "claim": "The bypass lets an attacker set FORCE_MASKS and hold the AES masking PRNG at a constant value.",
       "verdict": "withdrawn",
-      "reason": "aes_clp_wrapper.sv:308 instantiates aes with no parameter overrides, so SecAllowForcingMasks keeps its default of 0 from aes.sv:24. aes_prng_masking.sv:71 ties force_masks_i into an unused-signal branch in that configuration, and aes.rdl states the field is 'Only applicable if both the Masking parameter and the SecAllowForcingMasks parameter are set to one'. The field is writable but inert in this build, so no impact is claimed for it. Both halves of that reasoning are enforced by structural gates rather than left as prose."
+      "reason": "aes_clp_wrapper.sv:309 instantiates aes with no parameter overrides, so SecAllowForcingMasks keeps its default of 0 from aes.sv:24. aes_prng_masking.sv:71 ties force_masks_i into an unused-signal branch in that configuration, and aes.rdl states the field is 'Only applicable if both the Masking parameter and the SecAllowForcingMasks parameter are set to one'. The field is writable but inert in this build, so no impact is claimed for it. Both halves of that reasoning are enforced by structural gates rather than left as prose."
     },
     {
       "claim": "The bypass directly recovers the AES key.",

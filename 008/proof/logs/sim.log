@@ -1,0 +1,32 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/logs/sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 13:20 2026
+===== BUG-008 witness: strict MuBi4 true test accepts a 1-bit error =====
+MuBi4True=0x6 MuBi4False=0x9
+  OBSERVED: mubi4_test_true_strict accepts 2 of 16 encodings
+  ok: BUG-008 OBSERVED: the strict test accepts more than the single True encoding
+  ok: BUG-008 OBSERVED: it accepts exactly 2, so precisely one bit of slack was introduced
+  ok: CONTROL: mubi4_test_true_strict(MuBi4True) is true, so the function still works for the real value
+  OBSERVED: the extra accepted encoding is 0x7, Hamming distance 1 from True
+  ok: BUG-008 OBSERVED: the extra accepted encoding differs from MuBi4True in exactly one bit
+  ok: BUG-008 OBSERVED: a single-bit fault on the True encoding still reads as True
+  OBSERVED: mubi4_test_invalid(0x7)=1 while mubi4_test_true_strict(0x7)=1
+  ok: BUG-008 OBSERVED: the package classifies the accepted encoding as invalid, contradicting its own strict test
+  ok: CONTROL: the loose test accepts it too, which is its documented contract, so only the strict test is wrong
+  ok: CONTROL: mubi4_test_false_strict rejects it, so the false-side strict contract is intact
+  ok: CONTROL: mubi8_test_true_strict rejects the corresponding 1-bit error
+  ok: CONTROL: mubi12_test_true_strict rejects the corresponding 1-bit error
+  ok: CONTROL: mubi16_test_true_strict rejects the corresponding 1-bit error
+  ok: CONTROL: mubi8_test_true_strict accepts its True encoding, so the comparison is like-for-like
+cover_strict_accepts_nontrue=1
+cover_accepted_is_invalid=1
+cover_wider_widths_reject=1
+checks=12 errors=0
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/tb/mubi4_strict_bug_008_tb.sv", line 119.
+$finish at simulation time                    0
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 0 ps
+CPU Time:      0.330 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 13:20:06 2026

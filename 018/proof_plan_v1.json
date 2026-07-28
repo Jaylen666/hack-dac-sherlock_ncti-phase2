@@ -1,0 +1,57 @@
+{
+  "module": "hmac",
+  "bug_id": "018",
+  "bug_name": "hmac_bug_018",
+  "triage_id": "hmac_core_idle_unchained_command_ifs",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Privileged software (Caliptra firmware) able to write the HMAC control register, the ordinary interface any HMAC client uses.",
+    "precondition": "The HMAC block is idle and ready, which is the state a client finds it in before starting an operation.",
+    "input": "A single MMIO write to HMAC512_CTRL with both the INIT and the NEXT bit set. Nothing prevents this: both fields live in one register and share one write-enable.",
+    "protected_asset": "The integrity of the HMAC computation, in particular the keyed inner hash and the masking reseed that CTRL_IPAD performs.",
+    "security_property": "A command that starts a new HMAC operation must run the operation's first phase. The FSM's idle state must resolve conflicting commands to exactly one next state, and INIT must take precedence over NEXT because NEXT continues an operation INIT begins.",
+    "modification": "In hmac_core.sv, the two command arms of CTRL_IDLE at hmac_core.sv:339-350 are written as two independent `if` statements rather than an if/else chain. Both assign hmac_ctrl_new and both assert hmac_ctrl_we, so when both commands arrive together the later assignment wins and the FSM goes straight to CTRL_OPAD, skipping CTRL_IPAD."
+  },
+  "security_feature_bypassed": "The CTRL_IPAD phase of the HMAC FSM, which performs the keyed inner hash and triggers the masking-PRNG reseed",
+  "proof_goal": "Show that CTRL_IDLE can transition to CTRL_OPAD without ever entering CTRL_IPAD, that a single software register write is enough to cause it, that this contradicts the file's own FSM idiom, and that chaining the two arms makes the same testbench reject the claim.",
+  "proof_style": {
+    "primary": "structural audit of the audited RTL against its own idiom",
+    "secondary": [
+      "directed unit-level simulation of hmac_core with cover counters",
+      "negative control on a patched scratch copy"
+    ]
+  },
+  "minimum_attack_sequence": [
+    "Privileged software waits for the HMAC block to report ready, then performs one MMIO write to HMAC512_CTRL with both INIT and NEXT set.",
+    "hmac.sv:257-258 turns that one write into init_cmd and next_cmd asserted in the same cycle, both gated by the same ready_reg, so nothing makes them mutually exclusive.",
+    "CTRL_IDLE evaluates both `if` bodies. The init_cmd body selects CTRL_IPAD, then the next_cmd body overwrites hmac_ctrl_new with CTRL_OPAD.",
+    "The FSM enters CTRL_OPAD. The keyed inner hash of CTRL_IPAD never runs, and the masking reseed that CTRL_IPAD initiates never happens.",
+    "CTRL_OPAD hashes the outer pad over whatever H1 state is left from a previous operation, producing a tag that is not the HMAC of the intended message under the intended key."
+  ],
+  "expected_evidence": [
+    "hmac_core.sv:339-343 and :345-350 are two separate `if` statements with no `else` between them; the file shows a blank line at 344 rather than a chain.",
+    "Both arms assign hmac_ctrl_new and both assert hmac_ctrl_we, so the second assignment wins the always_comb evaluation.",
+    "In-file control: a computed census over the same always_comb block finds 5 plain `if` statements and 0 `else if` statements. Three of the five are ready-guarded, one per non-idle state, where only one can be true at a time. The remaining two are the command-guarded arms of CTRL_IDLE, the only place in the FSM where two guards can be true together.",
+    "hmac.sv:173-174 wire init_cmd and next_cmd from init_reg and next_reg; hmac.sv:257-258 source those from the INIT and NEXT fields of one register, HMAC512_CTRL; hmac.sv:251-252 gate both fields on the same ready_reg. One write therefore sets both.",
+    "hmac_core.sv:273-283 shows what CTRL_IPAD does: it starts H1 on the keyed inner block and presents the entropy block that drives the masking reseed, so skipping it skips both.",
+    "In simulation, a single cycle with both commands asserted leaves the FSM in CTRL_OPAD with CTRL_IPAD never visited.",
+    "With the two arms chained in a scratch copy, the identical testbench sees the FSM enter CTRL_IPAD, the skip cover counter falls to zero, and the self-checks fail."
+  ],
+  "success_criteria": [
+    "Every structural gate holds, including the computed census over the FSM's `if` idiom.",
+    "The simulation shows the FSM reaching CTRL_OPAD without visiting CTRL_IPAD from a single command write.",
+    "The negative control fails on corrected RTL with the skip cover counter at zero, while the unrelated cover counter still fires, showing the harness is intact.",
+    "The finding is anchored on the audited tree's own FSM idiom and its own register wiring, not on any external comparison."
+  ],
+  "artifacts": {
+    "script": "final_bug_submissions/018/proof/scripts/run_bug_018_proof.sh",
+    "sim_script": "final_bug_submissions/018/proof/scripts/run_bug_018_019_sim.sh",
+    "testbench": "final_bug_submissions/018/proof/tb/hmac_core_bug_018_019_tb.sv",
+    "run_log": "final_bug_submissions/018/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/018/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/018/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/018/proof/logs/negative_control.log",
+    "negative_control_script": "final_bug_submissions/018/proof/scripts/run_bug_018_negative_control.sh"
+  }
+}

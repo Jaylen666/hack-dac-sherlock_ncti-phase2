@@ -1,0 +1,187 @@
+11       
+0 caliptra_prim_assert.sv
+0 /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/etc/systemverilog/caliptra_prim_assert.sv
+0 caliptra_sva.svh
+0 /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/etc/systemverilog/caliptra_sva.svh
+0 /home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_sva.svh
+0 caliptra_prim_assert_standard_macros.svh
+0 /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/etc/systemverilog/caliptra_prim_assert_standard_macros.svh
+0 caliptra_prim_assert_sec_cm.svh
+0 /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/etc/systemverilog/caliptra_prim_assert_sec_cm.svh
+0 caliptra_prim_flop_macros.sv
+0 /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/etc/systemverilog/caliptra_prim_flop_macros.sv
+36
++incdir+/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl
++incdir+/home/smy/hackatdac26-phase-2-caliptra/src/libs/rtl
++lint=none
+-Mamsrun=
+-Masflags=
+-Mcc=gcc
+-Mcfl= -pipe -fPIC -O -I/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/include
+-Mcplusplus=g++
+-Mcrt0=
+-Mcrtn=
+-Mcsrc=
+-Mexternalobj=
+-Mldflags=-L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu -Wl,--no-as-needed -rdynamic
+-Mobjects= /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/libvirsim.so /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/liberrorinf.so /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/libsnpsmalloc.so /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/libvfs.so
+-Mout=simv
+-Msaverestoreobj=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_save_restore_new.o
+-Msyslibs=-ldl
+-Mvcsaceobjs=
+-Mxcflags= -pipe -fPIC -I/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/include
+-Mxllcflags=
+-assert
+-full64
+-gen_obj
+-l
+-o simv
+-picarchive
+-sverilog
+-timescale=1ns/1ps
+-top
+/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/bin/vcs1
+/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/logs/negative_control_compile.log
+svaext
+mubi4_strict_bug_008_tb
+simv
+/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/scratch/caliptra_prim_mubi_pkg.sv
+/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/tb/mubi4_strict_bug_008_tb.sv
+118
+https_proxy=http://127.0.0.1:17890
+http_proxy=http://127.0.0.1:17890
+all_proxy=http://127.0.0.1:17890
+__ETC_PROFILE_NIX_SOURCED=1
+XML_CATALOG_FILES=file:///home/smy/miniforge3/etc/xml/catalog file:///etc/xml/catalog
+XDG_SESSION_TYPE=tty
+XDG_SESSION_ID=13594
+XDG_SESSION_CLASS=user
+XDG_RUNTIME_DIR=/run/user/1032
+XDG_DATA_DIRS=/usr/local/share:/usr/share:/var/lib/snapd/desktop:/home/smy/.nix-profile/share:/nix/var/nix/profiles/default/share
+VSCODE_RECONNECTION_GRACE_TIME=10800000
+VSCODE_NLS_CONFIG={"userLocale":"zh-cn","osLocale":"zh-cn","resolvedLanguage":"zh-cn","defaultMessagesFile":"/home/smy/.vscode-server/cli/servers/Stable-1b6a188127eeaf9194f945eb6eb89a657e93c54c/server/out/nls.messages.json","languagePack":{"translationsConfigFile":"/home/smy/.vscode-server/data/clp/08e3eb26a94cfe99087efc53c5a0cebc.zh-cn/tcf.json","messagesFile":"/home/smy/.vscode-server/data/clp/08e3eb26a94cfe99087efc53c5a0cebc.zh-cn/1b6a188127eeaf9194f945eb6eb89a657e93c54c/nls.messages.json","corruptMarkerFile":"/home/smy/.vscode-server/data/clp/08e3eb26a94cfe99087efc53c5a0cebc.zh-cn/corrupted.info"},"locale":"zh-cn","availableLanguages":{"*":"zh-cn"},"_languagePackId":"08e3eb26a94cfe99087efc53c5a0cebc.zh-cn","_languagePackSupport":true,"_translationsConfigFile":"/home/smy/.vscode-server/data/clp/08e3eb26a94cfe99087efc53c5a0cebc.zh-cn/tcf.json","_cacheRoot":"/home/smy/.vscode-server/data/clp/08e3eb26a94cfe99087efc53c5a0cebc.zh-cn","_resolvedLanguagePackCoreLocation":"/home/smy/.vscode-server/data/clp/08e3eb26a94cfe99087efc53c5a0cebc.zh-cn/1b6a188127eeaf9194f945eb6eb89a657e93c54c","_corruptedFile":"/home/smy/.vscode-server/data/clp/08e3eb26a94cfe99087efc53c5a0cebc.zh-cn/corrupted.info"}
+VSCODE_L10N_BUNDLE_LOCATION=vscode-local:/Users/Admin/.vscode/extensions/ms-ceintl.vscode-language-pack-zh-hans-1.130.2026072017/translations/extensions/vscode.markdown-language-features.i18n.json
+VSCODE_IPC_HOOK_CLI=/run/user/1032/vscode-ipc-fbcba4d7-186f-4760-af29-62a33b7b45f4.sock
+VSCODE_HANDLES_UNCAUGHT_ERRORS=true
+VSCODE_HANDLES_SIGPIPE=true
+VSCODE_ESM_ENTRYPOINT=vs/workbench/api/node/extensionHostProcess
+VSCODE_CWD=/home/smy
+VSCODE_CLI_REQUIRE_TOKEN=b3fe788d-740f-4d4a-b407-de79c98d7616
+VSCODE_AGENT_FOLDER=/home/smy/.vscode-server
+VMR_MODE_FLAG=64
+VIRTUAL_ENV=/home/smy/opentitan/.venv
+VERDI_HOME=/data0/tools/Synopsys/verdi/verdi/W-2024.09-SP1
+VCS_PYTHON3=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/bin/Python3/bin/python3
+VCS_PATHMAP_PRELOAD_DONE=1
+VCS_MX_HOME_INTERNAL=1
+VCS_MODE_FLAG=64
+VCS_LOG_FILE=/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/logs/negative_control_compile.log
+VCS_INTERNAL_CONVERTEDLIBS=
+VCS_HOME=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1
+VCS_EXEC_DONE=1
+VCS_DEPTH=0
+VCS_ARG_ADDED_FOR_TMP=1
+VCS_ARCH=linux64
+UNAME=/bin/uname
+TOOL_HOME=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64
+SSH_CONNECTION=10.85.32.21 55647 10.10.60.102 2222
+SSH_CLIENT=10.85.32.21 55647 2222
+SNPS_VCS_PYTHON3=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/bin/Python3/bin/python3
+SNPS_VCS_CLANG_PATH=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/clang
+SNPS_INTERNAL_VCS_LINUX_OS=ubuntu
+SIM_LOG=/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/logs/negative_control_sim.log
+SCRNAME=vcs
+SCRIPT_NAME=vcs
+SCL_HOME=/data0/tools/Synopsys/scl/scl/2024.06
+REPO_TOP=/home/smy/opentitan
+PT_HOME=/data0/tools/Synopsys/ptpx/prime/W-2024.09-SP1/
+OVA_UUM=0
+NoDefaultCurrentDirectoryInExePath=1
+NIX_SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+NIX_PROFILES=/nix/var/nix/profiles/default /home/smy/.nix-profile
+MXC_BIN_DIR=/home/smy/.vscode-server/cli/servers/Stable-1b6a188127eeaf9194f945eb6eb89a657e93c54c/server/node_modules/@microsoft/mxc-sdk/bin
+MOTD_SHOWN=pam
+MODULES_CMD=/usr/lib/x86_64-linux-gnu/modulecmd.tcl
+MODULESHOME=/usr/share/modules
+MODULEPATH_modshare=/etc/environment-modules/modules:1:/usr/share/modules/$MODULE_VERSION/modulefiles:1:/usr/share/modules/modulefiles:1:/usr/share/modules/versions:1
+MODULEPATH=/etc/environment-modules/modules:/usr/share/modules/versions:/usr/share/modules/$MODULE_VERSION/modulefiles:/usr/share/modules/modulefiles
+MCP_CONNECTION_NONBLOCKING=true
+MAMBA_ROOT_PREFIX=/home/smy/miniforge3
+MAMBA_EXE=/home/smy/miniforge3/bin/mamba
+LOADEDMODULES=
+LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
+LESSOPEN=| /usr/bin/lesspipe %s
+LESSCLOSE=/usr/bin/lesspipe %s %s
+LC_TIME=zh_CN.UTF-8
+LC_TELEPHONE=zh_CN.UTF-8
+LC_PAPER=zh_CN.UTF-8
+LC_NUMERIC=zh_CN.UTF-8
+LC_NAME=zh_CN.UTF-8
+LC_MONETARY=zh_CN.UTF-8
+LC_MEASUREMENT=zh_CN.UTF-8
+LC_IDENTIFICATION=zh_CN.UTF-8
+LC_ALL=C
+LC_ADDRESS=zh_CN.UTF-8
+HTTP_PROXY=http://127.0.0.1:17890
+HTTPS_PROXY=http://127.0.0.1:17890
+GIT_EDITOR=true
+ENV=/usr/share/modules/init/profile.sh
+ELECTRON_RUN_AS_NODE=1
+DUT_MUBI_PKG=/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/scratch/caliptra_prim_mubi_pkg.sv
+DC_HOME=/data0/tools/Synopsys/dc/syn/W-2024.09-SP1
+DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1032/bus
+CPATH=/usr/include/x86_64-linux-gnu
+COREPACK_ENABLE_AUTO_PIN=0
+COPILOT_OTEL_FILE_EXPORTER_PATH=/dev/null
+COPILOT_CLI_ENABLED_FEATURE_FLAGS=SHELL_SPAWN_BACKEND
+CONDA_SHLVL=1
+CONDA_PYTHON_EXE=/home/smy/miniforge3/bin/python
+CONDA_PROMPT_MODIFIER=(base) 
+CONDA_PREFIX=/home/smy/miniforge3
+CONDA_EXE=/home/smy/miniforge3/bin/conda
+CONDA_DEFAULT_ENV=base
+CMP_LOG=/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/logs/negative_control_compile.log
+CLAUDE_PID=2367019
+CLAUDE_EFFORT=high
+CLAUDE_CODE_SUBAGENT_MODEL=claude-opus-5
+CLAUDE_CODE_SESSION_ID=49072fd6-ddcc-4b02-a5e8-9af5fc11863a
+CLAUDE_CODE_EXECPATH=/home/smy/.vscode-server/extensions/anthropic.claude-code-2.1.220-linux-x64/resources/native-binary/claude
+CLAUDE_CODE_ENTRYPOINT=claude-vscode
+CLAUDE_CODE_ENABLE_TASKS=0
+CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING=true
+CLAUDE_CODE_CHILD_SESSION=1
+CLAUDE_AGENT_SDK_VERSION=0.3.220
+CLAUDECODE=1
+BASH_FUNC_switchml%%=() {  typeset swfound=1;_ if [ "${MODULES_USE_COMPAT_VERSION:-0}" = '1' ]; then_ typeset swname='main';_ if [ -e /usr/lib/x86_64-linux-gnu/modulecmd.tcl ]; then_ typeset swfound=0;_ unset MODULES_USE_COMPAT_VERSION;_ fi;_ else_ typeset swname='compatibility';_ if [ -e /usr/lib/x86_64-linux-gnu/modulecmd-compat ]; then_ typeset swfound=0;_ MODULES_USE_COMPAT_VERSION=1;_ export MODULES_USE_COMPAT_VERSION;_ fi;_ fi;_ if [ $swfound -eq 0 ]; then_ echo "Switching to Modules $swname version";_ source /usr/share/modules/init/bash;_ else_ echo "Cannot switch to Modules $swname version, command not found";_ return 1;_ fi_}
+BASH_FUNC_module%%=() {  unset _mlshdbg;_ if [ "${MODULES_SILENT_SHELL_DEBUG:-0}" = '1' ]; then_ case "$-" in _ *v*x*)_ set +vx;_ _mlshdbg='vx'_ ;;_ *v*)_ set +v;_ _mlshdbg='v'_ ;;_ *x*)_ set +x;_ _mlshdbg='x'_ ;;_ *)_ _mlshdbg=''_ ;;_ esac;_ fi;_ unset _mlre _mlIFS;_ if [ -n "${IFS+x}" ]; then_ _mlIFS=$IFS;_ fi;_ IFS=' ';_ for _mlv in ${MODULES_RUN_QUARANTINE:-};_ do_ if [ "${_mlv}" = "${_mlv##*[!A-Za-z0-9_]}" -a "${_mlv}" = "${_mlv#[0-9]}" ]; then_ if [ -n "`eval 'echo ${'$_mlv'+x}'`" ]; then_ _mlre="${_mlre:-}${_mlv}_modquar='`eval 'echo ${'$_mlv'}'`' ";_ fi;_ _mlrv="MODULES_RUNENV_${_mlv}";_ _mlre="${_mlre:-}${_mlv}='`eval 'echo ${'$_mlrv':-}'`' ";_ fi;_ done;_ if [ -n "${_mlre:-}" ]; then_ eval `eval ${_mlre}/usr/bin/tclsh8.6 /usr/lib/x86_64-linux-gnu/modulecmd.tcl bash '"$@"'`;_ else_ eval `/usr/bin/tclsh8.6 /usr/lib/x86_64-linux-gnu/modulecmd.tcl bash "$@"`;_ fi;_ _mlstatus=$?;_ if [ -n "${_mlIFS+x}" ]; then_ IFS=$_mlIFS;_ else_ unset IFS;_ fi;_ unset _mlre _mlv _mlrv _mlIFS;_ if [ -n "${_mlshdbg:-}" ]; then_ set -$_mlshdbg;_ fi;_ unset _mlshdbg;_ return $_mlstatus_}
+BASH_ENV=/usr/share/modules/init/bash
+APPLICATION_INSIGHTS_NO_STATSBEAT=true
+ANTHROPIC_SMALL_FAST_MODEL=claude-opus-5
+ANTHROPIC_MODEL=claude-opus-5
+ANTHROPIC_DEFAULT_SONNET_MODEL=claude-opus-5
+ANTHROPIC_DEFAULT_OPUS_MODEL=claude-opus-5
+ANTHROPIC_DEFAULT_HAIKU_MODEL=claude-opus-5
+ANTHROPIC_BASE_URL=https://api.ikuncode.ai
+ANTHROPIC_AUTH_TOKEN=sk-d2ttU2vVlj62MgVxvhR8bVCwieYGHCPioar87ZzKt4P1w38Y
+ANTHROPIC_API_KEY=sk-cp-wHAMgHErqoknx-c1oyDppBPt2xhLUJ_-GntIvNRs9qsPbRgWg-oMmEiVE_VGE6GLuaqZUWWULdKsJ7-AK4zBbqPDsHS1vwNnSESDFv_GY5N0Z1YJbXwCRKI
+ALL_PROXY=http://127.0.0.1:17890
+AI_AGENT=claude-code_2-1-220_agent
+0
+0
+9
+1733305185 /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/packages/sva/AN.DB
+1785046544 /home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_flop_macros.sv
+1785046544 /home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert_sec_cm.svh
+1785046544 /home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert_standard_macros.svh
+1785046544 /home/smy/hackatdac26-phase-2-caliptra/src/libs/rtl/caliptra_sva.svh
+1785046544 /home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_assert.sv
+1733285146 /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/etc/sva/rec_ltl_classes_package.svp
+1785215979 /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/tb/mubi4_strict_bug_008_tb.sv
+1785216007 /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/scratch/caliptra_prim_mubi_pkg.sv
+4
+1757166900 /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/libvirsim.so
+1757166905 /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/liberrorinf.so
+1757166904 /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/libsnpsmalloc.so
+1757166899 /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/libvfs.so
+1785216014 simv.daidir
+-1 partitionlib

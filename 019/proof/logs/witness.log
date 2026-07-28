@@ -1,7 +1,7 @@
 ===== BUG-019 structural audit (single-tree, audited RTL only) =====
 
 ----- 1. the file's own write protocol for digest_valid_reg -----
-  PASS: hmac_core.sv:201 gates the digest_valid_reg write on digest_valid_we
+  PASS: hmac_core.sv:202 gates the digest_valid_reg write on digest_valid_we
   PASS: hmac_core.sv:203 is the only place digest_valid_reg takes digest_valid_new
   PASS: digest_valid_reg has exactly 2 assignments in the file: the reset arm and the enable-gated update
   PASS: the reset arm clears it directly (hmac_core.sv:185), bypassing the enable
@@ -26,8 +26,8 @@ unpaired_site=340: digest_valid_new = 1'b0;
   PASS: control: CTRL_OPAD asserts the enable (hmac_core.sv:370)
 
 ----- 4. the stale bit is software-visible and gates the tag -----
-  PASS: hmac_core.sv:115 exports digest_valid_reg directly as tag_valid
-  PASS: hmac_core.sv:114 also gates the tag output on the same bit, so a stale 1 exposes the old H2 digest
+  PASS: hmac_core.sv:112 exports digest_valid_reg directly as tag_valid
+  PASS: hmac_core.sv:111 also gates the tag output on the same bit, so a stale 1 exposes the old H2 digest
   PASS: hmac.sv carries that valid bit up into the register block software polls
 
 ===== relevant source, quoted from the audited tree =====

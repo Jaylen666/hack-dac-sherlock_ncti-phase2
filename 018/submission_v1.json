@@ -1,0 +1,67 @@
+{
+  "module": "hmac",
+  "bug_id": "018",
+  "bug_name": "hmac_bug_018",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready",
+  "security_feature_bypassed": "The CTRL_IPAD phase of the HMAC FSM, which performs the keyed inner hash of the HMAC construction and initiates the masking-PRNG reseed",
+  "finding": "The idle state of the HMAC FSM does not resolve conflicting commands, so one register write can skip the inner half of the HMAC construction. In src/hmac/rtl/hmac_core.sv, lines 339-343 handle init_cmd by setting hmac_ctrl_new = CTRL_IPAD with hmac_ctrl_we, and lines 345-350 handle next_cmd by setting hmac_ctrl_new = CTRL_OPAD with hmac_ctrl_we, but the two are independent `if` statements with no `else` between them; line 344 is blank. Because both assign the same variable inside one always_comb block, when both commands are asserted in the same cycle the later assignment wins and the FSM transitions from CTRL_IDLE directly to CTRL_OPAD. CTRL_IPAD is skipped, and with it the keyed inner hash that lines 273-283 start on the H1 core and the masking-PRNG reseed that the same arm initiates by presenting the entropy block. One MMIO write reaches this state: src/hmac/rtl/hmac.sv:257-258 source init_reg and next_reg from the INIT and NEXT fields of the single HMAC512_CTRL register, lines 251-252 gate both fields on the same ready_reg, and lines 173-174 wire them into the core's init_cmd and next_cmd, so nothing makes the two commands mutually exclusive. The file's own FSM idiom convicts the omission: a computed census over the same always_comb block finds 5 plain `if` statements and 0 `else if` statements, so plain `if` is the file's uniform style, but 3 of those 5 are ready-guarded, one per non-idle state, where at most one guard can hold. Only the 2 command-guarded arms in CTRL_IDLE can be true simultaneously, and those are precisely the pair left unchained.",
+  "location_or_code_reference": {
+    "competition_file": "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:345",
+    "line_range": "339-350",
+    "supporting_references": [
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:339",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:341",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:342",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:345",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:348",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:349",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:275",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:282",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:356",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:381",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:393",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac.sv:173",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac.sv:174",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac.sv:251",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac.sv:252",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac.sv:257",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac.sv:258"
+    ]
+  },
+  "detection_method": "LLM-driven CSBC analysis of the audited RTL, confirmed against the file's own FSM idiom, in which the three states whose guards are mutually exclusive use plain `if` safely while the one pair of simultaneously-satisfiable command guards is left unchained, and its own register wiring, which routes both command bits from one writable register through one write-enable, then hardened with a 19-gate structural witness, a directed VCS simulation of hmac_core built from the project's own filelist (src/hmac/config/hmac_ctrl.vf), and a negative control in which the two CTRL_IDLE arms are chained into an if/else in a scratch copy and the identical testbench is required to fail",
+  "security_impact": "A single write to HMAC512_CTRL with both INIT and NEXT set makes the block skip the keyed inner hash of the HMAC construction and jump straight to the outer hash. The resulting tag is not the HMAC of the message under the key: CTRL_OPAD hashes over whatever H1 state survives from a previous operation, so the tag depends on the previous operation's state rather than on the current input, leaking cross-operation state into a value software reads. The same skipped state is where the masking-PRNG reseed is initiated, so the write also leaves the block's side-channel countermeasure running on a stale seed. Any protocol that treats an HMAC tag from this block as a message-authentication value or a KDF output inherits both problems.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "Chain the two CTRL_IDLE command arms in src/hmac/rtl/hmac_core.sv into `if (init_cmd) ... else if (next_cmd) ...` so init_cmd takes precedence, matching the fact that next_cmd continues an operation init_cmd begins.",
+    "Reject the combination at the register interface as well, so a write that sets both INIT and NEXT is refused or reported rather than silently resolved by assignment order.",
+    "Add an assertion that CTRL_OPAD is only ever entered from CTRL_IPAD or CTRL_HMAC, never directly from CTRL_IDLE, so a future edit cannot reintroduce the skip."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:H/UI:N/S:U/C:L/I:H/A:N",
+    "base_score": 5.1,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/018/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/018/proof_result_v1.json",
+    "script": "final_bug_submissions/018/proof/scripts/run_bug_018_proof.sh",
+    "sim_script": "final_bug_submissions/018/proof/scripts/run_bug_018_019_sim.sh",
+    "testbench": "final_bug_submissions/018/proof/tb/hmac_core_bug_018_019_tb.sv",
+    "run_log": "final_bug_submissions/018/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/018/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/018/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/018/proof/logs/negative_control.log",
+    "negative_control_script": "final_bug_submissions/018/proof/scripts/run_bug_018_negative_control.sh",
+    "c_validation_status": "final_bug_submissions/018/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Software polls HMAC512_STATUS until the block reports ready, then performs one store to HMAC512_CTRL with both the INIT and the NEXT bit set.",
+    "hmac.sv:251-252 admit the write because both fields share the same ready_reg write-enable, and hmac.sv:257-258 assert init_cmd and next_cmd in the same cycle.",
+    "CTRL_IDLE evaluates both `if` bodies. The init_cmd body selects CTRL_IPAD; the next_cmd body then overwrites hmac_ctrl_new with CTRL_OPAD, and both arms assert the write-enable.",
+    "The FSM enters CTRL_OPAD. The keyed inner hash never runs and the masking reseed never starts.",
+    "CTRL_OPAD hashes the outer pad over the leftover H1 state, and the tag that appears in HMAC512_TAG is not the HMAC of the intended message under the intended key, while carrying state from the previous operation.",
+    "Verified in simulation: one cycle with both commands asserted from CTRL_IDLE left the FSM in CTRL_OPAD with CTRL_IPAD never visited. On a scratch copy with the two arms chained, the identical testbench saw the FSM enter CTRL_IPAD, cover_ipad_skipped fell to 0 and three checks failed, while cover_next_clears still fired."
+  ]
+}

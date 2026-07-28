@@ -1,0 +1,60 @@
+{
+  "module": "hmac_core",
+  "bug_id": "016",
+  "bug_name": "hmac_bug_016",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Privileged software able to write HMAC512_CTRL.ZEROIZE, or any agent that drives the debug-unlock or scan-mode transition, since src/hmac/rtl/hmac.sv:259 sources the zeroize strobe from either.",
+    "precondition": "A previous HMAC operation has completed, so hmac_core's digest_valid_reg is 1 and the block advertises a valid authentication tag.",
+    "input": "A security zeroize request asserted while that result is still marked valid.",
+    "protected_asset": "The integrity of the HMAC512_STATUS.VALID indication, which is the only signal software has for deciding that the HMAC512_TAG contents are an authentic tag produced by the engine.",
+    "security_property": "A security zeroize must leave the block in a state that advertises no valid result: digest_valid_reg, and therefore tag_valid and HMAC512_STATUS.VALID, must read 0 after the request.",
+    "implemented_logic": "The zeroize arm at src/hmac/rtl/hmac_core.sv:190-196 writes only hmac_ctrl_reg and hmac_ctrl_last, and its in-file comment defers the valid bit to 'the normal update path below'. Because the arm is a priority branch of unique case (1'b1), that default arm is not evaluated while zeroize is asserted, and because the same arm forces the FSM to CTRL_IDLE, every later assertion of digest_valid_we is command-guarded, so no refresh ever occurs. The stale bit persists indefinitely."
+  },
+  "security_feature_bypassed": "On-zeroize invalidation of the HMAC result status, the interlock that makes HMAC512_STATUS.VALID mean 'the tag register holds an authentic engine output'",
+  "proof_goal": "Show that a security zeroize collapses the control FSM and clears mode_reg while leaving digest_valid_reg set, that no later refresh clears it, and that the surviving bit propagates to tag_valid and on to HMAC512_STATUS.VALID.",
+  "proof_style": "structural_audit + directed_sim + negative_control",
+  "invariant": "Whenever zeroize is asserted, digest_valid_reg must become 0 and tag_valid must read 0 on the following cycles.",
+  "attacker_model": "Privileged software writing the ZEROIZE control field, or an agent driving the debug-unlock or scan-mode transition. No physical access is required.",
+  "minimum_attack_sequence": [
+    "Complete an HMAC operation so digest_valid_reg is 1 and the tag is advertised as valid.",
+    "Assert HMAC512_CTRL.ZEROIZE, or cause the debug-unlock or scan-mode transition.",
+    "Sample tag_valid and HMAC512_STATUS.VALID after the zeroize completes."
+  ],
+  "controls": [
+    "control_ctrl_cleared: the same zeroize arm must still collapse hmac_ctrl_reg to CTRL_IDLE, proving the strobe reached the DUT.",
+    "control_mode_cleared: mode_reg has its own zeroize arm and must clear, proving zeroize is observable inside the DUT.",
+    "control_reset_clears: the reset arm of the same case statement must clear digest_valid_reg, proving the register is clearable and the harness can observe it."
+  ],
+  "witness_construction_note": "The testbench instantiates one real hmac_core and drives it only through its ports, with one exception disclosed here: to stand in for 'a completed HMAC left a valid tag behind' without running a full multi-thousand-cycle hash, digest_valid_reg receives a single forced deposit of 1 which is released immediately, before any zeroize is applied. Every clear decision reported afterwards is therefore produced by the DUT's own logic with nothing held. The tag data itself is not part of the claim: zeroize does clear the masked cores' H0..H7 (src/sha512_masked/rtl/sha512_masked_core.sv:297-316), so the tag reads zero. The finding is the false VALID indication, not retention of the digest.",
+  "expected_evidence": [
+    "Structural gates confirming digest_valid_reg has exactly two assignment sites, that the zeroize arm is not one of them, and that the deferred-refresh claim in its comment is unreachable from a zeroized idle FSM.",
+    "Structural gates confirming the file's own contrasting treatment of zeroize-sensitive state: mode_reg gets its own zeroize arm, and both masked child cores clear their digest_valid_reg on the same strobe.",
+    "Structural gates tracing digest_valid_reg to tag_valid and on to HMAC512_STATUS.VALID, including the wrapper's clear at src/hmac/rtl/hmac.sv:214 being undone by the reload at :222.",
+    "A simulation log in which the stale bit survives zeroize, no refresh occurs across many idle cycles, and the three controls pass.",
+    "A negative control in which adding the single missing assignment to the zeroize arm in a scratch copy drives tag_valid to 0 and makes the defect self-checks fail."
+  ],
+  "success_criteria": [
+    "All structural gates report gate_ok.",
+    "All three control observations pass, proving the checker is not vacuous.",
+    "The simulation reports errors=0 and prints PROOF_RESULT: PASS.",
+    "The negative control exits nonzero on the patched copy, with both defect covers falling to 0 while the control observations still pass."
+  ],
+  "non_findings": [
+    "This case does not claim the HMAC digest itself is retained across zeroize; the masked cores do clear their state, so the tag reads zero.",
+    "This case does not claim the wrapper's own zeroize handling is missing; src/hmac/rtl/hmac.sv:214 does clear tag_valid_reg, and the defect is that the stale core bit reloads it on the next cycle.",
+    "This case does not measure a firmware sequence that acts on the false VALID; it proves the false indication is presented to software."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/016/proof/tb/hmac_core_bug_016_tb.sv",
+    "script": "final_bug_submissions/016/proof/scripts/run_bug_016_proof.sh",
+    "logs": [
+      "final_bug_submissions/016/proof/logs/run.log",
+      "final_bug_submissions/016/proof/logs/compile.log",
+      "final_bug_submissions/016/proof/logs/sim.log",
+      "final_bug_submissions/016/proof/logs/witness.log",
+      "final_bug_submissions/016/proof/logs/negative_control.log"
+    ]
+  }
+}

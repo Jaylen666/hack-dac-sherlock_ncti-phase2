@@ -1,0 +1,104 @@
+===== BUG-008 structural audit (single-tree, audited RTL only) =====
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+
+----- 1. the defect: the strict test admits a delta, not an equality -----
+  PASS: caliptra_prim_mubi_pkg.sv:46 declares mubi4_test_true_strict
+  PASS: caliptra_prim_mubi_pkg.sv:48 computes a delta against MuBi4True instead of comparing for equality
+  PASS: caliptra_prim_mubi_pkg.sv:49 returns true for delta 4'h0 AND delta 4'h1, so one specific bit may differ
+  PASS: MuBi4True is 4'h6 (caliptra_prim_mubi_pkg.sv:29), so the extra accepted encoding is 4'h7
+  PASS: MuBi4False is 4'h9 (caliptra_prim_mubi_pkg.sv:30), the bitwise complement, which is what makes single-bit faults detectable
+
+----- 2. in-file control: the same package's other three widths -----
+  PASS: mubi8_test_true_strict is an exact equality (caliptra_prim_mubi_pkg.sv:181)
+  PASS: mubi12_test_true_strict is an exact equality (caliptra_prim_mubi_pkg.sv:313)
+  PASS: mubi16_test_true_strict is an exact equality (caliptra_prim_mubi_pkg.sv:445)
+  PASS: even mubi4's own false_strict is an exact equality (caliptra_prim_mubi_pkg.sv:56)
+strict_true_declarations=4
+strict_true_exact_equality=3
+strict_true_delta_form=1
+strict_true_declarations=4 exact_equality=3 delta_form=1
+  PASS: the package declares exactly 4 strict-true tests, one per MuBi width, a self-validating control population
+  PASS: 3 of the 4 are exact equalities
+  PASS: exactly 1 uses the delta form, so the defect is a unique outlier within its own package
+  PASS: the two forms account for every declaration, so no strict-true site was missed by the census
+
+----- 3. in-file control: the comment the outlier lost -----
+  PASS: mubi8's strict test carries the package's standard 3-line contract comment ("requires the multibit value to equal True")
+  PASS: mubi12's does too (caliptra_prim_mubi_pkg.sv:309-311)
+  PASS: mubi16's does too (caliptra_prim_mubi_pkg.sv:441-443)
+  PASS: mubi4's contract comment has been replaced with a one-line description (caliptra_prim_mubi_pkg.sv:45), so the stated requirement is absent exactly where the code violates it
+  PASS: no surviving comment near mubi4_test_true_strict claims the equality contract, so the deviation is silent
+
+----- 4. tree control: the second MuBi package in the same tree -----
+  PASS: abr_prim_mubi_pkg.sv:44 implements the same mubi4_test_true_strict as an exact equality
+  PASS: it uses the same 4'h6 encoding, so the two packages are directly comparable
+  PASS: the second package contains no delta form at all, so the tree carries both an idiom and its violation
+
+----- 5. the accepted encoding is classified invalid by the same file -----
+  PASS: mubi4_test_invalid admits only 4'h6 and 4'h9 (caliptra_prim_mubi_pkg.sv:37), so 4'h7 is an invalid encoding by the package's own definition
+  PASS: the package asserts statically that True and False are bitwise complements (caliptra_prim_mubi_pkg.sv:33), the property the strict tests exist to enforce
+
+----- 6. security consumers: the strict test gates SEC_CM countermeasures -----
+strict_true_consumer_sites=84
+strict_true_consumer_sites=84
+  PASS: the weakened function has 84 call sites across the audited tree, so the defect is not confined to one block
+  PASS: csrng_core.sv:794 derives the CSRNG enable from the weakened strict test
+  PASS: csrng_core.sv:830 derives read_int_state_pfe, which permits reading CSRNG internal state, from it
+  PASS: csrng_core.sv:811 derives the software application enable from it
+  PASS: csrng_core.sv:1148 derives flag0, the deterministic-mode flag, from it
+  PASS: csrng_core.sv:786 marks these as a SEC_CM countermeasure, so the tree itself designates them security-critical
+  PASS: csrng_core.sv carries 4 such SEC_CM CONFIG.MUBI sites, all of them reading through the weakened test
+
+----- 7. software reachability of the accepted encoding -----
+  PASS: csrng_core.sv:788 takes the enable encoding straight from a software register field, so software chooses the 4-bit value
+  PASS: csrng_core.sv:829 does the same for read_int_state, so a software write of 4'h7 reaches the strict test directly
+  PASS: csrng_core.sv:831 routes the same field to mubi4_test_invalid, so 4'h7 raises the field alert AND is accepted as true in the same cycle
+  PASS: csrng_core.sv:832-833 reports it as a recoverable alert, which does not gate the function, so the permission is granted despite detection
+
+--- src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:32-57 (the defect and its in-file controls) ---
+  // This is a prerequisite for the multibit functions below to work.
+  `CALIPTRA_ASSERT_STATIC_IN_PACKAGE(CheckMuBi4ValsComplementary_A, MuBi4True == ~MuBi4False)
+
+  // Test whether the multibit value is one of the valid enumerations
+  function automatic logic mubi4_test_invalid(mubi4_t val);
+    return ~(val inside {MuBi4True, MuBi4False});
+  endfunction : mubi4_test_invalid
+
+  // Convert a 1 input value to a mubi output
+  function automatic mubi4_t mubi4_bool_to_mubi(logic val);
+    return (val ? MuBi4True : MuBi4False);
+  endfunction : mubi4_bool_to_mubi
+
+  // Decode the asserted multibit state.
+  function automatic logic mubi4_test_true_strict(mubi4_t val);
+    mubi4_t delta;
+    delta = val ^ MuBi4True;
+    return delta inside {4'h0, 4'h1};
+  endfunction : mubi4_test_true_strict
+
+  // Test whether the multibit value signals a "disabled" condition.
+  // The strict version of this function requires
+  // the multibit value to equal False.
+  function automatic logic mubi4_test_false_strict(mubi4_t val);
+    return MuBi4False == val;
+  endfunction : mubi4_test_false_strict
+
+--- src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:176,190 (the idiom, at MuBi8) ---
+
+  // Test whether the multibit value signals an "enabled" condition.
+  // The strict version of this function requires
+  // the multibit value to equal True.
+  function automatic logic mubi8_test_true_strict(mubi8_t val);
+    return MuBi8True == val;
+  endfunction : mubi8_test_true_strict
+
+  // Test whether the multibit value signals a "disabled" condition.
+  // The strict version of this function requires
+  // the multibit value to equal False.
+  function automatic logic mubi8_test_false_strict(mubi8_t val);
+    return MuBi8False == val;
+  endfunction : mubi8_test_false_strict
+
+
+structural_gates_passed=34/34
+RESULT: PASS

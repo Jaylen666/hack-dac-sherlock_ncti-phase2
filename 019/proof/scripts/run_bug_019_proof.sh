@@ -13,17 +13,25 @@ CMP="${CMP_ROOT:-/home/smy/hackatdac26-phase-2-caliptra}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGS="$(cd "$HERE/../logs" && pwd)"
 W="$LOGS/witness.log"
+RUN_LOG="$LOGS/run.log"
 CORE="$CMP/src/hmac/rtl/hmac_core.sv"
 
 PASS=0; FAIL=0
 : > "$W"
+{
+  echo "BUG-019 structural audit (single-tree)"
+  echo "audit_root=$CMP"
+  echo "date=$(date -Is)"
+} > "$RUN_LOG"
 
 gate() {
   local cmd="$1" desc="$2"
   if eval "$cmd" >/dev/null 2>&1; then
     PASS=$((PASS+1)); echo "  PASS: $desc" | tee -a "$W"
+    echo "gate_ok: $desc" >> "$RUN_LOG"
   else
     FAIL=$((FAIL+1)); echo "  FAIL: $desc" | tee -a "$W"
+    echo "gate_fail: $desc" >> "$RUN_LOG"
   fi
 }
 show() { echo "$1" | tee -a "$W"; }
@@ -32,8 +40,8 @@ show "===== BUG-019 structural audit (single-tree, audited RTL only) ====="
 show ""
 show "----- 1. the file's own write protocol for digest_valid_reg -----"
 
-gate "sed -n '201,202p' '$CORE' | grep -q 'if (digest_valid_we)'" \
-     "hmac_core.sv:201 gates the digest_valid_reg write on digest_valid_we"
+gate "sed -n '202p' '$CORE' | grep -q 'if (digest_valid_we)'" \
+     "hmac_core.sv:202 gates the digest_valid_reg write on digest_valid_we"
 gate "sed -n '203p' '$CORE' | grep -q 'digest_valid_reg <= digest_valid_new'" \
      "hmac_core.sv:203 is the only place digest_valid_reg takes digest_valid_new"
 gate "[ \"\$(grep -c 'digest_valid_reg <= ' '$CORE')\" = '2' ]" \
@@ -100,9 +108,9 @@ show ""
 show "----- 4. the stale bit is software-visible and gates the tag -----"
 
 gate "grep -q 'assign tag_valid  = digest_valid_reg' '$CORE'" \
-     "hmac_core.sv:115 exports digest_valid_reg directly as tag_valid"
+     "hmac_core.sv:112 exports digest_valid_reg directly as tag_valid"
 gate "grep -q 'assign tag        = digest_valid_reg? H2_digest : 512.b0' '$CORE'" \
-     "hmac_core.sv:114 also gates the tag output on the same bit, so a stale 1 exposes the old H2 digest"
+     "hmac_core.sv:111 also gates the tag output on the same bit, so a stale 1 exposes the old H2 digest"
 gate "grep -qE 'tag_valid|VALID' '$CMP/src/hmac/rtl/hmac.sv'" \
      "hmac.sv carries that valid bit up into the register block software polls"
 
@@ -120,9 +128,14 @@ sed -n '353,370p' "$CORE" | tee -a "$W"
 
 show ""
 show "structural_gates_passed=$PASS/$((PASS+FAIL))"
+echo "structural_gates_passed=$PASS/$((PASS+FAIL))" >> "$RUN_LOG"
 if [ "$FAIL" -eq 0 ]; then
   show "RESULT: PASS"
+  echo "RESULT: PASS - all structural gates confirm BUG-019" >> "$RUN_LOG"
+  echo "result=PASS" >> "$RUN_LOG"
 else
   show "RESULT: FAIL"
+  echo "RESULT: FAIL - at least one structural gate did not hold" >> "$RUN_LOG"
+  echo "result=FAIL" >> "$RUN_LOG"
   exit 1
 fi

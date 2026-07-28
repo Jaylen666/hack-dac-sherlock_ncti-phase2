@@ -1,0 +1,97 @@
+===== BUG-029 structural audit (single-tree, audited RTL only) =====
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+
+----- 1. the defect: the clear port is fed a constant False -----
+  PASS: sha3.sv:138 declares a second done-like signal, keccak_done2
+  PASS: sha3.sv:290-292 assigns both signals together in the done branch of StSqueeze
+  PASS: sha3.sv:291 gives keccak_done the incoming done_i but pins keccak_done2 to the constant MuBi4False
+  PASS: sha3.sv:494 wires that constant-False signal to the Keccak round's clear_i port
+  PASS: sha3.sv:451 wires the real done_i-derived signal to the pad's done_i, so the two ports are fed from different signals
+keccak_done2_direct_assignments=0
+keccak_done2_total_references=3
+keccak_done2_direct_assignments=0 keccak_done2_total_references=3
+  PASS: keccak_done2 has no standalone assignment anywhere in the file; its only write is the concatenation at :290-292
+  PASS: keccak_done2 appears exactly 3 times in the file (declaration, the concatenation write, the clear_i connection), so the census covers every use of it
+
+----- 2. in-file control: the always_comb default block skips it -----
+  PASS: sha3.sv:247 gives keccak_done a default value at the top of the always_comb
+  PASS: no line in the same default block (sha3.sv:241-256) assigns keccak_done2, so the signal has no default in a combinational block and infers a latch
+always_comb_default_assignments=8
+always_comb_default_assignments=8
+  PASS: the block assigns 8 defaults, covering every FSM output except keccak_done2
+
+----- 3. the child module states what clear_i is for and needs -----
+  PASS: keccak_round.sv:99 declares clear_i, commented as clearing the internal state to zero
+  PASS: keccak_round.sv:219 acts on clear_i only when it passes mubi4_test_true_strict, so a constant MuBi4False can never trigger it
+  FAIL: keccak_round.sv:224 is the only place rst_storage is raised, and it sits inside that clear_i-guarded branch, so the state storage is never reset through this path
+  PASS: keccak_round.sv:603 assumes clear_i is asserted in the idle state, an assumption that is vacuous when the driver is a constant False
+
+----- 4. the FSM leaves the squeeze window without any other clear -----
+  PASS: sha3.sv:279 opens the squeeze state, the state in which done_i is accepted
+  PASS: sha3.sv:288 accepts a strictly-valid done_i and takes the completion branch
+  PASS: sha3.sv:289 moves the FSM to StFlush on done
+  PASS: sha3.sv:304-306 shows StFlush doing nothing but returning to idle, so no later state clears the storage either
+
+----- 5. tree control: the twin SHA3 in the same tree wires it correctly -----
+  PASS: ot_sha3.sv:244 has the same default assignment for keccak_done, so the two files are directly comparable
+  PASS: ot_sha3.sv:289 assigns keccak_done = done_i in the same completion branch, a single signal rather than a pair
+  PASS: ot_sha3.sv:450 wires that signal to the pad's done_i
+  PASS: ot_sha3.sv:492 wires the SAME signal to the round's clear_i, so in the twin the clear does fire when done_i is strictly valid
+  PASS: ot_sha3.sv contains no keccak_done2 at all, so the tree carries both the correct wiring and its violation
+
+----- 6. in-file control: the file's own error-detection assertion -----
+  PASS: sha3.sv:532-533 lists the signals through which controls must propagate, and keccak_done is in that list
+  PASS: keccak_done2 is absent from that list, so the file's own propagation check cannot observe the constant-False clear path
+  PASS: the twin carries the same assertion over the same signal list, which in the twin covers the clear path because one signal drives both ports
+
+--- src/kmac/rtl/sha3.sv:241,256 (the default block that skips keccak_done2) ---
+    st_d = st;
+
+    // default output values
+    keccak_start = 1'b 0;
+    keccak_process = 1'b 0;
+    sw_keccak_run = 1'b 0;
+    keccak_done = caliptra_prim_mubi_pkg::MuBi4False;
+
+    squeezing = 1'b 0;
+
+    state_valid = 1'b 0;
+    mux_sel = MuxGuard ;
+
+    sha3_state_error = 1'b 0;
+
+    unique case (st)
+
+--- src/kmac/rtl/sha3.sv:279,294 (the squeeze state and its done branch) ---
+      StSqueeze_sparse: begin
+        // Keep the outward-facing state path open while the squeeze window is live.
+        {state_valid, squeezing} = 2'b11;
+        mux_sel = MuxRelease;
+
+        st_d = StSqueeze_sparse;
+        priority if (run_i) begin
+          st_d = StManualRun_sparse;
+          sw_keccak_run = 1'b 1;
+        end else if (caliptra_prim_mubi_pkg::mubi4_test_true_strict(done_i)) begin
+          st_d = StFlush_sparse;
+          {keccak_done, keccak_done2} = {
+            done_i, caliptra_prim_mubi_pkg::MuBi4False
+          };
+        end
+      end
+
+--- src/kmac/rtl/sha3.sv:490,495 vs src/sha3/rtl/ot_sha3.sv:490,493 (clear_i wiring) ---
+    .round_count_error_o (round_count_error),
+    .rst_storage_error_o (keccak_storage_rst_error),
+
+    // Auxiliary clear pulse carried through the squeeze completion path.
+    .clear_i    (keccak_done2)
+  );
+  --- twin ---
+    .rst_storage_error_o (keccak_storage_rst_error),
+
+    .clear_i    (keccak_done)
+  );
+
+structural_gates_passed=25/26
+RESULT: FAIL

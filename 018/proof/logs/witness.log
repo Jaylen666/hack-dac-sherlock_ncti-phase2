@@ -19,9 +19,11 @@ command_guarded_if=2
   PASS: the FSM itself is a unique case, so the file does use exclusivity constructs elsewhere
 
 ----- 3. both commands can genuinely be asserted in one cycle -----
-  PASS: hmac.sv drives hmac_core's init_cmd from the register block
-  PASS: hmac.sv drives hmac_core's next_cmd from the register block
-  PASS: both commands originate in the software-written HMAC512_CTRL register, so one MMIO write can set both bits
+  PASS: hmac.sv:173 drives hmac_core's init_cmd from init_reg
+  PASS: hmac.sv:174 drives hmac_core's next_cmd from next_reg
+  PASS: hmac.sv:257 sources init_reg from the HMAC512_CTRL.INIT field
+  PASS: hmac.sv:258 sources next_reg from the NEXT field of the same register, so one MMIO write can set both bits
+  PASS: hmac.sv:251-252 gate both fields on the same ready_reg, so nothing makes them mutually exclusive
   PASS: CTRL_IDLE reports ready, so such a write is accepted rather than rejected (hmac_core.sv:337)
 
 ----- 4. consequence: the IPAD phase is the keyed inner hash -----
@@ -74,5 +76,5 @@ command_guarded_if=2
             if (OPAD_ready == 1)
               begin
 
-structural_gates_passed=17/17
+structural_gates_passed=19/19
 RESULT: PASS

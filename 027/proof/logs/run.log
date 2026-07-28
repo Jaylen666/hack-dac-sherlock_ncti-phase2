@@ -1,0 +1,20 @@
+BUG-027 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T13:47:31+08:00
+gate_ok: kv_write_rule_check.sv header states rule (a) as an unconditional block on non-AES writers
+gate_ok: keyvault.md states nothing may be written to the release slot except the AES-produced MEK
+gate_ok: keyvault.md names AES as the writer of that slot
+gate_ok: keyvault.md calls the release slot write-restricted to AES only
+gate_ok: the rule carries release_slot_source_from_raw as its final AND-term (line 107)
+gate_ok: that term is defined as the negation of kv_data0_present (line 97)
+gate_ok: the term appears exactly 3 times: declaration, definition and the single use in rule (a)
+gate_ok: rule (b) std_to_std only fires when a source is in the STD region, so a LOCK-source write is outside its scope
+gate_ok: rule (c) lock_to_lock only fires when the destination leaves the LOCK region, and the release slot is inside it
+gate_ok: rule (d) is guarded on AES being the writer, so it cannot fire for a non-AES writer
+gate_ok: the release slot is KV23
+gate_ok: the LOCK region's upper bound is 23, so the release slot is a LOCK slot and rule (c) is satisfied by a LOCK source
+gate_ok: write_allow is the NOR of the rule vector, so clearing rule (a) alone is enough to permit the write
+gate_ok: kv_write_client consumes write_allow, so the verdict gates a real KeyVault write
+structural_gates_passed=14/14
+RESULT: PASS - all structural gates confirm BUG-027
+result=PASS

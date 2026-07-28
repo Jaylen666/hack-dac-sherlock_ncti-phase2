@@ -1,0 +1,25 @@
+BUG-018 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T13:03:39+08:00
+gate_ok: hmac_core.sv:339 opens the init_cmd arm with a plain if
+gate_ok: hmac_core.sv:345 opens the next_cmd arm with a second plain if, not an else if
+gate_ok: hmac_core.sv:345 has no else, so both arms are evaluated in the same cycle
+gate_ok: the init_cmd arm assigns hmac_ctrl_new = CTRL_IPAD (hmac_core.sv:341)
+gate_ok: the next_cmd arm assigns the same variable hmac_ctrl_new = CTRL_OPAD (hmac_core.sv:348)
+gate_ok: both arms assert hmac_ctrl_we, so the last write wins and reaches the register
+gate_ok: census: exactly 2 command-guarded ifs in the FSM, both in CTRL_IDLE, both unchained
+gate_ok: census: the other 3 transition guards (IPAD/OPAD/HMAC_ready) are each a single if per state, so no other state can double-assign
+gate_ok: census: the FSM contains no else-if chain at all, so CTRL_IDLE's two arms are the only place the idiom could have applied
+gate_ok: the FSM itself is a unique case, so the file does use exclusivity constructs elsewhere
+gate_ok: hmac.sv:173 drives hmac_core's init_cmd from init_reg
+gate_ok: hmac.sv:174 drives hmac_core's next_cmd from next_reg
+gate_ok: hmac.sv:257 sources init_reg from the HMAC512_CTRL.INIT field
+gate_ok: hmac.sv:258 sources next_reg from the NEXT field of the same register, so one MMIO write can set both bits
+gate_ok: hmac.sv:251-252 gate both fields on the same ready_reg, so nothing makes them mutually exclusive
+gate_ok: CTRL_IDLE reports ready, so such a write is accepted rather than rejected (hmac_core.sv:337)
+gate_ok: key_ipadded is the inner HMAC pad, computed from the key (hmac_core.sv:257)
+gate_ok: CTRL_IPAD is where H1 is launched on key_ipadded, so skipping it skips the inner hash
+gate_ok: CTRL_IPAD is also where set_entropy fires, so skipping it also skips the masking reseed
+structural_gates_passed=19/19
+RESULT: PASS - all structural gates confirm BUG-018
+result=PASS

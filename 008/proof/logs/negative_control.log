@@ -1,0 +1,12 @@
+BUG-008 negative control
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T13:20:07+08:00
+patch applied to /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/008/proof/scratch/caliptra_prim_mubi_pkg.sv
+sim_exit_code=1
+negative_control_tbfail_count=3
+encodings_accepted_after_patch=1
+cover_strict_accepts_nontrue=0
+cover_accepted_is_invalid=0
+cover_wider_widths_reject=1
+control_true_encoding_still_accepted=1
+result=PASS

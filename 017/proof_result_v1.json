@@ -1,0 +1,50 @@
+{
+  "module": "hmac",
+  "bug_id": "017",
+  "bug_name": "hmac_bug_017",
+  "triage_id": "hmac_core_entropy_core_never_started",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "proof_method_executed": {
+    "structural_audit": "21 gates, 21 passed, 0 failed, entirely within the audited tree. Gated evidence: the reseed chain exists end to end, the CTRL_IPAD arm holds both H2 start strobes low, every other block presentation in the same always_comb block has a start strobe, and a computed census finds exactly 4 start-strobe assertions in the file, none of them for the entropy block.",
+    "directed_sim": "Unit-level hmac_core compiled from the project's own filelist (src/hmac/config/hmac_ctrl.vf) and run under VCS. A single INIT walks the FSM into CTRL_IPAD; the testbench samples the H2 start strobes on every cycle of the 92-cycle window and reports what set_entropy latched. 8 checks, 0 errors, all three cover counters at 1.",
+    "negative_control": "The identical testbench run against a scratch copy of hmac_core.sv with H2_init asserted in the CTRL_IPAD first_round arm reports 3 self-check failures, latches entropy_digest = 0x039dffff910bb3b8..., and drops all three cover counters to 0, while the H1 control check still passes. The testbench therefore discriminates correct RTL from defective RTL, and the failure is attributable to the RTL change rather than to a broken harness.",
+    "tool": "VCS W-2024.09-SP1_Full64"
+  },
+  "result_summary": "The HMAC masking-PRNG reseed chain is broken in the middle. hmac_core.sv builds an entropy block from its own state (hmac_core.sv:243), presents it to the H2 masked SHA-512 core inside CTRL_IPAD (hmac_core.sv:282), and latches entropy_digest from H2_digest when set_entropy fires at the IPAD to OPAD transition (hmac_core.sv:229-231 and :362). entropy_digest then seeds all 12 masking LFSRs via lfsr_entropy = entropy_digest ^ lfsr_seed (hmac_core.sv:242, :167). But the CTRL_IPAD first_round arm never starts H2: it drives H2_init and H2_next to 0 (hmac_core.sv:277-278) and no assignment anywhere in that branch raises either strobe. H2 therefore never hashes the entropy block, and set_entropy latches the unstarted core's output. The file's own idiom convicts this: every other block presentation in the same always_comb block is paired with a start strobe (H1_init at :275, H1_next and H2_init at :290-291, H2_next at :304), and a computed census finds exactly 4 start-strobe assertions in the file, one per real presentation and none for the entropy block. The consequence is that entropy_digest holds its reset value of zero and lfsr_entropy reduces to lfsr_seed alone, which hmac.sv:311 sources from the software-writable HMAC512_LFSR_SEED register. The masking randomness loses its hardware-derived component and becomes whatever software last wrote.",
+  "security_impact_assessment": {
+    "impact": [
+      "The masking PRNGs of both SHA-512 cores are seeded from a value software chooses, rather than from a hardware-derived digest, on every HMAC operation.",
+      "An attacker who knows or sets HMAC512_LFSR_SEED knows the mask sequence, which removes the unpredictability the masking relies on and reduces the first-order side-channel countermeasure to a known transformation.",
+      "The weak seed is reapplied on every init_cmd (hmac_core.sv:166), so masks can be replayed identically across operations, which is the condition that makes averaging attacks on a masked implementation practical."
+    ],
+    "bypassed_feature": "Hardware-derived reseeding of the HMAC masking PRNGs",
+    "attacker_model": [
+      "A local attacker with side-channel access to the device while the HMAC block operates on a key it cannot read.",
+      "Optionally combined with unprivileged or privileged software that writes HMAC512_LFSR_SEED, which turns knowledge of the mask sequence into control of it."
+    ],
+    "confidence": "high"
+  },
+  "evidence": {
+    "competition_file": "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:277",
+    "line_range": "274-283",
+    "run_log": "final_bug_submissions/017/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/017/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/017/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/017/proof/logs/negative_control.log",
+    "key_observation": "Across all 92 cycles the FSM spent in CTRL_IPAD, neither H2_init nor H2_next was ever high, while H1 was started in that same window, so start strobes demonstrably do reach the cores there. entropy_block was confirmed present on H2_block throughout. After the IPAD to OPAD transition entropy_digest read 0x0 and lfsr_entropy compared exactly equal to the software-written seed 0xC0DE5EED..., and was nonzero, so the LFSRs still run: the defect is predictability, not a stall. On the patched copy the same stimulus latched entropy_digest = 0x039dffff910bb3b8... and all three cover counters fell to 0."
+  },
+  "non_findings": [
+    {
+      "claim": "The masking is disabled outright, so the block leaks as an unmasked implementation would.",
+      "verdict": "withdrawn",
+      "reason": "The LFSRs still run and still produce a nonzero, changing mask sequence; the testbench gates on this explicitly. The defect is that the sequence is derived from a software-visible seed rather than a hardware digest, so it is predictable and replayable rather than absent."
+    },
+    {
+      "claim": "The same defect makes the HMAC tag itself wrong.",
+      "verdict": "not_claimed",
+      "reason": "The masking entropy affects only the randomness of the shares, not the unmasked result. No functional error in the tag is claimed or observed for this finding."
+    }
+  ],
+  "conclusion": "Confirmed security bug. The block builds a hardware reseed chain for its masking PRNGs and then omits the one strobe that would make it run, so the seed collapses to a software-written register value on every HMAC operation. The finding rests entirely on evidence inside the audited tree: its own reseed chain, its own set_entropy latch, and its own start-strobe idiom, which it follows for all four real block presentations and breaks only for the entropy block. Proven by 21 structural gates, a directed unit-level simulation that watches the entire entropy window and reports what was latched, and a negative control that fails on corrected RTL while its own control check still passes."
+}

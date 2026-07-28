@@ -1,0 +1,60 @@
+{
+  "module": "caliptra_prim",
+  "bug_id": "008",
+  "bug_name": "caliptra_prim_bug_008",
+  "triage_id": "mubi4_test_true_strict_accepts_one_bit_fault",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "A physical attacker able to inject a single-bit fault into a multi-bit configuration signal in flight, which is the exact threat model the strict multi-bit test exists to defeat.",
+    "precondition": "A security-critical configuration field is encoded as MuBi4False (4'h9), the disabled state, and is being checked by mubi4_test_true_strict before a countermeasure is bypassed or an interface is enabled.",
+    "input": "One bit flip on the four-bit bus, or one write of the encoding 4'h7 by software into a MuBi4 register field.",
+    "protected_asset": "The single-bit-fault detection guarantee of the MuBi4 encoding, and every countermeasure that depends on it (the SEC_CM: CONFIG.MUBI markers in the tree).",
+    "security_property": "mubi4_test_true_strict must return true for exactly one encoding, MuBi4True (4'h6). That exactness is the entire reason the strict variant exists alongside the loose one: MuBi4True and MuBi4False are bitwise complements, so no single bit flip can turn one into the other, and accepting only the exact value means any single-bit fault is rejected.",
+    "modification": "In caliptra_prim_mubi_pkg.sv the four-bit strict true test at caliptra_prim_mubi_pkg.sv:46-50 was rewritten from an exact comparison into a Hamming-distance test: it XORs the input with MuBi4True and accepts a delta of 4'h0 or 4'h1. That widens the accepted set from one encoding to two, so the encoding 4'h7 is also accepted."
+  },
+  "security_feature_bypassed": "The single-bit-fault detection property of the strict MuBi4 true test, on which the tree's SEC_CM: CONFIG.MUBI countermeasures depend",
+  "proof_goal": "Show that the four-bit strict test accepts an encoding other than MuBi4True, that the same package declares that encoding invalid, that the package's other three widths and a second multi-bit package in the same tree implement the exact comparison, and that restoring the exact comparison makes the same testbench reject the claim.",
+  "proof_style": {
+    "primary": "structural audit of the audited RTL against its own other instances and its own contract",
+    "secondary": [
+      "exhaustive directed simulation over all 16 four-bit encodings with cover counters",
+      "negative control on a patched scratch copy"
+    ]
+  },
+  "minimum_attack_sequence": [
+    "A MuBi4 configuration field sits at MuBi4False (4'h9), the disabled encoding, or at any other value the strict test should reject.",
+    "The attacker perturbs the bus so it reads 4'h7, either by injecting a single-bit fault or, where the field is software-writable, by writing that encoding directly.",
+    "mubi4_test_true_strict(4'h7) returns true, because 4'h7 ^ 4'h6 == 4'h1 and the rewritten test accepts a delta of 1.",
+    "The consumer treats the configuration as enabled. In csrng_core.sv this is the CONFIG.MUBI countermeasure path: cs_enable_fo, sw_app_enable_pfe and read_int_state_pfe are all derived from this function.",
+    "The same package's mubi4_test_invalid(4'h7) also returns true, so the design simultaneously grants the permission and classifies the encoding as a fault, and the fault-alert path and the permission path disagree."
+  ],
+  "expected_evidence": [
+    "caliptra_prim_mubi_pkg.sv:46-50 computes delta = val ^ MuBi4True and returns delta inside {4'h0, 4'h1}, rather than comparing for equality.",
+    "In-file control: the same package's 8-, 12- and 16-bit strict true tests at caliptra_prim_mubi_pkg.sv:181, :313 and :445 all use an exact equality comparison, and the 4-bit strict false test at :56 does too.",
+    "In-file control: a computed census over the package finds 4 strict-true declarations, 3 of which use exact equality and exactly 1 of which uses the delta form, with the two counts summing to the declaration count so a regex miss cannot pass silently.",
+    "In-file contract: the three-line comment describing the exact-match requirement survives above the 8-, 12- and 16-bit tests at :177-179, :309-311 and :441-443, but above the 4-bit test at :45 it has been replaced by a one-line comment.",
+    "In-file contract: caliptra_prim_mubi_pkg.sv:33 asserts statically that MuBi4True == ~MuBi4False, which is the property the exact test converts into single-bit-fault detection and which the delta test discards.",
+    "In-file contradiction: caliptra_prim_mubi_pkg.sv:37 defines mubi4_test_invalid as anything not in {MuBi4True, MuBi4False}, so the package itself declares 4'h7 invalid while the strict test accepts it.",
+    "Tree-level control: abr_prim_mubi_pkg.sv:44 in the same tree implements the same four-bit strict true test with the same encoding as an exact comparison, and no delta form appears anywhere in it.",
+    "Consumer reachability: a computed census finds the function used at consumer sites across src/, including four SEC_CM: CONFIG.MUBI countermeasure sites in csrng_core.sv whose encodings come from software-writable register fields.",
+    "In simulation, an exhaustive sweep of all 16 four-bit encodings shows the strict test accepting 2 of them, the extra one at Hamming distance 1 from MuBi4True.",
+    "With the exact comparison restored in a scratch copy, the same sweep accepts exactly 1 encoding, both defect cover counters fall to zero, and the self-checks fail."
+  ],
+  "success_criteria": [
+    "Every structural gate holds, including the computed censuses over strict-true declarations and consumer sites.",
+    "The exhaustive simulation shows more than one accepted encoding, and shows the extra encoding is one the same package reports as invalid.",
+    "The negative control fails on corrected RTL with both defect covers at zero, while the harness's own control observations still pass.",
+    "The finding is anchored on the audited tree's own other widths, its own contract comments, its own invalid-encoding test and a second multi-bit package inside the same tree, not on any external comparison."
+  ],
+  "artifacts": {
+    "script": "final_bug_submissions/008/proof/scripts/run_bug_008_proof.sh",
+    "sim_script": "final_bug_submissions/008/proof/scripts/run_bug_008_sim.sh",
+    "testbench": "final_bug_submissions/008/proof/tb/mubi4_strict_bug_008_tb.sv",
+    "run_log": "final_bug_submissions/008/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/008/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/008/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/008/proof/logs/negative_control.log",
+    "negative_control_script": "final_bug_submissions/008/proof/scripts/run_bug_008_negative_control.sh"
+  }
+}

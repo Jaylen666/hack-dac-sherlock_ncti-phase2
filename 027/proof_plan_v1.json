@@ -1,0 +1,55 @@
+{
+  "module": "kv_write_rule_check",
+  "bug_id": "027",
+  "bug_name": "keyvault_bug_027",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Privileged software that can program a non-AES KeyVault-writing engine (for example HMAC or the key derivation path) while OCP LOCK mode is in progress, selecting both the destination slot and the KeyVault-forwarded source of that operation.",
+    "precondition": "OCP LOCK mode is in progress, so write_metrics.ocp_lock_in_progress is asserted and the KeyVault write rules are the active access control on slot 23.",
+    "input": "A KeyVault write issued by a non-AES engine with kv_write_entry set to the release slot KV23 and with a forwarded KeyVault source present, that is kv_data0_present asserted, choosing a LOCK-region source slot so that the lock_to_lock rule is also satisfied.",
+    "protected_asset": "The contents of the OCP LOCK key release slot KV23, which src/keyvault/config/keyvault.md:208 declares write-restricted to AES only and which the SoC key release path reads and emits over the AXI manager interface.",
+    "security_property": "While OCP LOCK is in progress, no engine other than AES may write the release slot. The module states this itself at src/keyvault/rtl/kv_write_rule_check.sv:20 as 'non-AES engines are blocked from release slot', and the in-tree specification states it at src/keyvault/config/keyvault.md:255 as 'Never attempt to write anything to KV23 except MEK (produced by AES)'.",
+    "implemented_logic": "The rule at src/keyvault/rtl/kv_write_rule_check.sv:103-107 conjoins four terms, and the fourth is release_slot_source_from_raw, defined at :97 as the negation of write_metrics.kv_data0_present. The writer-identity check is therefore conditioned on the write having no forwarded KeyVault source, a property unrelated to who is writing. Whenever a non-AES engine writes the release slot with a forwarded source present, all four terms cannot hold, rule_fail.aes_only_to_key_release stays low, and since :151 drives write_allow as the NOR of the rule vector, the write is permitted. The same file classifies sources at :69-81 using the region bounds directly, so no comparable term appears in any sibling rule."
+  },
+  "security_feature_bypassed": "The OCP LOCK KeyVault write rule that restricts the key release slot KV23 to AES as the only writer",
+  "proof_goal": "Show, on one unmodified instance of kv_write_rule_check compiled from the audited checkout, that a non-AES engine writing KV23 under OCP LOCK is granted write_allow when a forwarded KeyVault source is present, and that the single input distinguishing grant from denial is kv_data0_present rather than the identity of the writing engine.",
+  "proof_style": "Directed port-driven simulation of one real DUT, paired with a scripted structural audit of the submitted tree and a negative control that removes the offending AND-term.",
+  "invariant": "For all stimuli with ocp_lock_in_progress asserted and kv_write_entry equal to OCP_LOCK_KEY_RELEASE_KV_SLOT, write_allow must be 0 unless AES is the writing engine.",
+  "attacker_model": "Privileged software at supervisor mode. The attacker needs the privilege to configure a KeyVault-writing engine and its source and destination slots, which is the ordinary programming model for those engines, but needs no physical access, no debug access and no fault injection.",
+  "minimum_attack_sequence": [
+    "Enter or await OCP LOCK mode so that ocp_lock_in_progress is asserted.",
+    "Program a non-AES KeyVault-writing engine with its destination set to KV23, the key release slot.",
+    "Give that operation a forwarded KeyVault source so kv_data0_present is asserted, choosing a LOCK-region slot so the lock_to_lock rule is also satisfied.",
+    "Issue the write. rule_fail.aes_only_to_key_release stays low, write_allow is granted, and the non-AES result lands in the slot the key release path will emit."
+  ],
+  "controls": [
+    "control_non_aes_release_no_forward: the same non-AES writer targeting KV23 with kv_data0_present deasserted must be blocked, showing the rule is live and the harness can reach it.",
+    "control_aes_release_legal: a legal AES ECB-decrypt write of KV23 sourced from KV16 must be allowed, showing the harness does not merely block everything.",
+    "control_non_aes_lock_source_leaves_region: a non-AES write of a LOCK-region source into STD slot 5 must be blocked by lock_to_lock, showing the surrounding rules still function."
+  ],
+  "witness_construction_note": "The testbench instantiates one kv_write_rule_check and drives it only through its ports; there is no force, no deposit and no hierarchical assignment anywhere in the harness, and the DUT source is compiled unmodified from the audited checkout through the project's own src/keyvault/config/kv_defines_pkg.vf. Because write_allow is registered at :146-153, each stimulus is held for three clocks before sampling. The violating case chooses kv_data0_entry equal to KV23 so that the source is inside the LOCK region and rule (c) lock_to_lock is satisfied, leaving rule (a) as the only rule that should have rejected the write; this makes the grant attributable to rule (a) alone rather than to a gap between rules. A discriminator then repeats the identical violating stimulus with kv_data0_present alone changed to 0, isolating that one input as the difference between grant and denial.",
+  "expected_evidence": [
+    "A simulation line showing write_allow=1 for a non-AES engine writing KV23 with ocp_lock_in_progress asserted.",
+    "A discriminator line showing write_allow=0 under the same stimulus with only kv_data0_present changed.",
+    "Coverage counters separating the allowed non-AES release write from the blocked ones.",
+    "Structural gates tying the fourth AND-term to its definition as the negation of kv_data0_present, and showing no sibling rule covers the resulting gap.",
+    "A negative control in which the term is removed and the witness disappears while the legal AES write still succeeds."
+  ],
+  "success_criteria": [
+    "checks=4, fails=1 and witness_hits=1 in the directed simulation, with the single failure being the violating case.",
+    "cover_non_aes_release_allowed=1 and cover_non_aes_release_blocked=2.",
+    "All structural gates pass against the submitted tree.",
+    "The negative control exits nonzero with zero witness lines, cover_non_aes_release_allowed=0, cover_non_aes_release_blocked still 2, and control_aes_release_legal still passing."
+  ],
+  "non_findings": [
+    "No claim is made about the off-by-one on the STD region upper bound at :87-88; that is a separate observation tracked as its own case and is not part of this proof.",
+    "No claim is made that the forwarded data itself is secret in the violating case. The finding is that the writer-identity rule does not hold, whatever the forwarded value is.",
+    "No claim is made about behaviour outside OCP LOCK mode; every rule in this module is gated on ocp_lock_in_progress and the finding is scoped to that mode."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/027/proof/tb/kv_write_rule_check_bug_027_tb.sv",
+    "script": "final_bug_submissions/027/proof/scripts/run_bug_027_proof.sh",
+    "logs": "final_bug_submissions/027/proof/logs/"
+  }
+}

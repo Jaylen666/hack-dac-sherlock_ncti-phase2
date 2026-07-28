@@ -1,0 +1,9 @@
+{"vcs1":{"timestamp_begin":1785215048.983171661, "rt":3.48, "ut":1.01, "st":0.39}}
+{"vcselab":{"timestamp_begin":1785215052.550988427, "rt":2.63, "ut":0.40, "st":0.18}}
+{"link":{"timestamp_begin":1785215055.239906772, "rt":0.24, "ut":0.16, "st":0.08}}
+{"SNPS_VCS_INTERNAL_ROOT_START_TIME": 1785215048.575478339}
+{"VCS_COMP_START_TIME": 1785215048.575478339}
+{"VCS_COMP_END_TIME": 1785215055.554394081}
+{"VCS_USER_OPTIONS": "-full64 -sverilog -timescale=1ns/1ps -assert svaext +lint=none -f filelist.f -top hmac_core_bug_018_019_tb -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/019/proof/logs/compile.log -o simv"}
+{"vcs1": {"peak_mem": 486056}}
+{"vcselab": {"peak_mem": 233168}}

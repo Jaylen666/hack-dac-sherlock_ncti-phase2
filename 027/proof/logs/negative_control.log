@@ -1,0 +1,4 @@
+===== BUG-027 negative control =====
+source DUT : /home/smy/hackatdac26-phase-2-caliptra/src/keyvault/rtl/kv_write_rule_check.sv
+patched DUT: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/027/proof/scratch/kv_write_rule_check.sv
+patch applied: aes_only_to_key_release no longer gated on the forwarding-source term

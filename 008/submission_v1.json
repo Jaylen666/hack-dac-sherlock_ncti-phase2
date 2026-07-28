@@ -1,0 +1,73 @@
+{
+  "module": "caliptra_prim",
+  "bug_id": "008",
+  "bug_name": "caliptra_prim_bug_008",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready",
+  "security_feature_bypassed": "Single-bit-fault detection in the strict MuBi4 true test, and the SEC_CM: CONFIG.MUBI countermeasures built on it",
+  "finding": "The four-bit strict multi-bit true test accepts two encodings instead of one, which destroys the single-bit-fault detection the strict variant exists to provide. In src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv, lines 46-50 declare mubi4_test_true_strict, compute delta = val ^ MuBi4True at line 48, and return `delta inside {4'h0, 4'h1}` at line 49. That accepts MuBi4True (4'h6) and also 4'h7. Line 33 asserts statically that MuBi4True == ~MuBi4False, so the two legal encodings are bitwise complements at Hamming distance 4; an exact comparison therefore rejects every single-bit fault, and that is the entire security value of the strict test. A Hamming-distance-1 tolerance discards it. The package contradicts itself four independent ways. Its other three widths use exact equality at lines 181, 313 and 445, and its own four-bit strict false test does too at line 56; a computed census over the package finds 4 strict-true declarations, of which exactly 3 use equality and 1 uses the delta form, the two counts summing to the declaration count. The three-line comment stating the exact-match requirement survives above the 8-, 12- and 16-bit tests at lines 177-179, 309-311 and 441-443, but above the four-bit test it has been replaced by a one-line comment at line 45. And line 37 defines mubi4_test_invalid as anything outside {MuBi4True, MuBi4False}, so for the encoding 4'h7 the package grants the enable through one function while reporting a fault through the other. A second multi-bit package inside the same tree, submodules/adams-bridge/src/abr_prim/rtl/abr_prim_mubi_pkg.sv:44, implements the same four-bit strict true test with the same encoding as an exact comparison and contains no delta form anywhere.",
+  "location_or_code_reference": {
+    "competition_file": "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:49",
+    "line_range": "46-50",
+    "supporting_references": [
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:45",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:46",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:48",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:29",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:30",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:33",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:37",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:56",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:177",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:181",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:309",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:313",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:441",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:445",
+      "/home/smy/hackatdac26-phase-2-caliptra/submodules/adams-bridge/src/abr_prim/rtl/abr_prim_mubi_pkg.sv:44",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/csrng/rtl/csrng_core.sv:786",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/csrng/rtl/csrng_core.sv:788",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/csrng/rtl/csrng_core.sv:794",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/csrng/rtl/csrng_core.sv:811",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/csrng/rtl/csrng_core.sv:829",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/csrng/rtl/csrng_core.sv:830",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/csrng/rtl/csrng_core.sv:831"
+    ]
+  },
+  "detection_method": "LLM-driven CSBC analysis of the audited RTL, confirmed against the file's own other three widths and its own strict false test, all of which use an exact comparison, against the contract comment that survives above those widths but not above this one, and against the package's own mubi4_test_invalid, which classifies the extra accepted encoding as a fault, then hardened with a 34-gate structural witness including two computed censuses, an exhaustive VCS simulation over all 16 four-bit encodings, and a negative control in which the exact comparison is restored in a scratch copy and the identical testbench is required to fail",
+  "security_impact": "The strict MuBi4 true test is the tree's single-bit-fault detector for multi-bit configuration signals, and it no longer detects them. Because MuBi4True and MuBi4False are bitwise complements, an exact comparison rejects every single-bit fault; accepting the Hamming-distance-1 neighbour 4'h7 means one bit flip on any MuBi4 enable signal can turn a disabled configuration into an enabled one. The four SEC_CM: CONFIG.MUBI markers in src/csrng/rtl/csrng_core.sv label countermeasures built directly on this function, so those countermeasures no longer provide the protection their markers claim: cs_enable_fo, sw_app_enable_pfe and read_int_state_pfe are all derived from it, and read_int_state governs readback of internal DRBG state, so a single fault on that field can enable internal-state exposure. The failure mode is also incoherent rather than merely permissive: for 4'h7 the design grants the enable while its own mubi4_test_invalid reports a fault, so csrng_core.sv raises a recoverable alert but does not withhold the permission. The function has 84 consumer sites across src/, so the weakening is tree-wide rather than confined to one countermeasure. Where the MuBi4 field is software-writable, as the csrng_core.sv control fields are, the extra encoding can be presented directly with no fault injection at all.",
+  "adversary_profile": "Physical attacker",
+  "proposed_mitigation": [
+    "Restore the exact comparison in src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv so mubi4_test_true_strict returns `MuBi4True == val`, matching the 8-, 12- and 16-bit tests in the same package and the four-bit test in abr_prim_mubi_pkg.sv.",
+    "Restore the three-line contract comment above the function so the exact-match requirement is documented there as it is above the other three widths.",
+    "Add an assertion or a lint rule that each strict multi-bit test accepts exactly one encoding, so any future rewrite that widens the accepted set is caught mechanically rather than by review.",
+    "Reconcile the permission and fault paths at the consumers: where mubi4_test_invalid reports a fault, as csrng_core.sv:831 does for read_int_state, the corresponding enable should be withheld rather than only alerted."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:P/AC:H/PR:N/UI:N/S:U/C:H/I:L/A:N",
+    "base_score": 4.8,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/008/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/008/proof_result_v1.json",
+    "script": "final_bug_submissions/008/proof/scripts/run_bug_008_proof.sh",
+    "sim_script": "final_bug_submissions/008/proof/scripts/run_bug_008_sim.sh",
+    "testbench": "final_bug_submissions/008/proof/tb/mubi4_strict_bug_008_tb.sv",
+    "run_log": "final_bug_submissions/008/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/008/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/008/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/008/proof/logs/negative_control.log",
+    "negative_control_script": "final_bug_submissions/008/proof/scripts/run_bug_008_negative_control.sh",
+    "c_validation_status": "final_bug_submissions/008/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "A security-critical MuBi4 configuration field sits at MuBi4False (4'h9), the disabled encoding, with a consumer gating a countermeasure or an interface on mubi4_test_true_strict of that field.",
+    "The attacker perturbs the four-bit value so it reads 4'h7, either by injecting a single-bit fault on the bus or, where the field is software-writable as in csrng_core.sv:788 and :829, by writing that encoding into the register field directly.",
+    "mubi4_test_true_strict(4'h7) returns true, because caliptra_prim_mubi_pkg.sv:48 computes 4'h7 ^ 4'h6 == 4'h1 and line 49 accepts a delta of 4'h1.",
+    "The consumer treats the configuration as enabled: csrng_core.sv:794, :811 and :830 derive cs_enable_fo, sw_app_enable_pfe and read_int_state_pfe from this function, all under the SEC_CM: CONFIG.MUBI marker at :786.",
+    "The design is now internally inconsistent about the same value: caliptra_prim_mubi_pkg.sv:37 makes mubi4_test_invalid(4'h7) true, so csrng_core.sv:831 flags a fault and raises a recoverable alert while the enable derived from the strict test has already been granted.",
+    "Verified in simulation: an exhaustive sweep of all 16 four-bit encodings found the strict test accepting 2 of them, the extra one at Hamming distance 1 from MuBi4True, with mubi4_test_invalid true for that same encoding. On a scratch copy with the exact comparison restored, the identical sweep accepted exactly 1 encoding, both defect cover counters fell to 0 and three checks failed, while the wider-width control cover still fired and MuBi4True was still accepted."
+  ]
+}

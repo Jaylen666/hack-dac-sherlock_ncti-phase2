@@ -1,0 +1,57 @@
+{
+  "module": "caliptra_prim",
+  "bug_id": "008",
+  "bug_name": "caliptra_prim_bug_008",
+  "triage_id": "mubi4_test_true_strict_accepts_one_bit_fault",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "proof_method_executed": {
+    "structural_audit": "34 gates, 34 passed, 0 failed, entirely within the audited tree. Gated evidence: the delta form of the four-bit strict true test, the exact-equality form of the package's other three widths and of its own strict false test, the lost three-line contract comment, the static complementarity assertion the delta form discards, the package's own mubi4_test_invalid declaring the extra encoding a fault, a second multi-bit package in the same tree implementing the exact comparison, and consumer reachability from software-writable register fields. Two computed censuses: strict_true_declarations=4 with exact_equality=3 and delta_form=1 summing to the declaration count, and strict_true_consumer_sites=84 across src/.",
+    "directed_sim": "The package and a testbench compiled under VCS. The testbench exhausts all 16 four-bit encodings and counts how many the strict true test accepts. 12 checks, 0 errors, all three cover counters at 1. The strict test is observed accepting 2 of 16 encodings, the extra one being 4'h7 at Hamming distance 1 from MuBi4True, and mubi4_test_invalid(4'h7) is observed returning 1 at the same time.",
+    "negative_control": "The identical testbench run against a scratch copy of caliptra_prim_mubi_pkg.sv whose four-bit strict true test is restored to an exact comparison reports 3 self-check failures, accepts exactly 1 encoding, and drops both cover_strict_accepts_nontrue and cover_accepted_is_invalid to 0. cover_wider_widths_reject still fires and the True encoding is still accepted, so the harness is intact and the failure is attributable to the RTL change.",
+    "tool": "VCS W-2024.09-SP1_Full64"
+  },
+  "result_summary": "The four-bit strict multi-bit true test does not test for the exact encoding, so it no longer detects single-bit faults. caliptra_prim_mubi_pkg.sv:46-50 computes delta = val ^ MuBi4True and returns true when delta is 4'h0 or 4'h1, which accepts both MuBi4True (4'h6) and 4'h7. The whole purpose of the strict variant is defeated by that second value: caliptra_prim_mubi_pkg.sv:33 asserts statically that MuBi4True == ~MuBi4False, so the two legal encodings are bitwise complements and no single bit flip can carry one into the other, which is exactly what makes an exact comparison a single-bit-fault detector. Accepting a Hamming-distance-1 neighbour throws that away. The package convicts itself four independent ways. Its other three widths, at caliptra_prim_mubi_pkg.sv:181, :313 and :445, all use exact equality; its own four-bit strict false test at :56 does too; a computed census confirms 4 strict-true declarations of which exactly 3 use equality and 1 uses the delta form. The three-line comment stating the exact-match requirement survives above the other three widths at :177-179, :309-311 and :441-443 but has been replaced by a one-liner above the four-bit test at :45. And caliptra_prim_mubi_pkg.sv:37 defines mubi4_test_invalid as anything outside {MuBi4True, MuBi4False}, so the package simultaneously grants the enable for 4'h7 and reports it as a fault. A second multi-bit package inside the same tree, abr_prim_mubi_pkg.sv:44, implements the same test with the same encoding as an exact comparison and contains no delta form anywhere.",
+  "security_impact_assessment": {
+    "impact": [
+      "The strict test is the tree's single-bit-fault detector for multi-bit configuration signals; accepting a Hamming-distance-1 neighbour means a one-bit fault on any MuBi4 enable can flip a disabled configuration to enabled.",
+      "The four SEC_CM: CONFIG.MUBI countermeasure sites in csrng_core.sv are built on this function, so the countermeasure they mark no longer provides the protection its marker claims.",
+      "csrng_core.sv derives cs_enable_fo, sw_app_enable_pfe and read_int_state_pfe from this function, and read_int_state in particular exposes internal DRBG state, so a single fault on that field can turn on internal-state readback.",
+      "The permission path and the fault-alert path disagree: for the encoding 4'h7 the design grants the enable while its own mubi4_test_invalid reports a fault, so the recoverable alert fires but does not withhold the permission.",
+      "The function is used at 84 consumer sites across src/, so the weakening is not local to one countermeasure."
+    ],
+    "bypassed_feature": "Single-bit-fault detection in the strict MuBi4 true test, and the SEC_CM: CONFIG.MUBI countermeasures built on it",
+    "attacker_model": [
+      "A physical attacker injecting a single-bit fault into a four-bit configuration signal in flight, which is the threat the strict test exists to defeat.",
+      "Where the MuBi4 field is software-writable, as the csrng_core.sv control fields are, software can also present the extra encoding directly without any fault injection."
+    ],
+    "confidence": "high"
+  },
+  "evidence": {
+    "competition_file": "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv:49",
+    "line_range": "46-50",
+    "run_log": "final_bug_submissions/008/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/008/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/008/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/008/proof/logs/negative_control.log",
+    "key_observation": "Sweeping all 16 four-bit encodings, mubi4_test_true_strict accepted 2 of them rather than 1, the extra value being 4'h7 at Hamming distance 1 from MuBi4True, and mubi4_test_invalid(4'h7) returned 1 in the same sweep. On the patched copy the same sweep accepted exactly 1 encoding, both defect covers fell to 0 and three checks failed, while the wider-width control cover still fired and MuBi4True was still accepted."
+  },
+  "non_findings": [
+    {
+      "claim": "The loose test mubi4_test_true_loose also accepts 4'h7, so this is normal for the package.",
+      "verdict": "withdrawn",
+      "reason": "The loose test is documented to accept anything that is not the opposite value; that is its contract and the testbench confirms it. The strict test exists precisely to be narrower, and the package's other three widths show what narrower means there."
+    },
+    {
+      "claim": "A Hamming-distance-1 tolerance is a deliberate error-tolerance feature.",
+      "verdict": "withdrawn",
+      "reason": "It cannot be, because the same package classifies the tolerated encoding as invalid at caliptra_prim_mubi_pkg.sv:37 and asserts the complementarity property at :33 that only an exact comparison converts into fault detection. A tolerance that accepts values the package itself calls faults is not a feature of that package's own design."
+    },
+    {
+      "claim": "Only the four-bit width is affected, so the impact is narrow.",
+      "verdict": "retained_as_scoped",
+      "reason": "Correct that the other widths are sound, and the audit gates that explicitly. The scope is still wide because the four-bit width is the one the tree's CONFIG.MUBI countermeasures use, with 84 consumer sites in src/."
+    }
+  ],
+  "conclusion": "Confirmed security bug. The four-bit strict multi-bit true test accepts two encodings instead of one, so it no longer rejects single-bit faults, which is the only reason the strict variant exists. The finding rests entirely on evidence inside the audited tree: the package's other three widths and its own strict false test use exact equality, the contract comment stating the exact-match requirement survives above those widths but not above this one, the static assertion at caliptra_prim_mubi_pkg.sv:33 establishes the complementarity the delta form discards, the package's own mubi4_test_invalid declares the extra encoding a fault, and a second multi-bit package inside the same tree implements the same test correctly. Proven by 34 structural gates, an exhaustive 16-encoding simulation, and a negative control that fails on corrected RTL while its control observations still pass."
+}

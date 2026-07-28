@@ -1,0 +1,63 @@
+{
+  "module": "hmac",
+  "bug_id": "016",
+  "bug_name": "hmac_bug_016",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready",
+  "security_feature_bypassed": "On-zeroize invalidation of the HMAC result status, the interlock that makes HMAC512_STATUS.VALID mean that HMAC512_TAG holds an authentic engine output",
+  "finding": "The zeroize arm of the hmac_core register-update block collapses the control FSM but never clears digest_valid_reg, so a security zeroize wipes the engine while leaving it advertising a valid authentication tag. The arm is a priority branch of a unique case (1'b1) statement, so the enable-gated write in the default arm is not evaluated while zeroize is asserted, and because the same arm forces the FSM to CTRL_IDLE, every later assertion of the write enable is command-guarded and never occurs. The stale bit persists indefinitely and is republished to software as HMAC512_STATUS.VALID.",
+  "location_or_code_reference": {
+    "competition_file": "src/hmac/rtl/hmac_core.sv:190",
+    "line_range": "181-209",
+    "supporting_references": [
+      "src/hmac/rtl/hmac_core.sv:185",
+      "src/hmac/rtl/hmac_core.sv:192",
+      "src/hmac/rtl/hmac_core.sv:194",
+      "src/hmac/rtl/hmac_core.sv:202",
+      "src/hmac/rtl/hmac_core.sv:203",
+      "src/hmac/rtl/hmac_core.sv:216",
+      "src/hmac/rtl/hmac_core.sv:217",
+      "src/hmac/rtl/hmac_core.sv:329",
+      "src/hmac/rtl/hmac_core.sv:112",
+      "src/sha512_masked/rtl/sha512_masked_core.sv:316",
+      "src/hmac/rtl/hmac.sv:214",
+      "src/hmac/rtl/hmac.sv:222",
+      "src/hmac/rtl/hmac.sv:264"
+    ]
+  },
+  "detection_method": "LLM-driven CSBC analysis of the audited RTL, confirmed against the file's own treatment of zeroize-sensitive state (mode_reg has its own zeroize arm at line 216, and both masked child cores clear their digest_valid_reg on the same strobe), then hardened with a 31-gate structural witness, a directed VCS simulation of hmac_core built from the project's own filelist, and a negative control in which the single missing assignment is added to the zeroize arm in a scratch copy and the identical testbench is required to fail.",
+  "security_impact": "A security zeroize is the mechanism firmware uses to wipe cryptographic state before a trust-domain change. Here the wipe happens but the status does not follow: the wrapper clears its tag_valid_reg on zeroize, the next cycle reloads it from the still-set core bit, and the same transition re-fires the tag write enable after the register's hardware-clear window has closed. Software that zeroizes and then polls HMAC512_STATUS.VALID is told an authentic tag is ready when the engine has been wiped, so an all-zero value is presented as a genuine engine output. Any firmware that treats VALID as proof of authenticity, rather than re-deriving the tag, accepts a value the engine never computed.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "Add `digest_valid_reg <= 1'b0;` to the zeroize arm at src/hmac/rtl/hmac_core.sv:190-196, matching the reset arm at line 185 and the treatment mode_reg already receives at line 217.",
+    "Remove the comment at lines 192-193 that justifies the omission, since the refresh path it points at is unreachable from the idle FSM the same arm creates.",
+    "Add an assertion that digest_valid_reg is low for as long as zeroize is asserted, so any future refactor that reintroduces a deferred refresh fails in simulation rather than silently."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:H/UI:N/S:U/C:N/I:H/A:N",
+    "base_score": 4.4,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/016/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/016/proof_result_v1.json",
+    "script": "final_bug_submissions/016/proof/scripts/run_bug_016_proof.sh",
+    "sim_script": "final_bug_submissions/016/proof/scripts/run_bug_016_sim.sh",
+    "negative_control_script": "final_bug_submissions/016/proof/scripts/run_bug_016_negative_control.sh",
+    "testbench": "final_bug_submissions/016/proof/tb/hmac_core_bug_016_tb.sv",
+    "run_log": "final_bug_submissions/016/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/016/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/016/proof/logs/sim.log",
+    "compile_log": "final_bug_submissions/016/proof/logs/compile.log",
+    "negative_control_log": "final_bug_submissions/016/proof/logs/negative_control.log",
+    "c_validation_status": "final_bug_submissions/016/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "An HMAC operation completes, so digest_valid_reg is 1 and HMAC512_STATUS.VALID reads 1.",
+    "Privileged software writes HMAC512_CTRL.ZEROIZE, or the device enters debug-unlock or scan mode, either of which asserts the zeroize strobe at src/hmac/rtl/hmac.sv:259.",
+    "The zeroize arm collapses the FSM to CTRL_IDLE and the masked cores wipe their digests, but digest_valid_reg keeps its old value.",
+    "The wrapper clears tag_valid_reg for one cycle, then reloads it from the stale core bit, so HMAC512_STATUS.VALID returns to 1; the same edge re-fires the tag write enable after the hardware clear has released.",
+    "Software polls VALID, sees 1, and reads HMAC512_TAG expecting an authentic tag produced by the engine."
+  ]
+}

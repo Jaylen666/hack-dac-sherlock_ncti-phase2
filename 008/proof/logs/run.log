@@ -1,0 +1,44 @@
+BUG-008 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T13:15:33+08:00
+gate_ok: caliptra_prim_mubi_pkg.sv:46 declares mubi4_test_true_strict
+gate_ok: caliptra_prim_mubi_pkg.sv:48 computes a delta against MuBi4True instead of comparing for equality
+gate_ok: caliptra_prim_mubi_pkg.sv:49 returns true for delta 4'h0 AND delta 4'h1, so one specific bit may differ
+gate_ok: MuBi4True is 4'h6 (caliptra_prim_mubi_pkg.sv:29), so the extra accepted encoding is 4'h7
+gate_ok: MuBi4False is 4'h9 (caliptra_prim_mubi_pkg.sv:30), the bitwise complement, which is what makes single-bit faults detectable
+gate_ok: mubi8_test_true_strict is an exact equality (caliptra_prim_mubi_pkg.sv:181)
+gate_ok: mubi12_test_true_strict is an exact equality (caliptra_prim_mubi_pkg.sv:313)
+gate_ok: mubi16_test_true_strict is an exact equality (caliptra_prim_mubi_pkg.sv:445)
+gate_ok: even mubi4's own false_strict is an exact equality (caliptra_prim_mubi_pkg.sv:56)
+strict_true_declarations=4
+strict_true_exact_equality=3
+strict_true_delta_form=1
+gate_ok: the package declares exactly 4 strict-true tests, one per MuBi width, a self-validating control population
+gate_ok: 3 of the 4 are exact equalities
+gate_ok: exactly 1 uses the delta form, so the defect is a unique outlier within its own package
+gate_ok: the two forms account for every declaration, so no strict-true site was missed by the census
+gate_ok: mubi8's strict test carries the package's standard 3-line contract comment ("requires the multibit value to equal True")
+gate_ok: mubi12's does too (caliptra_prim_mubi_pkg.sv:309-311)
+gate_ok: mubi16's does too (caliptra_prim_mubi_pkg.sv:441-443)
+gate_ok: mubi4's contract comment has been replaced with a one-line description (caliptra_prim_mubi_pkg.sv:45), so the stated requirement is absent exactly where the code violates it
+gate_ok: no surviving comment near mubi4_test_true_strict claims the equality contract, so the deviation is silent
+gate_ok: abr_prim_mubi_pkg.sv:44 implements the same mubi4_test_true_strict as an exact equality
+gate_ok: it uses the same 4'h6 encoding, so the two packages are directly comparable
+gate_ok: the second package contains no delta form at all, so the tree carries both an idiom and its violation
+gate_ok: mubi4_test_invalid admits only 4'h6 and 4'h9 (caliptra_prim_mubi_pkg.sv:37), so 4'h7 is an invalid encoding by the package's own definition
+gate_ok: the package asserts statically that True and False are bitwise complements (caliptra_prim_mubi_pkg.sv:33), the property the strict tests exist to enforce
+strict_true_consumer_sites=84
+gate_ok: the weakened function has 84 call sites across the audited tree, so the defect is not confined to one block
+gate_ok: csrng_core.sv:794 derives the CSRNG enable from the weakened strict test
+gate_ok: csrng_core.sv:830 derives read_int_state_pfe, which permits reading CSRNG internal state, from it
+gate_ok: csrng_core.sv:811 derives the software application enable from it
+gate_ok: csrng_core.sv:1148 derives flag0, the deterministic-mode flag, from it
+gate_ok: csrng_core.sv:786 marks these as a SEC_CM countermeasure, so the tree itself designates them security-critical
+gate_ok: csrng_core.sv carries 4 such SEC_CM CONFIG.MUBI sites, all of them reading through the weakened test
+gate_ok: csrng_core.sv:788 takes the enable encoding straight from a software register field, so software chooses the 4-bit value
+gate_ok: csrng_core.sv:829 does the same for read_int_state, so a software write of 4'h7 reaches the strict test directly
+gate_ok: csrng_core.sv:831 routes the same field to mubi4_test_invalid, so 4'h7 raises the field alert AND is accepted as true in the same cycle
+gate_ok: csrng_core.sv:832-833 reports it as a recoverable alert, which does not gate the function, so the permission is granted despite detection
+structural_gates_passed=34/34
+RESULT: PASS - all structural gates confirm BUG-008
+result=PASS

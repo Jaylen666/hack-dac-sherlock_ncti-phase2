@@ -142,6 +142,6 @@
 /home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_reg_pkg.sv
 /home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_ctrl.sv
 /home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac.sv
-/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/019/proof/scratch/hmac_core.sv
+/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv
 /home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_reg.sv
 /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/019/proof/tb/hmac_core_bug_018_019_tb.sv

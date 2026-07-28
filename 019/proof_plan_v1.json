@@ -1,0 +1,58 @@
+{
+  "module": "hmac",
+  "bug_id": "019",
+  "bug_name": "hmac_bug_019",
+  "triage_id": "hmac_core_init_missing_digest_valid_we",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Privileged software (Caliptra firmware) able to write the HMAC control register and read the HMAC tag register, the ordinary interface any HMAC client uses.",
+    "precondition": "A previous HMAC operation has completed, so digest_valid_reg is set and the tag register holds that operation's result.",
+    "input": "An ordinary HMAC INIT to start a new operation.",
+    "protected_asset": "The HMAC tag of the previous operation, which may be computed over a different key or a different message than the caller of the new operation is entitled to.",
+    "security_property": "Starting a new operation must invalidate the previous result before the new one is available, so that a valid-signalled tag always corresponds to the operation the reader believes it started.",
+    "modification": "In hmac_core.sv, the init_cmd arm of CTRL_IDLE drives digest_valid_new = 1'b0 at line 340 but never asserts digest_valid_we, so the register update at lines 202-203 never happens and digest_valid_reg keeps its stale value of 1."
+  },
+  "security_feature_bypassed": "Invalidation of the previous HMAC result when a new operation starts, the interlock that makes tag_valid mean the tag belongs to the operation the reader started",
+  "proof_goal": "Show that the init_cmd arm drives the new value of digest_valid_reg without the write enable its register update requires, that this is the single unpaired site in a file whose every other FSM arm pairs them, and that adding the missing enable makes the same testbench reject the claim.",
+  "proof_style": {
+    "primary": "structural audit of the audited RTL against its own idiom",
+    "secondary": [
+      "directed unit-level simulation of hmac_core with cover counters",
+      "negative control on a patched scratch copy"
+    ]
+  },
+  "minimum_attack_sequence": [
+    "A previous HMAC operation completes, so digest_valid_reg is 1 and the tag register holds that operation's digest.",
+    "Software issues an ordinary INIT to start a new operation.",
+    "The init_cmd arm computes digest_valid_new = 0 but omits digest_valid_we, so the register update at lines 202-203 does not fire and digest_valid_reg stays 1.",
+    "tag_valid stays asserted and tag keeps presenting the previous operation's H2 digest while the new operation is still running.",
+    "A reader that polls for valid and then reads the tag receives the previous operation's result and accepts it as the new one."
+  ],
+  "expected_evidence": [
+    "hmac_core.sv:340 drives digest_valid_new = 1'b0 inside the init_cmd arm, and no digest_valid_we assignment appears in that arm (hmac_core.sv:339-343).",
+    "hmac_core.sv:202-203 updates digest_valid_reg only when digest_valid_we is asserted, so a new value without the enable is discarded.",
+    "The file has exactly 2 assignments to digest_valid_reg: the reset arm at hmac_core.sv:185 and the enabled update at hmac_core.sv:203. There is no other path that could clear it.",
+    "In-file control: a computed census pairing every digest_valid_new drive with a digest_valid_we assertion within 3 lines finds 7 drives and 6 pairings, with exactly 1 unpaired site, at line 340.",
+    "The next_cmd arm immediately below, at hmac_core.sv:346-347, drives the same variable and does assert the enable, so the correct form is present four lines away.",
+    "hmac_core.sv:111-112 makes both tag and tag_valid depend on digest_valid_reg, so a stale 1 exposes the previous digest as valid.",
+    "In simulation, with digest_valid_reg set to stand in for a completed prior operation, an INIT leaves it asserted, while a NEXT clears it.",
+    "With the missing enable added in a scratch copy, the identical testbench sees digest_valid_reg clear on INIT, the stale-valid cover counter falls to zero, and the self-check fails."
+  ],
+  "success_criteria": [
+    "Every structural gate holds, including the computed census whose sole unpaired site is the line under test.",
+    "The simulation shows digest_valid_reg surviving an INIT, with the NEXT-clears observation passing in the same run as a control.",
+    "The negative control fails on corrected RTL with the stale-valid cover counter at zero, while the NEXT-clears observation still passes.",
+    "The finding is anchored on the audited tree's own value/enable pairing convention, not on any external comparison."
+  ],
+  "artifacts": {
+    "script": "final_bug_submissions/019/proof/scripts/run_bug_019_proof.sh",
+    "sim_script": "final_bug_submissions/019/proof/scripts/run_bug_018_019_sim.sh",
+    "testbench": "final_bug_submissions/019/proof/tb/hmac_core_bug_018_019_tb.sv",
+    "run_log": "final_bug_submissions/019/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/019/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/019/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/019/proof/logs/negative_control.log",
+    "negative_control_script": "final_bug_submissions/019/proof/scripts/run_bug_019_negative_control.sh"
+  }
+}

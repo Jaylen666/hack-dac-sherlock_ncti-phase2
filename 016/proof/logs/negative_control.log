@@ -1,0 +1,22 @@
+===== BUG-016 negative control =====
+source DUT : /home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv
+patched DUT: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/016/proof/scratch/hmac_core.sv
+patch applied: zeroize arm now clears digest_valid_reg, as the reset arm does
+
+----- negative control results -----
+sim exit code                    : 1 (nonzero expected)
+TBFAIL lines total               : 3 (must be > 0)
+  of which BUG-016 checks        : 3 (must be > 0)
+cover_valid_survives_zeroize     : 0 (must be 0)
+cover_valid_never_refreshed      : 0 (must be 0)
+cover_ctrl_cleared (harness ctrl): 1 (must stay 1)
+tag_valid after zeroize deasserts: 0 (0 = the corrected behaviour)
+reset control still passing      : 1 (must be > 0)
+
+CONCLUSION: On the audited RTL a security zeroize collapses the control FSM but
+leaves digest_valid_reg set, and no later refresh ever clears it, so tag_valid
+stays asserted indefinitely. With the single missing assignment added to the
+zeroize arm in a scratch copy, the same stimulus drives tag_valid to 0, both
+defect covers fall to 0 and the BUG-016 self-checks fail, while the harness's own
+control observations still pass. The observation is a property of the audited RTL.
+NEGATIVE CONTROL: PASS

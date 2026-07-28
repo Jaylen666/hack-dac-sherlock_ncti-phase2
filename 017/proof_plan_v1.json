@@ -1,0 +1,58 @@
+{
+  "module": "hmac",
+  "bug_id": "017",
+  "bug_name": "hmac_bug_017",
+  "triage_id": "hmac_core_entropy_core_never_started",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "A local attacker able to observe the power or electromagnetic side channel of the Caliptra HMAC block while it computes over a key it cannot read, optionally combined with software that can write the HMAC LFSR seed register.",
+    "precondition": "The HMAC block is used with its masked SHA-512 cores, which is the only configuration the tree instantiates.",
+    "input": "Any ordinary HMAC operation. No malformed or unusual input is required: the weak reseed happens on every INIT.",
+    "protected_asset": "The HMAC key and the intermediate state of the keyed hash, protected against side-channel recovery by the masking of the SHA-512 cores.",
+    "security_property": "The masking PRNGs must be reseeded from a hardware-derived, software-unpredictable value, so that mask sequences cannot be predicted or replayed across operations.",
+    "modification": "hmac_core.sv presents the entropy block to the H2 masked core at line 282 but never asserts H2_init or H2_next for it (lines 274-283 hold both strobes at 0). H2 is therefore never started on that block, so the set_entropy latch at lines 229-231 captures the unstarted core's output."
+  },
+  "security_feature_bypassed": "Hardware-derived reseeding of the HMAC masking PRNGs, the entropy source for the block's first-order side-channel countermeasure",
+  "proof_goal": "Show that the reseed chain the file builds is broken in the middle: the entropy block is presented to H2 and H2's digest is latched, but H2 is never started, so entropy_digest takes the unstarted core's value. Show the consequence that lfsr_entropy collapses to the software-written LFSR_SEED register alone. Show the same testbench rejects the claim once H2 is started from that same first_round arm.",
+  "proof_style": {
+    "primary": "structural audit of the audited RTL against its own idiom",
+    "secondary": [
+      "directed unit-level simulation of hmac_core with cover counters",
+      "negative control on a patched scratch copy"
+    ]
+  },
+  "minimum_attack_sequence": [
+    "Software issues an ordinary HMAC INIT, which is the normal way to start a keyed hash. No privileged or unusual action is needed.",
+    "The FSM enters CTRL_IPAD and presents entropy_block to H2, but never starts H2, so H2 produces no digest for it.",
+    "At the IPAD to OPAD transition set_entropy fires and latches entropy_digest from the unstarted core's output, which out of reset is zero.",
+    "lfsr_entropy becomes entropy_digest XOR lfsr_seed, which reduces to lfsr_seed: the 12 masking LFSRs are seeded from a value software wrote.",
+    "The attacker, knowing or having written LFSR_SEED, knows the mask sequence for the operation and can strip the masking from a side-channel trace."
+  ],
+  "expected_evidence": [
+    "hmac_core.sv:243 builds entropy_block from entropy_digest, lfsr_seed and a counter; hmac_core.sv:282 presents it on H2_block inside CTRL_IPAD.",
+    "hmac_core.sv:229-231 latches entropy_digest from H2_digest when set_entropy fires, and hmac_core.sv:362 fires set_entropy at the IPAD to OPAD transition. The file therefore intends H2 to have hashed that block.",
+    "The CTRL_IPAD first_round arm drives H2_init and H2_next to 0 (hmac_core.sv:277-278) and no assignment in the whole CTRL_IPAD branch ever raises either strobe.",
+    "In-file control: every other block presentation in the same always_comb block is accompanied by a start strobe. H1_init at :275, H1_next and H2_init at :290-291, H2_next at :304. A computed census finds exactly 4 start-strobe assertions in the file, one per real block presentation and none for the entropy block.",
+    "hmac_core.sv:126 and :145 wire the LFSR output into both masked cores' entropy ports, so the seed is the masking countermeasure's randomness.",
+    "hmac.sv:311 sources lfsr_seed from the software-writable HMAC512_LFSR_SEED register and hmac.sv:159-160 passes it straight through, so the surviving seed component is software-controlled.",
+    "In simulation, over the whole CTRL_IPAD window no H2 start strobe is ever asserted, entropy_digest latches zero, and lfsr_entropy equals the software-written seed exactly.",
+    "With H2 started from the same first_round arm in a scratch copy, the identical testbench sees a real digest latched, all three cover counters fall to zero and the self-checks fail."
+  ],
+  "success_criteria": [
+    "Every structural gate holds, including the computed census that the file asserts a start strobe for every block presentation except the entropy one.",
+    "The simulation shows no H2 start strobe across the entire CTRL_IPAD window, while the H1 control check confirms start strobes do reach the cores in that same window.",
+    "The negative control fails on corrected RTL with all three covers at zero, and its H1 control check still passes.",
+    "The finding is anchored on the audited tree's own reseed chain and its own start-strobe idiom."
+  ],
+  "artifacts": {
+    "script": "final_bug_submissions/017/proof/scripts/run_bug_017_proof.sh",
+    "sim_script": "final_bug_submissions/017/proof/scripts/run_bug_017_sim.sh",
+    "testbench": "final_bug_submissions/017/proof/tb/hmac_core_bug_017_tb.sv",
+    "run_log": "final_bug_submissions/017/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/017/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/017/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/017/proof/logs/negative_control.log",
+    "negative_control_script": "final_bug_submissions/017/proof/scripts/run_bug_017_negative_control.sh"
+  }
+}

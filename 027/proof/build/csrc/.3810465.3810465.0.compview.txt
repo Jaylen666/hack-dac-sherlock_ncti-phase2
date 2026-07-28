@@ -1,0 +1,9 @@
+{"vcs1":{"timestamp_begin":1785218049.837388963, "rt":2.87, "ut":0.42, "st":0.38}}
+{"vcselab":{"timestamp_begin":1785218052.813064645, "rt":3.51, "ut":0.40, "st":0.12}}
+{"link":{"timestamp_begin":1785218056.402056866, "rt":0.29, "ut":0.20, "st":0.10}}
+{"SNPS_VCS_INTERNAL_ROOT_START_TIME": 1785218049.367931108}
+{"VCS_COMP_START_TIME": 1785218049.367931108}
+{"VCS_COMP_END_TIME": 1785218056.766304026}
+{"VCS_USER_OPTIONS": "-full64 -sverilog -timescale=1ns/1ps -assert svaext +lint=none -f filelist.f -top kv_write_rule_check_bug_027_tb -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/027/proof/logs/negative_control_compile.log -o simv"}
+{"vcs1": {"peak_mem": 486004}}
+{"vcselab": {"peak_mem": 216712}}

@@ -1,0 +1,78 @@
+===== BUG-027 structural audit (single-tree, audited RTL only) =====
+
+----- 1. the contract the module states for itself -----
+  PASS: kv_write_rule_check.sv header states rule (a) as an unconditional block on non-AES writers
+  PASS: keyvault.md states nothing may be written to the release slot except the AES-produced MEK
+  PASS: keyvault.md names AES as the writer of that slot
+  PASS: keyvault.md calls the release slot write-restricted to AES only
+
+----- 2. the rule as implemented -----
+  PASS: the rule carries release_slot_source_from_raw as its final AND-term (line 107)
+  PASS: that term is defined as the negation of kv_data0_present (line 97)
+  PASS: the term appears exactly 3 times: declaration, definition and the single use in rule (a)
+
+----- 3. no other rule covers the gap -----
+  PASS: rule (b) std_to_std only fires when a source is in the STD region, so a LOCK-source write is outside its scope
+  PASS: rule (c) lock_to_lock only fires when the destination leaves the LOCK region, and the release slot is inside it
+  PASS: rule (d) is guarded on AES being the writer, so it cannot fire for a non-AES writer
+
+----- 4. the release slot is inside the LOCK region -----
+  PASS: the release slot is KV23
+  PASS: the LOCK region's upper bound is 23, so the release slot is a LOCK slot and rule (c) is satisfied by a LOCK source
+
+----- 5. the verdict reaches the datapath -----
+  PASS: write_allow is the NOR of the rule vector, so clearing rule (a) alone is enough to permit the write
+  PASS: kv_write_client consumes write_allow, so the verdict gates a real KeyVault write
+
+----- 6. the audited source, verbatim -----
+
+--- src/keyvault/rtl/kv_write_rule_check.sv:97,108 (the term and the rule) ---
+    assign release_slot_source_from_raw = !write_metrics.kv_data0_present;
+
+    // ---------------------------------------------------------------- //
+    // Rule (a): aes_only_to_key_release                                //
+    // ---------------------------------------------------------------- //
+    always_comb begin : eval_aes_only_to_key_release
+        rule_fail.aes_only_to_key_release =
+            write_metrics.ocp_lock_in_progress &&
+            |non_aes_src_active                &&
+            dst_is_release_slot                &&
+            release_slot_source_from_raw;
+    end
+
+--- src/keyvault/rtl/kv_write_rule_check.sv:110,141 (the other three rules) ---
+    // ---------------------------------------------------------------- //
+    // Rule (b): std_to_std                                             //
+    // ---------------------------------------------------------------- //
+    always_comb begin : eval_std_to_std
+        rule_fail.std_to_std = write_metrics.ocp_lock_in_progress &&
+                               (src0_in_std_region || src1_in_std_region) &&
+                               !dst_in_std_region;
+    end
+
+    // ---------------------------------------------------------------- //
+    // Rule (c): lock_to_lock                                           //
+    // ---------------------------------------------------------------- //
+    always_comb begin : eval_lock_to_lock
+        rule_fail.lock_to_lock = write_metrics.ocp_lock_in_progress &&
+                                 (src0_in_lock_region || src1_in_lock_region) &&
+                                 !dst_in_lock_region;
+    end
+
+    // ---------------------------------------------------------------- //
+    // Rule (d): aes_dec_to_rt_obf_key                                  //
+    // ---------------------------------------------------------------- //
+    // Reverse-direction check: whenever AES is the writer, all release-slot
+    // preconditions must hold. Duplicates a register-level check in aes.sv.
+    always_comb begin : eval_aes_dec_to_rt_obf_key
+        rule_fail.aes_dec_to_rt_obf_key =
+            write_metrics.kv_write_src[KV_WRITE_IDX_AES] &&
+            (!write_metrics.ocp_lock_in_progress                            ||
+             !write_metrics.aes_decrypt_ecb_op                              ||
+             !write_metrics.kv_data0_present                                ||
+              write_metrics.kv_data0_entry != OCP_LOCK_RT_OBF_KEY_KV_SLOT   ||
+              write_metrics.kv_write_entry != OCP_LOCK_KEY_RELEASE_KV_SLOT);
+    end
+
+structural_gates_passed=14/14
+RESULT: PASS

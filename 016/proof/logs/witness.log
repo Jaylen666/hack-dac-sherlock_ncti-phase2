@@ -1,0 +1,94 @@
+===== BUG-016 structural audit (single-tree, audited RTL only) =====
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+
+----- 1. the defect: the zeroize arm skips one of the three registers -----
+  PASS: hmac_core.sv:190 opens the zeroize arm of the reg_update unique case
+  PASS: hmac_core.sv:194 clears hmac_ctrl_reg on zeroize
+  PASS: hmac_core.sv:195 clears hmac_ctrl_last on zeroize
+  PASS: no line in the zeroize arm (hmac_core.sv:190-196) assigns digest_valid_reg, so the valid bit survives a security zeroize
+
+----- 2. in-file control: the reset arm of the same case statement -----
+  PASS: hmac_core.sv:185 clears digest_valid_reg in the reset arm
+  PASS: hmac_core.sv:186 clears hmac_ctrl_reg there too
+  PASS: hmac_core.sv:187 clears hmac_ctrl_last there too
+reset_arm_assignments=3
+zeroize_arm_assignments=2
+reset_arm_assignments=3 zeroize_arm_assignments=2
+  PASS: the reset arm assigns all 3 state registers
+  PASS: the zeroize arm assigns only 2, so exactly one register is left behind
+  PASS: the difference is exactly 1 register, and that register is digest_valid_reg
+  PASS: digest_valid_reg has exactly 2 assignments in the whole file, so the census covers every write to it
+
+----- 3. the comment's stated excuse is disproved by the file's own FSM -----
+  PASS: hmac_core.sv:192-193 claims the valid bit is refreshed later by the normal update path, so no clear is needed here
+  PASS: that normal update path (hmac_core.sv:202) only writes when digest_valid_we is asserted
+  PASS: but the same zeroize arm forces the FSM to CTRL_IDLE (hmac_core.sv:194), which is the state that issues no unconditional update
+  PASS: in CTRL_IDLE every arm is command-guarded (hmac_core.sv:339 and :345), so with no new command digest_valid_we is never asserted
+  PASS: the FSM's default assignment holds digest_valid_we at 0 (hmac_core.sv:329), so idling leaves the stale bit indefinitely
+digest_valid_we_assert_sites=5
+digest_valid_we_assert_sites=5
+  PASS: the enable is asserted at exactly 5 sites, all of them inside command- or ready-guarded FSM arms, none reachable from a zeroized idle FSM
+
+----- 4. in-file control: mode_reg is cleared directly on zeroize -----
+  PASS: hmac_core.sv:216 gives mode_reg its own zeroize arm
+  PASS: hmac_core.sv:217 clears mode_reg immediately rather than deferring it to a later refresh, which is the file's own treatment of a zeroize-sensitive register
+
+----- 5. child control: the cores this file instantiates clear their own bit -----
+  PASS: hmac_core.sv:120 forwards the same zeroize strobe to its H1 masked core
+  PASS: hmac_core.sv:139 forwards it to H2 as well
+  PASS: sha512_masked_core.sv:297 opens that child's zeroize arm
+  PASS: sha512_masked_core.sv:316 clears the child's own digest_valid_reg inside that arm, so the block's children honour on-zeroize invalidation while the parent does not
+
+----- 6. the stale bit reaches software through the wrapper -----
+  PASS: hmac_core.sv:111 gates the tag output on digest_valid_reg
+  PASS: hmac_core.sv:112 exports it as tag_valid
+  PASS: hmac.sv:214 does clear the wrapper's tag_valid_reg on zeroize, so the wrapper looks correct in isolation
+  PASS: but hmac.sv:222 reloads tag_valid_reg from the core's bit on the very next cycle, so the wrapper's clear is undone by the stale core bit
+  PASS: hmac.sv:163 makes the tag write-enable fire on exactly that transition (core valid high, wrapper valid just cleared), so the tag register is rewritten after the zeroize too
+  PASS: hmac.sv:264 publishes that bit as HMAC512_STATUS.VALID, so software sees VALID return to 1 after a zeroize
+  PASS: hmac.sv:267 clears the TAG register on zeroize, which is the intent the stale core bit defeats
+  PASS: hmac.sv:259 sources zeroize from a software register field, so the whole sequence is software-triggerable
+
+--- src/hmac/rtl/hmac_core.sv:181,206 (the case statement: reset arm vs zeroize arm) ---
+  always_ff @(posedge clk or negedge reset_n) begin : reg_update
+    unique case (1'b1)
+      !reset_n: begin
+        // Async power-on/core reset: force every status/control reg to idle
+        digest_valid_reg <= 1'b0;
+        hmac_ctrl_reg    <= CTRL_IDLE;
+        hmac_ctrl_last   <= CTRL_IDLE;
+      end
+
+      zeroize: begin
+        // Security zeroize request: collapse control FSM back to idle.
+        // digest_valid_reg is refreshed by the normal update path below
+        // on a later cycle, so it does not need to be touched here.
+        hmac_ctrl_reg  <= CTRL_IDLE;
+        hmac_ctrl_last <= CTRL_IDLE;
+      end
+
+      default: begin
+        // Normal operating path: latch previous ctrl state, apply pending updates
+        hmac_ctrl_last <= hmac_ctrl_reg;
+
+        if (digest_valid_we)
+          digest_valid_reg <= digest_valid_new;
+
+        if (hmac_ctrl_we)
+          hmac_ctrl_reg <= hmac_ctrl_new;
+
+--- src/hmac/rtl/hmac_core.sv:212,222 (in-file control: mode_reg's own zeroize arm) ---
+  always_ff @(posedge clk or negedge reset_n)
+    begin
+      if (!reset_n)
+        mode_reg <= '0;
+      else if (zeroize)
+        mode_reg <= '0;
+      else begin
+        if (hmac_ctrl_reg == CTRL_IDLE)
+          mode_reg <= {1'b1, mode_cmd};  //hashing algorithm mode: 00 for SHA512/224, 01 for SHA512/256, 10 for SHA384, 11 for SHA512
+      end
+    end
+
+structural_gates_passed=31/31
+RESULT: PASS

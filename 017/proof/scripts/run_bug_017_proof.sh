@@ -13,17 +13,25 @@ CMP="${CMP_ROOT:-/home/smy/hackatdac26-phase-2-caliptra}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LOGS="$(cd "$HERE/../logs" && pwd)"
 W="$LOGS/witness.log"
+RUN_LOG="$LOGS/run.log"
 CORE="$CMP/src/hmac/rtl/hmac_core.sv"
 
 PASS=0; FAIL=0
 : > "$W"
+{
+  echo "BUG-017 structural audit (single-tree)"
+  echo "audit_root=$CMP"
+  echo "date=$(date -Is)"
+} > "$RUN_LOG"
 
 gate() {
   local cmd="$1" desc="$2"
   if eval "$cmd" >/dev/null 2>&1; then
     PASS=$((PASS+1)); echo "  PASS: $desc" | tee -a "$W"
+    echo "gate_ok: $desc" >> "$RUN_LOG"
   else
     FAIL=$((FAIL+1)); echo "  FAIL: $desc" | tee -a "$W"
+    echo "gate_fail: $desc" >> "$RUN_LOG"
   fi
 }
 
@@ -121,9 +129,14 @@ sed -n '224,243p' "$CORE" | tee -a "$W"
 
 show ""
 show "structural_gates_passed=$PASS/$((PASS+FAIL))"
+echo "structural_gates_passed=$PASS/$((PASS+FAIL))" >> "$RUN_LOG"
 if [ "$FAIL" -eq 0 ]; then
   show "RESULT: PASS"
+  echo "RESULT: PASS - all structural gates confirm BUG-017" >> "$RUN_LOG"
+  echo "result=PASS" >> "$RUN_LOG"
 else
   show "RESULT: FAIL"
+  echo "RESULT: FAIL - at least one structural gate did not hold" >> "$RUN_LOG"
+  echo "result=FAIL" >> "$RUN_LOG"
   exit 1
 fi

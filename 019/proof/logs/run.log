@@ -1,0 +1,23 @@
+BUG-019 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T13:03:39+08:00
+gate_ok: hmac_core.sv:202 gates the digest_valid_reg write on digest_valid_we
+gate_ok: hmac_core.sv:203 is the only place digest_valid_reg takes digest_valid_new
+gate_ok: digest_valid_reg has exactly 2 assignments in the file: the reset arm and the enable-gated update
+gate_ok: the reset arm clears it directly (hmac_core.sv:185), bypassing the enable
+gate_ok: hmac_core.sv:340 the init_cmd arm does drive digest_valid_new to 0
+gate_ok: hmac_core.sv:339-343 the whole init_cmd arm never mentions digest_valid_we
+gate_ok: in-file control: the next_cmd arm four lines below does assert it (hmac_core.sv:347)
+gate_ok: the next_cmd arm drives the same value, so the two arms differ only in the enable
+gate_ok: census: 7 FSM arms drive digest_valid_new (IDLE init, IDLE next, IPAD, OPAD, HMAC, DONE, default)
+gate_ok: census: 6 of the 7 also assert digest_valid_we within the same arm, so the pairing is the file's own convention
+gate_ok: census: exactly 1 arm drives the value without the enable
+gate_ok: census: that one unpaired arm is the init_cmd arm at hmac_core.sv:340
+gate_ok: control: CTRL_IPAD asserts the enable (hmac_core.sv:357)
+gate_ok: control: CTRL_OPAD asserts the enable (hmac_core.sv:370)
+gate_ok: hmac_core.sv:112 exports digest_valid_reg directly as tag_valid
+gate_ok: hmac_core.sv:111 also gates the tag output on the same bit, so a stale 1 exposes the old H2 digest
+gate_ok: hmac.sv carries that valid bit up into the register block software polls
+structural_gates_passed=17/17
+RESULT: PASS - all structural gates confirm BUG-019
+result=PASS

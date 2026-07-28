@@ -1,0 +1,27 @@
+BUG-017 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T13:03:39+08:00
+gate_ok: hmac_core.sv:243 builds entropy_block from entropy_digest, lfsr_seed and a counter
+gate_ok: hmac_core.sv:282 presents entropy_block to the H2 core inside CTRL_IPAD
+gate_ok: hmac_core.sv:229-231 latches entropy_digest from H2_digest when set_entropy fires
+gate_ok: hmac_core.sv:362 fires set_entropy at the IPAD -> OPAD transition
+gate_ok: hmac_core.sv:242 feeds the masking LFSRs from entropy_digest XOR lfsr_seed
+gate_ok: hmac_core.sv:167 seeds all 12 caliptra_prim_lfsr instances from lfsr_entropy
+gate_ok: the CTRL_IPAD first_round arm drives H2_init to 0 (hmac_core.sv:277)
+gate_ok: the CTRL_IPAD first_round arm drives H2_next to 0 (hmac_core.sv:278)
+gate_ok: no assignment anywhere in the CTRL_IPAD branch ever raises an H2 start strobe
+gate_ok: control: CTRL_IPAD starts H1 on key_ipadded (hmac_core.sv:275)
+gate_ok: control: CTRL_OPAD starts H2 on key_opadded (hmac_core.sv:291)
+gate_ok: control: CTRL_OPAD starts H1 on block_msg (hmac_core.sv:290)
+gate_ok: control: CTRL_HMAC starts H2 on HMAC_padded (hmac_core.sv:304)
+gate_ok: census: the file asserts a start strobe exactly 4 times, one per real block presentation, none of them for the entropy block
+gate_ok: H2 is a masked SHA-512 core, so its entropy input is a side-channel countermeasure
+gate_ok: hmac_core.sv:145 wires the LFSR output into H2's masking entropy port
+gate_ok: hmac_core.sv:126 wires the same LFSR output into H1's masking entropy port
+gate_ok: hmac.sv:311 sources lfsr_seed from the software-writable HMAC512_LFSR_SEED register
+gate_ok: hmac.sv:159-160 passes that register value straight through to the core
+gate_ok: entropy_digest resets to zero (hmac_core.sv:227), which is what set_entropy then latches
+gate_ok: the LFSRs are reseeded on every init_cmd (hmac_core.sv:166), so the weak seed is applied per HMAC
+structural_gates_passed=21/21
+RESULT: PASS - all structural gates confirm BUG-017
+result=PASS

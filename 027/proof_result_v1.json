@@ -1,0 +1,42 @@
+{
+  "module": "kv_write_rule_check",
+  "bug_id": "027",
+  "bug_name": "keyvault_bug_027",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "proof_method_executed": "Fourteen scripted structural gates over the submitted checkout, a directed VCS W-2024.09-SP1 simulation of one real kv_write_rule_check compiled unmodified from that same checkout through the project's own src/keyvault/config/kv_defines_pkg.vf, and a negative control in which the offending AND-term is removed from the rule in a scratch copy and the identical testbench is required to fail.",
+  "result_summary": "With ocp_lock_in_progress asserted, a non-AES engine (HMAC source bit) writing the release slot KV23 with a forwarded KeyVault source present was granted write_allow=1. Repeating the identical stimulus with kv_data0_present alone changed to 0 produced write_allow=0, so the grant turns on the presence of a forwarded source and not on the identity of the writing engine. Three controls behaved as required: the same non-AES write without forwarding was blocked, a legal AES ECB-decrypt write of KV23 from KV16 was allowed, and a non-AES write moving a LOCK-region source into STD slot 5 was blocked by lock_to_lock.",
+  "security_impact_assessment": "KV23 is the OCP LOCK key release slot. The in-tree specification declares it write-restricted to AES only at src/keyvault/config/keyvault.md:208 and states at :255 that nothing may be written to it except the AES-produced MEK, and src/keyvault/config/keyvault.md:231 describes the hardware path that writes KV23 to the SoC over the AXI manager interface. Because the writer-identity rule can be disabled by a property of the write's source rather than of its writer, privileged software can place non-AES content into the slot that the key release path emits. Two consequences follow. The integrity of the released key is lost, since the value the SoC receives is one the attacker chose the producer of rather than the decrypted MEK. Confidentiality of other KeyVault material is also at risk, because the same path lets a LOCK-region source such as KV22 be forwarded into KV23 by a non-AES engine and then released off-chip, moving a Caliptra-internal secret across the boundary to the SoC consumer. The verdict is not advisory: :151 drives write_allow as the NOR of the rule vector and src/keyvault/rtl/kv_write_client.sv consumes it as the write gate.",
+  "evidence": {
+    "competition_file": "src/keyvault/rtl/kv_write_rule_check.sv:97",
+    "line_range": "93-108",
+    "run_log": "final_bug_submissions/027/proof/logs/run.log",
+    "compile_log": "final_bug_submissions/027/proof/logs/compile.log",
+    "sim_log": "final_bug_submissions/027/proof/logs/sim.log",
+    "witness_log": "final_bug_submissions/027/proof/logs/witness.log",
+    "negative_control_log": "final_bug_submissions/027/proof/logs/negative_control.log",
+    "key_observation": "BUG_027_WITNESS_OBSERVED write_allow=1 for a non-AES engine writing KV23 under OCP lock, with metrics ocp_lock=1 src=HMAC dst=KV23 data0_present=1 data0_entry=KV23 aes_ecb=0; the discriminator with only kv_data0_present=0 gave write_allow=0. structural_gates_passed=14/14, checks=4 fails=1 witness_hits=1, cover_non_aes_release_allowed=1 cover_non_aes_release_blocked=2."
+  },
+  "evidence_items": [
+    "src/keyvault/rtl/kv_write_rule_check.sv:97 defines release_slot_source_from_raw as !write_metrics.kv_data0_present, a property of the write's source and not of its writer.",
+    "src/keyvault/rtl/kv_write_rule_check.sv:103-107 conjoins that term with the three writer and destination terms, so a forwarded source clears the whole rule.",
+    "src/keyvault/rtl/kv_write_rule_check.sv:20 states the module's own contract as 'non-AES engines are blocked from release slot', with no source-dependent exception.",
+    "src/keyvault/config/keyvault.md:255 states 'Never attempt to write anything to KV23 except MEK (produced by AES)', and :208 calls KV23 write-restricted to AES only.",
+    "src/keyvault/rtl/kv_defines_pkg.sv:42 fixes OCP_LOCK_KEY_RELEASE_KV_SLOT at 23 and :38 fixes KV_OCP_LOCK_SLOT_HI at 23, so the release slot lies inside the LOCK region and a LOCK-region source satisfies rule (c).",
+    "src/keyvault/rtl/kv_write_rule_check.sv:114-116 shows rule (b) requires a STD-region source, :123-125 shows rule (c) requires the destination to leave the LOCK region, and :134-140 shows rule (d) is guarded on AES being the writer, so no sibling rule covers a non-AES write into KV23 from a LOCK source.",
+    "src/keyvault/rtl/kv_write_rule_check.sv:151 drives write_allow as ~|rule_fail, so clearing rule (a) alone is sufficient to grant the write.",
+    "The negative control removed the fourth AND-term in a scratch copy; the simulation then exited nonzero with 0 witness lines and cover_non_aes_release_allowed=0, while cover_non_aes_release_blocked stayed 2 and control_aes_release_legal still passed, so the testbench is not vacuous and the legal AES path is not collaterally broken."
+  ],
+  "non_findings": [
+    "No claim is made about the STD region upper bound at :87-88, which is tracked separately.",
+    "No claim is made about behaviour outside OCP LOCK mode, since every rule in the module is gated on ocp_lock_in_progress.",
+    "No claim is made that the specific forwarded value used in the witness is itself secret; the violated property is the writer-identity restriction."
+  ],
+  "reproduction": {
+    "command": "final_bug_submissions/027/proof/scripts/run_bug_027_proof.sh && final_bug_submissions/027/proof/scripts/run_bug_027_sim.sh && final_bug_submissions/027/proof/scripts/run_bug_027_negative_control.sh",
+    "tools": "VCS W-2024.09-SP1 at /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/bin, bash, python3. CALIPTRA_ROOT is set by the scripts to the audited checkout.",
+    "success_marker": "PROOF_RESULT: PASS from the simulation script, RESULT: PASS from the structural audit, NEGATIVE CONTROL: PASS from the negative control.",
+    "determinism": "Fully deterministic. The stimulus is a fixed directed sequence with no randomization and no seed dependence; the build tree is removed and rebuilt on each run."
+  },
+  "conclusion": "Confirmed. The OCP LOCK rule that restricts the key release slot to AES is conditioned on the write having no forwarded KeyVault source, so any non-AES engine can write KV23 by supplying one. The witness is produced on one unmodified DUT driven only through its ports, the grant is isolated to a single differing input, and the negative control shows the finding is carried by that term alone."
+}

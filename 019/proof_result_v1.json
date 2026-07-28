@@ -1,0 +1,49 @@
+{
+  "module": "hmac",
+  "bug_id": "019",
+  "bug_name": "hmac_bug_019",
+  "triage_id": "hmac_core_init_missing_digest_valid_we",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "proof_method_executed": {
+    "structural_audit": "17 gates, 17 passed, 0 failed, entirely within the audited tree. Gated evidence: the init_cmd arm drives digest_valid_new without the enable, the register update consumes that enable, the file has only two assignments to the register so no other path clears it, and a computed census pairing drives with enables finds 7 drives, 6 paired and exactly 1 unpaired site at line 340.",
+    "directed_sim": "Unit-level hmac_core compiled from the project's own filelist (src/hmac/config/hmac_ctrl.vf) and run under VCS. Three tests share one testbench with BUG-018. 12 checks, 0 errors, all three cover counters at 1. digest_valid_reg is briefly forced to 1 to stand in for a completed prior operation, then released before the command is issued.",
+    "negative_control": "The identical testbench run against a scratch copy of hmac_core.sv with digest_valid_we asserted in the init_cmd arm reports 1 self-check failure and drops cover_stale_valid to 0, while cover_next_clears still fires. cover_ipad_skipped remains 1, as expected: that copy patches only this bug, and BUG-018 is independent.",
+    "tool": "VCS W-2024.09-SP1_Full64"
+  },
+  "result_summary": "Starting a new HMAC operation does not invalidate the previous result. The init_cmd arm of CTRL_IDLE computes digest_valid_new = 1'b0 at hmac_core.sv:340, but never asserts digest_valid_we, and the register update at hmac_core.sv:202-203 is conditioned on exactly that enable, so the new value is discarded and digest_valid_reg keeps its stale value of 1. Nothing else can clear it: the file contains exactly two assignments to digest_valid_reg, the reset arm at hmac_core.sv:185 and the enabled update at hmac_core.sv:203. The consequence is visible at the block's outputs, because hmac_core.sv:111-112 derive both tag and tag_valid from that bit, so the previous operation's H2 digest stays presented as a valid tag while a new operation is running. The file's own convention convicts the omission: a computed census pairing every digest_valid_new drive with a digest_valid_we assertion within three lines finds 7 drives, 6 of them paired, and exactly 1 unpaired site, line 340. The correct form appears four lines below, in the next_cmd arm at hmac_core.sv:346-347, which drives the same variable and does assert the enable.",
+  "security_impact_assessment": {
+    "impact": [
+      "A client that starts an HMAC operation, polls for valid and reads the tag can receive the previous operation's tag instead of its own, because valid was never deasserted.",
+      "When the previous operation used a different key, including a key loaded from the key vault that the current caller cannot read, that caller obtains a tag computed under a key it is not entitled to use.",
+      "The interlock that gives tag_valid its meaning is lost for the INIT path specifically, so the failure is silent: software following the documented poll-then-read discipline still gets the wrong answer."
+    ],
+    "bypassed_feature": "Invalidation of the previous HMAC result on the start of a new operation",
+    "attacker_model": [
+      "Caliptra firmware, which runs privileged and is the ordinary client of the HMAC block, writing HMAC512_CTRL and reading HMAC512_TAG. No capability beyond normal use of the block is required."
+    ],
+    "confidence": "high"
+  },
+  "evidence": {
+    "competition_file": "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:340",
+    "line_range": "339-343",
+    "run_log": "final_bug_submissions/019/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/019/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/019/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/019/proof/logs/negative_control.log",
+    "key_observation": "With digest_valid_reg standing in for a completed prior operation, an INIT left it asserted, so tag_valid never dropped; a NEXT in the same run did clear it, which shows the clear path works and isolates the defect to the init_cmd arm. On the patched copy the same stimulus cleared the bit on INIT, cover_stale_valid fell to 0 and the check failed, while cover_next_clears still fired."
+  },
+  "non_findings": [
+    {
+      "claim": "The stale valid bit is also what makes zeroize fail to clear the digest.",
+      "verdict": "not_claimed",
+      "reason": "The zeroize arm at hmac_core.sv:190-196 not touching digest_valid_reg is a separate finding, tracked as BUG-016 and out of scope here. This finding concerns only the init_cmd arm of the FSM."
+    },
+    {
+      "claim": "The tag register itself retains stale data, so the leak would occur even with the valid bit correct.",
+      "verdict": "withdrawn",
+      "reason": "hmac_core.sv:111 forces tag to zero whenever digest_valid_reg is low, so a correctly cleared valid bit would also gate the stale tag. The valid bit is the whole mechanism, which is why the missing enable is the defect."
+    }
+  ],
+  "conclusion": "Confirmed security bug. The command that starts a new HMAC operation computes the new value of the digest-valid bit but omits the write enable its own register update requires, so the previous operation's tag stays presented as valid while the new operation runs. The finding rests entirely on evidence inside the audited tree: the file's own value/enable pairing convention, which it follows in 6 of 7 FSM arms and breaks only at line 340, and the correct form four lines below in the next_cmd arm. Proven by 17 structural gates, a directed unit-level simulation whose NEXT-clears observation acts as an in-run control, and a negative control that fails on corrected RTL while that control observation still passes."
+}

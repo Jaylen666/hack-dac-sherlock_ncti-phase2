@@ -1,0 +1,86 @@
+{
+  "module": "hmac_core",
+  "bug_id": "016",
+  "bug_name": "hmac_bug_016",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "proof_method_executed": "Thirty-one scripted structural gates over the submitted checkout, a directed VCS W-2024.09-SP1 simulation of one real hmac_core compiled from that same checkout via the project's own filelist (src/hmac/config/hmac_ctrl.vf), and a negative control in which the single missing assignment is added to the zeroize arm in a scratch copy and the identical testbench is required to fail.",
+  "result_summary": "A security zeroize collapses hmac_ctrl_reg to CTRL_IDLE and clears mode_reg, proving the strobe reached the DUT, while digest_valid_reg stays 1. No refresh occurs across 40 further idle cycles, so tag_valid remains asserted indefinitely. The reset arm of the same case statement does clear the register, so it is clearable and the harness can observe it.",
+  "security_impact_assessment": "HMAC512_STATUS.VALID is the only indication software has that HMAC512_TAG holds an authentic engine output. After a zeroize the wrapper clears its own tag_valid_reg at src/hmac/rtl/hmac.sv:214, but the next cycle reloads it from the still-set core bit at :222, so VALID returns to 1; the same transition makes core_tag_we fire at :163 and rewrites the tag register after the hwclr window has closed. Software that zeroizes and then polls VALID is told a fresh authentic tag is present when the engine has been wiped and the tag register reads zero, so an all-zero value is presented as a genuine engine output. Confirmed at the core and traced through the wrapper to the status register; no firmware sequence acting on the false indication was measured.",
+  "evidence": {
+    "competition_file": "src/hmac/rtl/hmac_core.sv:190",
+    "line_range": "181-209",
+    "run_log": "final_bug_submissions/016/proof/logs/run.log",
+    "compile_log": "final_bug_submissions/016/proof/logs/compile.log",
+    "sim_log": "final_bug_submissions/016/proof/logs/sim.log",
+    "witness_log": "final_bug_submissions/016/proof/logs/witness.log",
+    "negative_control_log": "final_bug_submissions/016/proof/logs/negative_control.log",
+    "key_observation": "With zeroize asserted the simulation observed digest_valid_reg=1 while hmac_ctrl_reg=0 and mode_reg=0, and after zeroize deasserted tag_valid was still 1 with digest_valid_we never asserted across 40 idle cycles. structural_gates_passed=31/31, checks=10 errors=0."
+  },
+  "evidence_items": [
+    {
+      "kind": "structural",
+      "claim": "The zeroize arm is not one of the register's assignment sites.",
+      "source": "src/hmac/rtl/hmac_core.sv:190",
+      "excerpt": "zeroize: begin",
+      "observation": "digest_valid_reg has exactly 2 assignment sites in the whole file, at lines 185 (reset) and 203 (the enable-gated default arm); the zeroize arm writes only hmac_ctrl_reg and hmac_ctrl_last."
+    },
+    {
+      "kind": "structural",
+      "claim": "The file's own deferred-refresh justification is unreachable from the state the same arm creates.",
+      "source": "src/hmac/rtl/hmac_core.sv:192",
+      "excerpt": "// digest_valid_reg is refreshed by the normal update path below",
+      "observation": "That path at line 202 writes only when digest_valid_we is asserted; the same arm forces the FSM to CTRL_IDLE at line 194, where both arms are command-guarded (lines 339, 345), and the FSM default holds the enable at 0 (line 329). The enable is asserted at exactly 5 sites, all inside command- or ready-guarded arms, none reachable from a zeroized idle FSM."
+    },
+    {
+      "kind": "structural",
+      "claim": "The same file treats other zeroize-sensitive state the opposite way.",
+      "source": "src/hmac/rtl/hmac_core.sv:216",
+      "excerpt": "else if (zeroize)",
+      "observation": "mode_reg gets its own zeroize arm and is cleared immediately at line 217 rather than deferred. Both masked child cores receive the same strobe (lines 120, 139) and clear their own digest_valid_reg inside their zeroize arm (src/sha512_masked/rtl/sha512_masked_core.sv:316)."
+    },
+    {
+      "kind": "structural",
+      "claim": "The stale bit is live security state visible to software.",
+      "source": "src/hmac/rtl/hmac.sv:222",
+      "excerpt": "tag_valid_reg <= core_tag_valid & ~error_flag_reg;",
+      "observation": "hmac_core.sv:112 exports the bit as tag_valid. The wrapper clears tag_valid_reg on zeroize at hmac.sv:214, but the next cycle reloads it from the stale core bit at :222, and hmac.sv:264 publishes it as HMAC512_STATUS.VALID. hmac.sv:259 sources zeroize from a software register field, so the whole sequence is software-triggerable."
+    },
+    {
+      "kind": "simulation_witness",
+      "claim": "The valid bit survives the zeroize.",
+      "source": "final_bug_submissions/016/proof/logs/sim.log",
+      "observation": "OBSERVED during zeroize: digest_valid_reg=1 hmac_ctrl_reg=0 mode_reg=0; after zeroize deasserts tag_valid=1."
+    },
+    {
+      "kind": "simulation_witness",
+      "claim": "No later refresh ever clears it.",
+      "source": "final_bug_submissions/016/proof/logs/sim.log",
+      "observation": "OBSERVED: after 40 idle cycles digest_valid_we never asserted, digest_valid_reg=1. The block also reports itself ready while still advertising the stale tag as valid."
+    },
+    {
+      "kind": "simulation_control",
+      "claim": "The zeroize strobe did reach the DUT and the register is clearable.",
+      "source": "final_bug_submissions/016/proof/logs/sim.log",
+      "observation": "control: hmac_ctrl_reg collapsed to CTRL_IDLE; control: mode_reg was cleared by its own zeroize arm; control: reset clears digest_valid_reg (OBSERVED digest_valid_reg=0 under reset)."
+    },
+    {
+      "kind": "negative_control",
+      "claim": "The testbench discriminates the defect rather than reporting unconditionally.",
+      "source": "final_bug_submissions/016/proof/logs/negative_control.log",
+      "observation": "With the zeroize arm clearing digest_valid_reg in a scratch copy, as the reset arm does, the same stimulus drove tag_valid to 0, both defect covers fell to 0, 3 BUG-016 self-checks failed and the run exited 1, while the harness's own control observations still passed."
+    }
+  ],
+  "non_findings": [
+    "No claim that the HMAC digest is retained; the masked cores clear H0..H7 on the same strobe, so the tag reads zero.",
+    "No claim that the wrapper omits zeroize handling; its clear is present and is undone by the stale core bit.",
+    "No measured firmware sequence acting on the false VALID indication."
+  ],
+  "reproduction": {
+    "command": "CMP_ROOT=<caliptra checkout> final_bug_submissions/016/proof/scripts/run_bug_016_proof.sh",
+    "tools": "Synopsys VCS W-2024.09-SP1; override with VCS=<path to vcs>",
+    "success_marker": "RESULT: PASS - all structural gates confirm BUG-016",
+    "determinism": "Structural gates are deterministic; the simulation reported checks=10 errors=0 and PROOF_RESULT: PASS."
+  },
+  "conclusion": "Confirmed security bug. The zeroize arm at src/hmac/rtl/hmac_core.sv:190-196 omits the clear of digest_valid_reg, and because it forces the FSM to an idle state where every write enable is command-guarded, the stale bit persists indefinitely and is republished as HMAC512_STATUS.VALID, telling software a wiped engine holds an authentic tag."
+}

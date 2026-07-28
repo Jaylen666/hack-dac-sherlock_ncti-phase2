@@ -1,0 +1,49 @@
+{
+  "module": "hmac",
+  "bug_id": "018",
+  "bug_name": "hmac_bug_018",
+  "triage_id": "hmac_core_idle_unchained_command_ifs",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "proof_method_executed": {
+    "structural_audit": "19 gates, 19 passed, 0 failed, entirely within the audited tree. Gated evidence: the two CTRL_IDLE command arms are unchained and both write the state register, a computed census of the FSM's `if` idiom (5 plain ifs, 0 else-ifs, 3 ready-guarded, 2 command-guarded), and the register wiring that lets one MMIO write assert both commands in the same cycle.",
+    "directed_sim": "Unit-level hmac_core compiled from the project's own filelist (src/hmac/config/hmac_ctrl.vf) and run under VCS. Three tests share one testbench with BUG-019. 12 checks, 0 errors, all three cover counters at 1. The FSM is observed to reach CTRL_OPAD from CTRL_IDLE without CTRL_IPAD ever being visited.",
+    "negative_control": "The identical testbench run against a scratch copy of hmac_core.sv with the two CTRL_IDLE arms chained into if/else reports 3 self-check failures on the CTRL_IDLE transition, drops cover_ipad_skipped to 0, and shows the FSM landing in CTRL_IPAD instead. cover_next_clears still fires, so the harness is intact and the failure is attributable to the RTL change.",
+    "tool": "VCS W-2024.09-SP1_Full64"
+  },
+  "result_summary": "The idle state of the HMAC FSM does not resolve conflicting commands. hmac_core.sv:339-343 handles init_cmd by selecting CTRL_IPAD, and hmac_core.sv:345-350 handles next_cmd by selecting CTRL_OPAD, but the two are written as independent `if` statements with no `else` between them (line 344 is blank). Both assign hmac_ctrl_new and both assert hmac_ctrl_we, so when both commands arrive in the same cycle the next_cmd assignment wins and the FSM goes straight to CTRL_OPAD. CTRL_IPAD is skipped, and with it both the keyed inner hash that hmac_core.sv:273-283 starts on H1 and the masking-PRNG reseed that the same arm initiates. One MMIO write is enough to cause this: hmac.sv:257-258 source init_cmd and next_cmd from the INIT and NEXT fields of the single HMAC512_CTRL register, and hmac.sv:251-252 gate both on the same ready_reg, so nothing makes them mutually exclusive. The file's own idiom convicts the omission: a computed census over the same always_comb block finds 5 plain `if` statements and no `else if` at all, but 3 of the 5 are ready-guarded, one per non-idle state, where at most one guard can be true. Only the 2 command-guarded arms of CTRL_IDLE can both be true at once, and they are exactly the pair left unchained.",
+  "security_impact_assessment": {
+    "impact": [
+      "A single register write skips the keyed inner hash of the HMAC construction, so the block computes over the outer pad alone rather than over H(K^ipad || m).",
+      "The skipped state is also where the masking-PRNG reseed is initiated, so the same write leaves the side-channel countermeasure running on a stale seed.",
+      "CTRL_OPAD hashes over whatever H1 state survives from a previous operation, which makes the resulting tag depend on the previous operation's state rather than on the current message, a cross-operation state leak into the produced tag."
+    ],
+    "bypassed_feature": "The CTRL_IPAD phase of the HMAC FSM: the keyed inner hash and the masking reseed",
+    "attacker_model": [
+      "Caliptra firmware, which runs privileged and is the ordinary client of the HMAC block, performing a single write to HMAC512_CTRL. No capability beyond normal use of the block is required."
+    ],
+    "confidence": "high"
+  },
+  "evidence": {
+    "competition_file": "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:345",
+    "line_range": "339-350",
+    "run_log": "final_bug_submissions/018/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/018/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/018/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/018/proof/logs/negative_control.log",
+    "key_observation": "With both command bits asserted for one cycle from CTRL_IDLE, the FSM state register advanced to CTRL_OPAD and CTRL_IPAD was never entered, which the testbench records in cover_ipad_skipped. On the patched copy the same stimulus put the FSM in CTRL_IPAD, cover_ipad_skipped fell to 0 and three checks failed, while cover_next_clears still fired."
+  },
+  "non_findings": [
+    {
+      "claim": "The unchained `if` statements are themselves a coding error, since the file uses `else if` elsewhere in the same FSM.",
+      "verdict": "withdrawn",
+      "reason": "The computed census shows the file uses no `else if` anywhere in this always_comb block; plain `if` is its uniform style. The defect is not the syntax but that this is the one place where two guards can be true simultaneously, so plain `if` stops being safe here while remaining safe in the three ready-guarded cases."
+    },
+    {
+      "claim": "Software cannot set INIT and NEXT together, so the case is unreachable.",
+      "verdict": "withdrawn",
+      "reason": "hmac.sv:257-258 source both from fields of the same register and hmac.sv:251-252 gate both on the same ready_reg. One write sets both, and no interlock rejects the combination."
+    }
+  ],
+  "conclusion": "Confirmed security bug. The HMAC FSM's idle state can be driven straight to the outer-hash phase by a single register write, skipping the keyed inner hash and the masking reseed, because its two command arms both write the state register without being chained. The finding rests entirely on evidence inside the audited tree: the file's own FSM idiom, in which the three states whose guards are mutually exclusive use plain `if` safely and only the one pair of simultaneously-satisfiable guards is left unchained, and its own register wiring, which routes both command bits from one writable register through one write-enable. Proven by 19 structural gates, a directed unit-level simulation, and a negative control that fails on corrected RTL while its unrelated cover counter still fires."
+}

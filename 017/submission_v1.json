@@ -1,0 +1,66 @@
+{
+  "module": "hmac",
+  "bug_id": "017",
+  "bug_name": "hmac_bug_017",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready",
+  "security_feature_bypassed": "Hardware-derived reseeding of the HMAC masking PRNGs, which supply the randomness for the block's first-order side-channel countermeasure",
+  "finding": "The HMAC masking-PRNG reseed chain is present but never runs. src/hmac/rtl/hmac_core.sv:243 builds entropy_block from the block's own state, line 282 presents it to the H2 masked SHA-512 core inside CTRL_IPAD, lines 229-231 latch entropy_digest from H2_digest when set_entropy fires, line 362 fires set_entropy at the IPAD to OPAD transition, and line 242 seeds all 12 masking LFSRs from lfsr_entropy = entropy_digest ^ lfsr_seed. The chain is broken at its start: the CTRL_IPAD first_round arm drives H2_init = 1'b0 and H2_next = 1'b0 (lines 277-278) and no assignment anywhere in that branch ever raises either strobe, so H2 is never started on the entropy block and set_entropy latches the unstarted core's output. The file's own idiom convicts the omission: every other block presentation in the same always_comb block is paired with a start strobe, H1_init at line 275, H1_next and H2_init at lines 290-291, and H2_next at line 304. A computed census over the file finds exactly 4 start-strobe assertions, one for each real block presentation and none for the entropy block. The consequence is that entropy_digest holds its reset value of zero (line 227) and lfsr_entropy reduces to lfsr_seed alone, which src/hmac/rtl/hmac.sv:311 sources from the software-writable HMAC512_LFSR_SEED register and lines 159-160 pass straight through to the core. Both masked cores take their masking entropy from that same LFSR bank (hmac_core.sv:126 and :145), and the LFSRs are reseeded on every init_cmd (line 166), so every HMAC operation runs with masks derived from a software-visible value.",
+  "location_or_code_reference": {
+    "competition_file": "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:277",
+    "line_range": "274-283",
+    "supporting_references": [
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:277",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:278",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:282",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:229",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:242",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:243",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:362",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:275",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:290",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:291",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:304",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:126",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:145",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv:166",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac.sv:159",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac.sv:311"
+    ]
+  },
+  "detection_method": "LLM-driven CSBC analysis of the audited RTL, confirmed against the file's own reseed chain, its own set_entropy latch, and its own start-strobe idiom, which pairs a start strobe with every other block presentation in the same always_comb block, then hardened with a 21-gate structural witness, a directed VCS simulation of hmac_core built from the project's own filelist (src/hmac/config/hmac_ctrl.vf), and a negative control in which H2 is started from that same CTRL_IPAD first_round arm in a scratch copy and the identical testbench is required to fail",
+  "security_impact": "The masking PRNGs of both SHA-512 cores lose their hardware-derived seed component and are seeded from the software-written HMAC512_LFSR_SEED register alone, on every HMAC operation. An attacker with side-channel access who knows or writes that register knows the mask sequence, so the first-order masking becomes a known transformation rather than an unpredictable one, and identical masks can be replayed across operations. That is the condition under which averaging attacks on a masked implementation become practical, targeting an HMAC key the attacker cannot read directly.",
+  "adversary_profile": "Physical attacker",
+  "proposed_mitigation": [
+    "Assert H2_init in the CTRL_IPAD first_round arm of src/hmac/rtl/hmac_core.sv so the H2 core is actually started on the entropy block that line 282 already presents to it, matching the start-strobe form used by every other block presentation in the file.",
+    "Add an assertion that set_entropy is never asserted unless H2 has completed a hash since the last reseed, so a future edit cannot silently reintroduce a latch of an unstarted core's output.",
+    "Consider seeding the masking PRNGs from the platform entropy source rather than from a software-writable register, so a software write cannot influence the mask sequence even if the digest component is later lost again."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:P/AC:H/PR:N/UI:N/S:U/C:H/I:N/A:N",
+    "base_score": 4.2,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/017/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/017/proof_result_v1.json",
+    "script": "final_bug_submissions/017/proof/scripts/run_bug_017_proof.sh",
+    "sim_script": "final_bug_submissions/017/proof/scripts/run_bug_017_sim.sh",
+    "testbench": "final_bug_submissions/017/proof/tb/hmac_core_bug_017_tb.sv",
+    "run_log": "final_bug_submissions/017/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/017/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/017/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/017/proof/logs/negative_control.log",
+    "negative_control_script": "final_bug_submissions/017/proof/scripts/run_bug_017_negative_control.sh",
+    "c_validation_status": "final_bug_submissions/017/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Software issues an ordinary HMAC INIT through HMAC512_CTRL. Nothing unusual is required; this is the normal way to start a keyed hash.",
+    "The FSM enters CTRL_IPAD and presents entropy_block on H2_block, but holds both H2 start strobes low, so H2 never hashes it.",
+    "At the IPAD to OPAD transition set_entropy fires and latches entropy_digest from the unstarted core's output, which is zero out of reset.",
+    "lfsr_entropy = entropy_digest ^ lfsr_seed collapses to lfsr_seed, so the 12 masking LFSRs are seeded from the software-written HMAC512_LFSR_SEED value, and are reseeded from it again on every subsequent INIT.",
+    "The attacker collects side-channel traces while the block computes over the target key. Knowing the seed, they know the mask sequence and can strip the masking from each trace, recovering the key material the masking was there to protect.",
+    "Verified in simulation: across all 92 cycles in CTRL_IPAD no H2 start strobe was ever asserted while H1 was started in that same window, entropy_digest latched 0x0, and lfsr_entropy compared exactly equal to the software-written seed. With H2 started from the same first_round arm in a scratch copy, entropy_digest latched 0x039dffff910bb3b8..., all three cover counters fell to 0 and three self-checks failed, while the H1 control check still passed."
+  ]
+}

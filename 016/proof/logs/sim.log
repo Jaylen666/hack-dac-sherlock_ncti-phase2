@@ -1,0 +1,33 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/016/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/016/proof/logs/sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 13:37 2026
+===== BUG-016 directed simulation on hmac_core =====
+[test 1] stale tag_valid, then a security zeroize
+  ok: precondition: tag_valid is high from the previous HMAC
+  ok: precondition: FSM parked (the seeding did not disturb control state)
+  OBSERVED during zeroize: digest_valid_reg=1 hmac_ctrl_reg=0 mode_reg=0
+  ok: BUG-016 OBSERVED: digest_valid_reg still 1 while zeroize is asserted
+  ok: control: the same zeroize arm did collapse hmac_ctrl_reg to CTRL_IDLE
+  ok: control: mode_reg was cleared by its own zeroize arm, so zeroize reached the DUT
+  OBSERVED after zeroize deasserts: tag_valid=1
+  ok: BUG-016 OBSERVED: tag_valid is still asserted after the zeroize completes
+[test 2] idle the block: the comment claims a later refresh clears it
+  OBSERVED: after 40 idle cycles digest_valid_we never asserted, digest_valid_reg=1
+  ok: BUG-016 OBSERVED: no refresh occurs, so the stale valid bit persists indefinitely
+  ok: the block reports itself ready while still advertising the stale tag as valid
+[test 3] control: the reset arm of the same case statement clears it
+  ok: precondition: tag_valid high again
+  OBSERVED: digest_valid_reg=0 under reset
+  ok: control: reset clears digest_valid_reg, so the register is clearable and the harness can see it
+cover_valid_survives_zeroize=1
+cover_valid_never_refreshed=1
+cover_ctrl_cleared=1
+checks=10 errors=0
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/016/proof/tb/hmac_core_bug_016_tb.sv", line 167.
+$finish at simulation time               530000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 530000 ps
+CPU Time:      0.360 seconds;       Data structure size:   0.1Mb
+Tue Jul 28 13:38:02 2026

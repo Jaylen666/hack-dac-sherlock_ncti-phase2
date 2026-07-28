@@ -1,0 +1,40 @@
+BUG-016 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T13:38:54+08:00
+gate_ok: hmac_core.sv:190 opens the zeroize arm of the reg_update unique case
+gate_ok: hmac_core.sv:194 clears hmac_ctrl_reg on zeroize
+gate_ok: hmac_core.sv:195 clears hmac_ctrl_last on zeroize
+gate_ok: no line in the zeroize arm (hmac_core.sv:190-196) assigns digest_valid_reg, so the valid bit survives a security zeroize
+gate_ok: hmac_core.sv:185 clears digest_valid_reg in the reset arm
+gate_ok: hmac_core.sv:186 clears hmac_ctrl_reg there too
+gate_ok: hmac_core.sv:187 clears hmac_ctrl_last there too
+reset_arm_assignments=3
+zeroize_arm_assignments=2
+gate_ok: the reset arm assigns all 3 state registers
+gate_ok: the zeroize arm assigns only 2, so exactly one register is left behind
+gate_ok: the difference is exactly 1 register, and that register is digest_valid_reg
+gate_ok: digest_valid_reg has exactly 2 assignments in the whole file, so the census covers every write to it
+gate_ok: hmac_core.sv:192-193 claims the valid bit is refreshed later by the normal update path, so no clear is needed here
+gate_ok: that normal update path (hmac_core.sv:202) only writes when digest_valid_we is asserted
+gate_ok: but the same zeroize arm forces the FSM to CTRL_IDLE (hmac_core.sv:194), which is the state that issues no unconditional update
+gate_ok: in CTRL_IDLE every arm is command-guarded (hmac_core.sv:339 and :345), so with no new command digest_valid_we is never asserted
+gate_ok: the FSM's default assignment holds digest_valid_we at 0 (hmac_core.sv:329), so idling leaves the stale bit indefinitely
+digest_valid_we_assert_sites=5
+gate_ok: the enable is asserted at exactly 5 sites, all of them inside command- or ready-guarded FSM arms, none reachable from a zeroized idle FSM
+gate_ok: hmac_core.sv:216 gives mode_reg its own zeroize arm
+gate_ok: hmac_core.sv:217 clears mode_reg immediately rather than deferring it to a later refresh, which is the file's own treatment of a zeroize-sensitive register
+gate_ok: hmac_core.sv:120 forwards the same zeroize strobe to its H1 masked core
+gate_ok: hmac_core.sv:139 forwards it to H2 as well
+gate_ok: sha512_masked_core.sv:297 opens that child's zeroize arm
+gate_ok: sha512_masked_core.sv:316 clears the child's own digest_valid_reg inside that arm, so the block's children honour on-zeroize invalidation while the parent does not
+gate_ok: hmac_core.sv:111 gates the tag output on digest_valid_reg
+gate_ok: hmac_core.sv:112 exports it as tag_valid
+gate_ok: hmac.sv:214 does clear the wrapper's tag_valid_reg on zeroize, so the wrapper looks correct in isolation
+gate_ok: but hmac.sv:222 reloads tag_valid_reg from the core's bit on the very next cycle, so the wrapper's clear is undone by the stale core bit
+gate_ok: hmac.sv:163 makes the tag write-enable fire on exactly that transition (core valid high, wrapper valid just cleared), so the tag register is rewritten after the zeroize too
+gate_ok: hmac.sv:264 publishes that bit as HMAC512_STATUS.VALID, so software sees VALID return to 1 after a zeroize
+gate_ok: hmac.sv:267 clears the TAG register on zeroize, which is the intent the stale core bit defeats
+gate_ok: hmac.sv:259 sources zeroize from a software register field, so the whole sequence is software-triggerable
+structural_gates_passed=31/31
+RESULT: PASS - all structural gates confirm BUG-016
+result=PASS
