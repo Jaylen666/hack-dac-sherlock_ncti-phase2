@@ -1,0 +1,19 @@
+{
+  "schema_version": "csbc.caliptra.source_files.v1",
+  "target_module": "aes_prng_masking",
+  "required_rtl": [
+    "src/aes/rtl/aes_prng_masking.sv"
+  ],
+  "required_includes": [
+    "src/caliptra_prim/rtl/caliptra_prim_assert.sv"
+  ],
+  "expected_package_dependencies": [
+    "aes_pkg",
+    "edn_pkg",
+    "caliptra_prim_trivium_pkg"
+  ],
+  "notes": [
+    "Resolve the package dependencies with the in-tree AES source closure; the run template lists the required files explicitly.",
+    "The Bivium primitive can be blackboxed if needed; the assertion observes the wrapper signal bivium_allow_lockup. The recorded run did not blackbox it."
+  ]
+}

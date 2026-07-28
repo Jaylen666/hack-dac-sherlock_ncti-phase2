@@ -1,0 +1,46 @@
+{
+  "schema_version": "csbc.formal_result_contract.v1",
+  "bug_id": "006",
+  "required_results": [
+    {
+      "property": "CSBC_CALIPTRA_AES_BUG006_FORCE_MASKS_DISABLED_BLOCKS_LOCKUP",
+      "expected_status": "FAIL"
+    },
+    {
+      "property": "CSBC_CALIPTRA_AES_BUG006_DISABLED_LOCKUP_INVARIANT",
+      "expected_status": "FAIL"
+    },
+    {
+      "property": "CSBC_CALIPTRA_AES_BUG006_TRIGGER",
+      "expected_status": "COVERED"
+    },
+    {
+      "property": "CSBC_CALIPTRA_AES_BUG006_VIOLATION",
+      "expected_status": "COVERED"
+    }
+  ],
+  "counterexample_expectation": "A one-cycle counterexample with SecAllowForcingMasks=0, force_masks_i=1, and bivium_allow_lockup=1 is sufficient.",
+  "observed_results": [
+    {
+      "property": "CSBC_CALIPTRA_AES_BUG006_FORCE_MASKS_DISABLED_BLOCKS_LOCKUP",
+      "observed_status": "CEX",
+      "bound": 1
+    },
+    {
+      "property": "CSBC_CALIPTRA_AES_BUG006_DISABLED_LOCKUP_INVARIANT",
+      "observed_status": "CEX",
+      "bound": 1
+    },
+    {
+      "property": "CSBC_CALIPTRA_AES_BUG006_TRIGGER",
+      "observed_status": "COVERED",
+      "bound": 1
+    },
+    {
+      "property": "CSBC_CALIPTRA_AES_BUG006_VIOLATION",
+      "observed_status": "COVERED",
+      "bound": 1
+    }
+  ],
+  "contract_satisfied": true
+}

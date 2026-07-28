@@ -1,0 +1,972 @@
+Jasper Apps 2022.09p001 64 bits 2022.10.25 11:32:28 UTC
+
+Any disclosure about the Cadence Design Systems software or its use
+model to any third party violates the written Non-Disclosure Agreement
+between Cadence Design Systems, Inc. and the customer.
+
+THIS SOFTWARE CONTAINS CONFIDENTIAL INFORMATION AND TRADE SECRETS OF
+CADENCE DESIGN SYSTEMS, INC. USE, DISCLOSURE, OR REPRODUCTION IS
+PROHIBITED WITHOUT THE PRIOR EXPRESS WRITTEN PERMISSION OF CADENCE
+DESIGN SYSTEMS, INC.
+
+Copyright (C) 2000-2022 Cadence Design Systems, Inc. All Rights
+Reserved.  Unpublished -- rights reserved under the copyright laws of
+the United States.
+
+This product includes software developed by others and redistributed
+according to license agreement. See doc/third_party_readme.txt for
+further details.
+
+RESTRICTED RIGHTS LEGEND
+
+Use, duplication, or disclosure by the Government is subject to
+restrictions as set forth in subparagraph (c) (1) (ii) of the Rights in
+Technical Data and Computer Software clause at DFARS 252.227-7013 or
+subparagraphs (c) (1) and (2) of Commercial Computer Software -- Restricted
+Rights at 48 CFR 52.227-19, as applicable.
+
+
+                          Cadence Design Systems, Inc.
+                          2655 Seely Avenue
+                          San Jose, CA 95134
+                          Phone: 408.943.1234
+
+For technical assistance visit http://support.cadence.com.
+
+Jasper Apps Analysis Session - ./results/jgproject/sessionLogs/session_0
+
+INFO: successfully checked out license "jasper_fpv".
+INFO: reading configuration file "<home>/.config/cadence/jasper.conf".
+% # Fixed JasperGold script for Caliptra bug 006
+% set module_root $::env(CSBC_FORMAL_ROOT)
+.
+% set caliptra_root $::env(CALIPTRA_ROOT)
+.
+% set prim_generic_root "$caliptra_root/src/caliptra_prim_generic"
+./src/caliptra_prim_generic
+% 
+% # Include directories
+% set incdirs [list \
+  "+incdir+$caliptra_root/src/entropy_src/rtl" \
+  "+incdir+$caliptra_root/src/csrng/rtl" \
+  "+incdir+$caliptra_root/src/edn/rtl" \
+  "+incdir+$caliptra_root/src/integration/rtl" \
+  "+incdir+$caliptra_root/src/libs/rtl" \
+  "+incdir+$caliptra_root/src/caliptra_prim/rtl" \
+  "+incdir+$caliptra_root/src/lc_ctrl/rtl" \
+  "+incdir+$caliptra_root/src/caliptra_prim_generic/rtl" \
+  "+incdir+$caliptra_root/src/aes/rtl" \
+]
++incdir+./src/entropy_src/rtl +incdir+./src/csrng/rtl +incdir+./src/edn/rtl +incdir+./src/integration/rtl +incdir+./src/libs/rtl +incdir+./src/caliptra_prim/rtl +incdir+./src/lc_ctrl/rtl +incdir+./src/caliptra_prim_generic/rtl +incdir+./src/aes/rtl
+% 
+% # Package files (from aes_pkg.vf minus generic prim RTL)
+% set pkg_files [list \
+  "$caliptra_root/src/integration/rtl/config_defines.svh" \
+  "$caliptra_root/src/libs/rtl/caliptra_sva.svh" \
+  "$caliptra_root/src/libs/rtl/caliptra_macros.svh" \
+  "$caliptra_root/src/libs/rtl/caliptra_sram.sv" \
+  "$caliptra_root/src/libs/rtl/ahb_defines_pkg.sv" \
+  "$caliptra_root/src/libs/rtl/caliptra_ahb_srom.sv" \
+  "$caliptra_root/src/libs/rtl/ahb_slv_sif.sv" \
+  "$caliptra_root/src/libs/rtl/caliptra_icg.sv" \
+  "$caliptra_root/src/libs/rtl/clk_gate.sv" \
+  "$caliptra_root/src/libs/rtl/caliptra_2ff_sync.sv" \
+  "$caliptra_root/src/libs/rtl/ahb_to_reg_adapter.sv" \
+  "$caliptra_root/src/libs/rtl/skidbuffer.v" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_util_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_alert_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_subreg_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_sparse_fsm_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_otp_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_ram_1p_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_esc_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_count_pkg.sv" \
+  "$caliptra_root/src/caliptra_prim/rtl/keymgr_pkg.sv" \
+  "$caliptra_root/src/entropy_src/rtl/entropy_src_main_sm_pkg.sv" \
+  "$caliptra_root/src/entropy_src/rtl/entropy_src_ack_sm_pkg.sv" \
+  "$caliptra_root/src/entropy_src/rtl/entropy_src_reg_pkg.sv" \
+  "$caliptra_root/src/entropy_src/rtl/entropy_src_pkg.sv" \
+  "$caliptra_root/src/csrng/rtl/csrng_reg_pkg.sv" \
+  "$caliptra_root/src/csrng/rtl/csrng_pkg.sv" \
+  "$caliptra_root/src/edn/rtl/edn_pkg.sv" \
+  "$caliptra_root/src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv" \
+  "$caliptra_root/src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv" \
+  "$caliptra_root/src/lc_ctrl/rtl/lc_ctrl_pkg.sv" \
+  "$caliptra_root/src/aes/rtl/aes_reg_pkg.sv" \
+  "$caliptra_root/src/aes/rtl/aes_pkg.sv" \
+  "$caliptra_root/src/aes/rtl/aes_sbox_canright_pkg.sv" \
+  "$caliptra_root/src/aes/rtl/aes_clp_reg_pkg.sv" \
+]
+./src/integration/rtl/config_defines.svh ./src/libs/rtl/caliptra_sva.svh ./src/libs/rtl/caliptra_macros.svh ./src/libs/rtl/caliptra_sram.sv ./src/libs/rtl/ahb_defines_pkg.sv ./src/libs/rtl/caliptra_ahb_srom.sv ./src/libs/rtl/ahb_slv_sif.sv ./src/libs/rtl/caliptra_icg.sv ./src/libs/rtl/clk_gate.sv ./src/libs/rtl/caliptra_2ff_sync.sv ./src/libs/rtl/ahb_to_reg_adapter.sv ./src/libs/rtl/skidbuffer.v ./src/caliptra_prim/rtl/caliptra_prim_util_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_alert_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_subreg_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_sparse_fsm_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_otp_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_ram_1p_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_esc_pkg.sv ./src/caliptra_prim/rtl/caliptra_prim_count_pkg.sv ./src/caliptra_prim/rtl/keymgr_pkg.sv ./src/entropy_src/rtl/entropy_src_main_sm_pkg.sv ./src/entropy_src/rtl/entropy_src_ack_sm_pkg.sv ./src/entropy_src/rtl/entropy_src_reg_pkg.sv ./src/entropy_src/rtl/entropy_src_pkg.sv ./src/csrng/rtl/csrng_reg_pkg.sv ./src/csrng/rtl/csrng_pkg.sv ./src/edn/rtl/edn_pkg.sv ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv ./src/aes/rtl/aes_reg_pkg.sv ./src/aes/rtl/aes_pkg.sv ./src/aes/rtl/aes_sbox_canright_pkg.sv ./src/aes/rtl/aes_clp_reg_pkg.sv
+% 
+% # RTL files needed for aes_prng_masking
+% set rtl_files [list \
+  "$caliptra_root/src/caliptra_prim/rtl/caliptra_prim_trivium.sv" \
+  "$caliptra_root/src/aes/rtl/aes_prng_masking.sv" \
+]
+./src/caliptra_prim/rtl/caliptra_prim_trivium.sv ./src/aes/rtl/aes_prng_masking.sv
+% 
+% # Checker files
+% set checker_files [list \
+  "$module_root/cases/BUG-006/checker.sv" \
+  "$module_root/formal/bind_all.sv" \
+]
+./cases/BUG-006/checker.sv ./formal/bind_all.sv
+% 
+% # Analyze
+% analyze -sv {*}$incdirs {*}$pkg_files
+[-- (VERI-1482)] Analyzing Verilog file '<jasper_install>/lib/verilog/packages/std/std.sv' into library 'std'
+[-- (VERI-1482)] Analyzing Verilog file './src/integration/rtl/config_defines.svh'
+[-- (VERI-1482)] Analyzing Verilog file './src/libs/rtl/caliptra_sva.svh'
+[-- (VERI-1482)] Analyzing Verilog file './src/libs/rtl/caliptra_macros.svh'
+[-- (VERI-1482)] Analyzing Verilog file './src/libs/rtl/caliptra_sram.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/libs/rtl/ahb_defines_pkg.sv'
+[WARN (VERI-2418)] ./src/libs/rtl/ahb_defines_pkg.sv(20): parameter 'H_OKAY' declared inside package 'ahb_defines_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/libs/rtl/ahb_defines_pkg.sv(21): parameter 'H_ERROR' declared inside package 'ahb_defines_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/libs/rtl/caliptra_ahb_srom.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/libs/rtl/ahb_slv_sif.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/libs/rtl/caliptra_icg.sv'
+[INFO (VERI-1328)] ./src/libs/rtl/caliptra_icg.sv(14): analyzing included file './src/integration/rtl/config_defines.svh'
+[-- (VERI-1482)] Analyzing Verilog file './src/libs/rtl/clk_gate.sv'
+[INFO (VERI-1328)] ./src/libs/rtl/clk_gate.sv(15): analyzing included file './src/integration/rtl/config_defines.svh'
+[-- (VERI-1482)] Analyzing Verilog file './src/libs/rtl/caliptra_2ff_sync.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/libs/rtl/ahb_to_reg_adapter.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/libs/rtl/skidbuffer.v'
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_util_pkg.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_alert_pkg.sv'
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_alert_pkg.sv(19): parameter 'ALERT_TX_DEFAULT' declared inside package 'caliptra_prim_alert_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_alert_pkg.sv(22): parameter 'ALERT_RX_DEFAULT' declared inside package 'caliptra_prim_alert_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_subreg_pkg.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv'
+[INFO (VERI-1328)] ./src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv(13): analyzing included file './src/caliptra_prim/rtl/caliptra_prim_assert.sv'
+[INFO (VERI-1328)] ./src/caliptra_prim/rtl/caliptra_prim_assert.sv(16): analyzing included file './src/libs/rtl/caliptra_sva.svh'
+[INFO (VERI-1328)] ./src/caliptra_prim/rtl/caliptra_prim_assert.sv(113): analyzing included file './src/caliptra_prim/rtl/caliptra_prim_assert_standard_macros.svh'
+[INFO (VERI-1328)] ./src/caliptra_prim/rtl/caliptra_prim_assert.sv(188): analyzing included file './src/caliptra_prim/rtl/caliptra_prim_assert_sec_cm.svh'
+[INFO (VERI-1328)] ./src/caliptra_prim/rtl/caliptra_prim_assert.sv(189): analyzing included file './src/caliptra_prim/rtl/caliptra_prim_flop_macros.sv'
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv(21): parameter 'MuBi4Width' declared inside package 'caliptra_prim_mubi_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv(158): parameter 'MuBi8Width' declared inside package 'caliptra_prim_mubi_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv(290): parameter 'MuBi12Width' declared inside package 'caliptra_prim_mubi_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_mubi_pkg.sv(422): parameter 'MuBi16Width' declared inside package 'caliptra_prim_mubi_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv'
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(23): parameter 'PRINCE_SBOX4' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(28): parameter 'PRINCE_SBOX4_INV' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(33): parameter 'PRINCE_SHIFT_ROWS64' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(38): parameter 'PRINCE_SHIFT_ROWS64_INV' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(44): parameter 'PRINCE_ROUND_CONST' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(58): parameter 'PRINCE_ALPHA_CONST' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(61): parameter 'PRINCE_SHIFT_ROWS_CONST0' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(62): parameter 'PRINCE_SHIFT_ROWS_CONST1' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(63): parameter 'PRINCE_SHIFT_ROWS_CONST2' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(64): parameter 'PRINCE_SHIFT_ROWS_CONST3' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(141): parameter 'PRESENT_SBOX4' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(146): parameter 'PRESENT_SBOX4_INV' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(153): parameter 'PRESENT_PERM32' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(162): parameter 'PRESENT_PERM32_INV' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(172): parameter 'PRESENT_PERM64' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_cipher_pkg.sv(189): parameter 'PRESENT_PERM64_INV' declared inside package 'caliptra_prim_cipher_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_pkg.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_sparse_fsm_pkg.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv'
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv(15): parameter 'KeyIvWidth' declared inside package 'caliptra_prim_trivium_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv(16): parameter 'PartialSeedWidthDefault' declared inside package 'caliptra_prim_trivium_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv(17): parameter 'MinNfsrWidth' declared inside package 'caliptra_prim_trivium_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv(21): parameter 'TriviumLfsrWidth' declared inside package 'caliptra_prim_trivium_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv(23): parameter 'RndCnstTriviumLfsrSeedDefault' declared inside package 'caliptra_prim_trivium_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv(32): parameter 'TriviumMaxNfsrWidth' declared inside package 'caliptra_prim_trivium_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv(33): parameter 'TriviumStateWidth' declared inside package 'caliptra_prim_trivium_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv(102): parameter 'BiviumMaxNfsrWidth' declared inside package 'caliptra_prim_trivium_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_trivium_pkg.sv(103): parameter 'BiviumStateWidth' declared inside package 'caliptra_prim_trivium_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv'
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(81): parameter 'Secded2216ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(82): parameter 'Secded2216ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(90): parameter 'Secded2822ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(91): parameter 'Secded2822ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(99): parameter 'Secded3932ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(100): parameter 'Secded3932ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(108): parameter 'Secded6457ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(109): parameter 'Secded6457ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(117): parameter 'Secded7264ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(118): parameter 'Secded7264ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(126): parameter 'SecdedHamming2216ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(127): parameter 'SecdedHamming2216ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(135): parameter 'SecdedHamming3932ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(136): parameter 'SecdedHamming3932ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(144): parameter 'SecdedHamming7264ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(145): parameter 'SecdedHamming7264ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(153): parameter 'SecdedHamming7668ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(154): parameter 'SecdedHamming7668ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(162): parameter 'SecdedInv2216ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(163): parameter 'SecdedInv2216ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(171): parameter 'SecdedInv2822ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(172): parameter 'SecdedInv2822ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(180): parameter 'SecdedInv3932ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(181): parameter 'SecdedInv3932ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(189): parameter 'SecdedInv6457ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(190): parameter 'SecdedInv6457ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(198): parameter 'SecdedInv7264ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(199): parameter 'SecdedInv7264ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(207): parameter 'SecdedInvHamming2216ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(208): parameter 'SecdedInvHamming2216ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(216): parameter 'SecdedInvHamming3932ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(217): parameter 'SecdedInvHamming3932ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(225): parameter 'SecdedInvHamming7264ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(226): parameter 'SecdedInvHamming7264ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(234): parameter 'SecdedInvHamming7668ZeroEcc' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_secded_pkg.sv(235): parameter 'SecdedInvHamming7668ZeroWord' declared inside package 'caliptra_prim_secded_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_otp_pkg.sv'
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_otp_pkg.sv(10): parameter 'CmdWidth' declared inside package 'caliptra_prim_otp_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_otp_pkg.sv(11): parameter 'ErrWidth' declared inside package 'caliptra_prim_otp_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_ram_1p_pkg.sv'
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_ram_1p_pkg.sv(19): parameter 'RAM_1P_CFG_DEFAULT' declared inside package 'caliptra_prim_ram_1p_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_esc_pkg.sv'
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_esc_pkg.sv(17): parameter 'ESC_TX_DEFAULT' declared inside package 'caliptra_prim_esc_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/caliptra_prim_esc_pkg.sv(20): parameter 'ESC_RX_DEFAULT' declared inside package 'caliptra_prim_esc_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_count_pkg.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/keymgr_pkg.sv'
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/keymgr_pkg.sv(10): parameter 'KeyWidth' declared inside package 'keymgr_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/caliptra_prim/rtl/keymgr_pkg.sv(11): parameter 'Shares' declared inside package 'keymgr_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/entropy_src/rtl/entropy_src_main_sm_pkg.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/entropy_src/rtl/entropy_src_ack_sm_pkg.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/entropy_src/rtl/entropy_src_reg_pkg.sv'
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(10): parameter 'ObserveFifoDepth' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(11): parameter 'NumAlerts' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(14): parameter 'BlockAw' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(789): parameter 'ENTROPY_SRC_INTR_STATE_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(790): parameter 'ENTROPY_SRC_INTR_ENABLE_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(791): parameter 'ENTROPY_SRC_INTR_TEST_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(792): parameter 'ENTROPY_SRC_ALERT_TEST_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(793): parameter 'ENTROPY_SRC_ME_REGWEN_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(794): parameter 'ENTROPY_SRC_SW_REGUPD_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(795): parameter 'ENTROPY_SRC_REGWEN_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(796): parameter 'ENTROPY_SRC_REV_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(797): parameter 'ENTROPY_SRC_MODULE_ENABLE_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(798): parameter 'ENTROPY_SRC_CONF_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(799): parameter 'ENTROPY_SRC_ENTROPY_CONTROL_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(800): parameter 'ENTROPY_SRC_ENTROPY_DATA_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(801): parameter 'ENTROPY_SRC_HEALTH_TEST_WINDOWS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(802): parameter 'ENTROPY_SRC_REPCNT_THRESHOLDS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(803): parameter 'ENTROPY_SRC_REPCNTS_THRESHOLDS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(804): parameter 'ENTROPY_SRC_ADAPTP_HI_THRESHOLDS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(805): parameter 'ENTROPY_SRC_ADAPTP_LO_THRESHOLDS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(806): parameter 'ENTROPY_SRC_BUCKET_THRESHOLDS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(807): parameter 'ENTROPY_SRC_MARKOV_HI_THRESHOLDS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(808): parameter 'ENTROPY_SRC_MARKOV_LO_THRESHOLDS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(809): parameter 'ENTROPY_SRC_EXTHT_HI_THRESHOLDS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(810): parameter 'ENTROPY_SRC_EXTHT_LO_THRESHOLDS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(811): parameter 'ENTROPY_SRC_REPCNT_HI_WATERMARKS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(812): parameter 'ENTROPY_SRC_REPCNTS_HI_WATERMARKS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(813): parameter 'ENTROPY_SRC_ADAPTP_HI_WATERMARKS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(814): parameter 'ENTROPY_SRC_ADAPTP_LO_WATERMARKS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(815): parameter 'ENTROPY_SRC_EXTHT_HI_WATERMARKS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(816): parameter 'ENTROPY_SRC_EXTHT_LO_WATERMARKS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(817): parameter 'ENTROPY_SRC_BUCKET_HI_WATERMARKS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(818): parameter 'ENTROPY_SRC_MARKOV_HI_WATERMARKS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(819): parameter 'ENTROPY_SRC_MARKOV_LO_WATERMARKS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(820): parameter 'ENTROPY_SRC_REPCNT_TOTAL_FAILS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(821): parameter 'ENTROPY_SRC_REPCNTS_TOTAL_FAILS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(822): parameter 'ENTROPY_SRC_ADAPTP_HI_TOTAL_FAILS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(823): parameter 'ENTROPY_SRC_ADAPTP_LO_TOTAL_FAILS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(824): parameter 'ENTROPY_SRC_BUCKET_TOTAL_FAILS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(825): parameter 'ENTROPY_SRC_MARKOV_HI_TOTAL_FAILS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(826): parameter 'ENTROPY_SRC_MARKOV_LO_TOTAL_FAILS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(827): parameter 'ENTROPY_SRC_EXTHT_HI_TOTAL_FAILS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(828): parameter 'ENTROPY_SRC_EXTHT_LO_TOTAL_FAILS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(829): parameter 'ENTROPY_SRC_ALERT_THRESHOLD_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(830): parameter 'ENTROPY_SRC_ALERT_SUMMARY_FAIL_COUNTS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(831): parameter 'ENTROPY_SRC_ALERT_FAIL_COUNTS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(832): parameter 'ENTROPY_SRC_EXTHT_FAIL_COUNTS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(833): parameter 'ENTROPY_SRC_FW_OV_CONTROL_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(834): parameter 'ENTROPY_SRC_FW_OV_SHA3_START_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(835): parameter 'ENTROPY_SRC_FW_OV_WR_FIFO_FULL_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(836): parameter 'ENTROPY_SRC_FW_OV_RD_FIFO_OVERFLOW_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(837): parameter 'ENTROPY_SRC_FW_OV_RD_DATA_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(838): parameter 'ENTROPY_SRC_FW_OV_WR_DATA_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(839): parameter 'ENTROPY_SRC_OBSERVE_FIFO_THRESH_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(840): parameter 'ENTROPY_SRC_OBSERVE_FIFO_DEPTH_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(841): parameter 'ENTROPY_SRC_DEBUG_STATUS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(842): parameter 'ENTROPY_SRC_RECOV_ALERT_STS_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(843): parameter 'ENTROPY_SRC_ERR_CODE_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(844): parameter 'ENTROPY_SRC_ERR_CODE_TEST_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(845): parameter 'ENTROPY_SRC_MAIN_SM_STATE_OFFSET' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(848): parameter 'ENTROPY_SRC_INTR_TEST_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(849): parameter 'ENTROPY_SRC_INTR_TEST_ES_ENTROPY_VALID_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(850): parameter 'ENTROPY_SRC_INTR_TEST_ES_HEALTH_TEST_FAILED_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(851): parameter 'ENTROPY_SRC_INTR_TEST_ES_OBSERVE_FIFO_READY_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(852): parameter 'ENTROPY_SRC_INTR_TEST_ES_FATAL_ERR_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(853): parameter 'ENTROPY_SRC_ALERT_TEST_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(854): parameter 'ENTROPY_SRC_ALERT_TEST_RECOV_ALERT_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(855): parameter 'ENTROPY_SRC_ALERT_TEST_FATAL_ALERT_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(856): parameter 'ENTROPY_SRC_ENTROPY_DATA_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(857): parameter 'ENTROPY_SRC_REPCNT_THRESHOLDS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(858): parameter 'ENTROPY_SRC_REPCNT_THRESHOLDS_FIPS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(859): parameter 'ENTROPY_SRC_REPCNT_THRESHOLDS_BYPASS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(860): parameter 'ENTROPY_SRC_REPCNTS_THRESHOLDS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(861): parameter 'ENTROPY_SRC_REPCNTS_THRESHOLDS_FIPS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(862): parameter 'ENTROPY_SRC_REPCNTS_THRESHOLDS_BYPASS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(863): parameter 'ENTROPY_SRC_ADAPTP_HI_THRESHOLDS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(864): parameter 'ENTROPY_SRC_ADAPTP_HI_THRESHOLDS_FIPS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(865): parameter 'ENTROPY_SRC_ADAPTP_HI_THRESHOLDS_BYPASS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(866): parameter 'ENTROPY_SRC_ADAPTP_LO_THRESHOLDS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(867): parameter 'ENTROPY_SRC_ADAPTP_LO_THRESHOLDS_FIPS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(868): parameter 'ENTROPY_SRC_ADAPTP_LO_THRESHOLDS_BYPASS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(869): parameter 'ENTROPY_SRC_BUCKET_THRESHOLDS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(870): parameter 'ENTROPY_SRC_BUCKET_THRESHOLDS_FIPS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(871): parameter 'ENTROPY_SRC_BUCKET_THRESHOLDS_BYPASS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(872): parameter 'ENTROPY_SRC_MARKOV_HI_THRESHOLDS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(873): parameter 'ENTROPY_SRC_MARKOV_HI_THRESHOLDS_FIPS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(874): parameter 'ENTROPY_SRC_MARKOV_HI_THRESHOLDS_BYPASS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(875): parameter 'ENTROPY_SRC_MARKOV_LO_THRESHOLDS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(876): parameter 'ENTROPY_SRC_MARKOV_LO_THRESHOLDS_FIPS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(877): parameter 'ENTROPY_SRC_MARKOV_LO_THRESHOLDS_BYPASS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(878): parameter 'ENTROPY_SRC_EXTHT_HI_THRESHOLDS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(879): parameter 'ENTROPY_SRC_EXTHT_HI_THRESHOLDS_FIPS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(880): parameter 'ENTROPY_SRC_EXTHT_HI_THRESHOLDS_BYPASS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(881): parameter 'ENTROPY_SRC_EXTHT_LO_THRESHOLDS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(882): parameter 'ENTROPY_SRC_EXTHT_LO_THRESHOLDS_FIPS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(883): parameter 'ENTROPY_SRC_EXTHT_LO_THRESHOLDS_BYPASS_THRESH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(884): parameter 'ENTROPY_SRC_REPCNT_HI_WATERMARKS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(885): parameter 'ENTROPY_SRC_REPCNTS_HI_WATERMARKS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(886): parameter 'ENTROPY_SRC_ADAPTP_HI_WATERMARKS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(887): parameter 'ENTROPY_SRC_ADAPTP_LO_WATERMARKS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(888): parameter 'ENTROPY_SRC_ADAPTP_LO_WATERMARKS_FIPS_WATERMARK_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(889): parameter 'ENTROPY_SRC_ADAPTP_LO_WATERMARKS_BYPASS_WATERMARK_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(890): parameter 'ENTROPY_SRC_EXTHT_HI_WATERMARKS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(891): parameter 'ENTROPY_SRC_EXTHT_LO_WATERMARKS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(892): parameter 'ENTROPY_SRC_EXTHT_LO_WATERMARKS_FIPS_WATERMARK_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(893): parameter 'ENTROPY_SRC_EXTHT_LO_WATERMARKS_BYPASS_WATERMARK_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(894): parameter 'ENTROPY_SRC_BUCKET_HI_WATERMARKS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(895): parameter 'ENTROPY_SRC_MARKOV_HI_WATERMARKS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(896): parameter 'ENTROPY_SRC_MARKOV_LO_WATERMARKS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(897): parameter 'ENTROPY_SRC_MARKOV_LO_WATERMARKS_FIPS_WATERMARK_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(898): parameter 'ENTROPY_SRC_MARKOV_LO_WATERMARKS_BYPASS_WATERMARK_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(899): parameter 'ENTROPY_SRC_REPCNT_TOTAL_FAILS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(900): parameter 'ENTROPY_SRC_REPCNTS_TOTAL_FAILS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(901): parameter 'ENTROPY_SRC_ADAPTP_HI_TOTAL_FAILS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(902): parameter 'ENTROPY_SRC_ADAPTP_LO_TOTAL_FAILS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(903): parameter 'ENTROPY_SRC_BUCKET_TOTAL_FAILS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(904): parameter 'ENTROPY_SRC_MARKOV_HI_TOTAL_FAILS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(905): parameter 'ENTROPY_SRC_MARKOV_LO_TOTAL_FAILS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(906): parameter 'ENTROPY_SRC_EXTHT_HI_TOTAL_FAILS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(907): parameter 'ENTROPY_SRC_EXTHT_LO_TOTAL_FAILS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(908): parameter 'ENTROPY_SRC_ALERT_SUMMARY_FAIL_COUNTS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(909): parameter 'ENTROPY_SRC_ALERT_FAIL_COUNTS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(910): parameter 'ENTROPY_SRC_EXTHT_FAIL_COUNTS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(911): parameter 'ENTROPY_SRC_FW_OV_WR_FIFO_FULL_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(912): parameter 'ENTROPY_SRC_FW_OV_RD_DATA_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(913): parameter 'ENTROPY_SRC_FW_OV_WR_DATA_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(914): parameter 'ENTROPY_SRC_OBSERVE_FIFO_DEPTH_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(915): parameter 'ENTROPY_SRC_DEBUG_STATUS_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(916): parameter 'ENTROPY_SRC_DEBUG_STATUS_MAIN_SM_IDLE_RESVAL' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_reg_pkg.sv(980): parameter 'ENTROPY_SRC_PERMIT' declared inside package 'entropy_src_reg_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/entropy_src/rtl/entropy_src_pkg.sv'
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(12): parameter 'RNG_BUS_WIDTH' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(13): parameter 'CSRNG_BUS_WIDTH' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(14): parameter 'FIPS_BUS_WIDTH' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(15): parameter 'FIPS_CSRNG_BUS_WIDTH' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(18): parameter 'WINDOW_CNTR_WIDTH' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(31): parameter 'ENTROPY_SRC_HW_IF_REQ_DEFAULT' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(32): parameter 'ENTROPY_SRC_HW_IF_RSP_DEFAULT' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(44): parameter 'CS_AES_HALT_REQ_DEFAULT' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(45): parameter 'CS_AES_HALT_RSP_DEFAULT' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(57): parameter 'ENTROPY_SRC_RNG_REQ_DEFAULT' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(58): parameter 'ENTROPY_SRC_RNG_RSP_DEFAULT' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(83): parameter 'ENTROPY_SRC_XHT_REQ_DEFAULT' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/entropy_src/rtl/entropy_src_pkg.sv(84): parameter 'ENTROPY_SRC_XHT_RSP_DEFAULT' declared inside package 'entropy_src_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/csrng/rtl/csrng_reg_pkg.sv'
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(10): parameter 'NumApps' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(11): parameter 'NumAlerts' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(14): parameter 'BlockAw' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(376): parameter 'CSRNG_INTR_STATE_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(377): parameter 'CSRNG_INTR_ENABLE_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(378): parameter 'CSRNG_INTR_TEST_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(379): parameter 'CSRNG_ALERT_TEST_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(380): parameter 'CSRNG_REGWEN_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(381): parameter 'CSRNG_CTRL_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(382): parameter 'CSRNG_CMD_REQ_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(383): parameter 'CSRNG_RESEED_INTERVAL_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(384): parameter 'CSRNG_RESEED_COUNTER_0_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(385): parameter 'CSRNG_RESEED_COUNTER_1_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(386): parameter 'CSRNG_RESEED_COUNTER_2_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(387): parameter 'CSRNG_SW_CMD_STS_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(388): parameter 'CSRNG_GENBITS_VLD_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(389): parameter 'CSRNG_GENBITS_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(390): parameter 'CSRNG_INT_STATE_READ_ENABLE_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(391): parameter 'CSRNG_INT_STATE_READ_ENABLE_REGWEN_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(392): parameter 'CSRNG_INT_STATE_NUM_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(393): parameter 'CSRNG_INT_STATE_VAL_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(394): parameter 'CSRNG_FIPS_FORCE_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(395): parameter 'CSRNG_HW_EXC_STS_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(396): parameter 'CSRNG_RECOV_ALERT_STS_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(397): parameter 'CSRNG_ERR_CODE_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(398): parameter 'CSRNG_ERR_CODE_TEST_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(399): parameter 'CSRNG_MAIN_SM_STATE_OFFSET' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(402): parameter 'CSRNG_INTR_TEST_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(403): parameter 'CSRNG_INTR_TEST_CS_CMD_REQ_DONE_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(404): parameter 'CSRNG_INTR_TEST_CS_ENTROPY_REQ_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(405): parameter 'CSRNG_INTR_TEST_CS_HW_INST_EXC_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(406): parameter 'CSRNG_INTR_TEST_CS_FATAL_ERR_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(407): parameter 'CSRNG_ALERT_TEST_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(408): parameter 'CSRNG_ALERT_TEST_RECOV_ALERT_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(409): parameter 'CSRNG_ALERT_TEST_FATAL_ALERT_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(410): parameter 'CSRNG_RESEED_COUNTER_0_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(411): parameter 'CSRNG_RESEED_COUNTER_0_RESEED_COUNTER_0_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(412): parameter 'CSRNG_RESEED_COUNTER_1_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(413): parameter 'CSRNG_RESEED_COUNTER_1_RESEED_COUNTER_1_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(414): parameter 'CSRNG_RESEED_COUNTER_2_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(415): parameter 'CSRNG_RESEED_COUNTER_2_RESEED_COUNTER_2_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(416): parameter 'CSRNG_GENBITS_VLD_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(417): parameter 'CSRNG_GENBITS_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(418): parameter 'CSRNG_INT_STATE_VAL_RESVAL' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_reg_pkg.sv(449): parameter 'CSRNG_PERMIT' declared inside package 'csrng_reg_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/csrng/rtl/csrng_pkg.sv'
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_pkg.sv(12): parameter 'GENBITS_BUS_WIDTH' declared inside package 'csrng_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_pkg.sv(13): parameter 'CSRNG_CMD_WIDTH' declared inside package 'csrng_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_pkg.sv(14): parameter 'FIPS_GENBITS_BUS_WIDTH' declared inside package 'csrng_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_pkg.sv(16): parameter 'MainSmStateWidth' declared inside package 'csrng_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_pkg.sv(17): parameter 'CSRNG_CMD_STS_WIDTH' declared inside package 'csrng_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_pkg.sv(44): parameter 'CSRNG_REQ_DEFAULT' declared inside package 'csrng_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_pkg.sv(45): parameter 'CSRNG_RSP_DEFAULT' declared inside package 'csrng_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/csrng/rtl/csrng_pkg.sv(107): parameter 'CsKeymgrDivWidth' declared inside package 'csrng_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/edn/rtl/edn_pkg.sv'
+[WARN (VERI-2418)] ./src/edn/rtl/edn_pkg.sv(12): parameter 'ENDPOINT_BUS_WIDTH' declared inside package 'edn_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/edn/rtl/edn_pkg.sv(13): parameter 'FIPS_ENDPOINT_BUS_WIDTH' declared inside package 'edn_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/edn/rtl/edn_pkg.sv(26): parameter 'EDN_REQ_DEFAULT' declared inside package 'edn_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/edn/rtl/edn_pkg.sv(27): parameter 'EDN_RSP_DEFAULT' declared inside package 'edn_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/edn/rtl/edn_pkg.sv(32): parameter 'BOOT_UNINSTANTIATE' declared inside package 'edn_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv'
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(10): parameter 'SiliconCreatorIdWidth' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(11): parameter 'ProductIdWidth' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(12): parameter 'RevisionIdWidth' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(13): parameter 'NumTokenWords' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(14): parameter 'CsrLcStateWidth' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(15): parameter 'CsrLcCountWidth' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(16): parameter 'CsrLcIdStateWidth' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(17): parameter 'CsrOtpTestCtrlWidth' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(18): parameter 'CsrOtpTestStatusWidth' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(19): parameter 'NumDeviceIdWords' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(20): parameter 'NumManufStateWords' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(21): parameter 'NumRmaAckSigs' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(22): parameter 'NumAlerts' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(25): parameter 'BlockAw' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(223): parameter 'LC_CTRL_ALERT_TEST_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(224): parameter 'LC_CTRL_STATUS_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(225): parameter 'LC_CTRL_CLAIM_TRANSITION_IF_REGWEN_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(226): parameter 'LC_CTRL_CLAIM_TRANSITION_IF_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(227): parameter 'LC_CTRL_TRANSITION_REGWEN_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(228): parameter 'LC_CTRL_TRANSITION_CMD_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(229): parameter 'LC_CTRL_TRANSITION_CTRL_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(230): parameter 'LC_CTRL_TRANSITION_TOKEN_0_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(231): parameter 'LC_CTRL_TRANSITION_TOKEN_1_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(232): parameter 'LC_CTRL_TRANSITION_TOKEN_2_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(233): parameter 'LC_CTRL_TRANSITION_TOKEN_3_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(234): parameter 'LC_CTRL_TRANSITION_TARGET_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(235): parameter 'LC_CTRL_OTP_VENDOR_TEST_CTRL_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(236): parameter 'LC_CTRL_OTP_VENDOR_TEST_STATUS_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(237): parameter 'LC_CTRL_LC_STATE_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(238): parameter 'LC_CTRL_LC_TRANSITION_CNT_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(239): parameter 'LC_CTRL_LC_ID_STATE_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(240): parameter 'LC_CTRL_HW_REVISION0_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(241): parameter 'LC_CTRL_HW_REVISION1_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(242): parameter 'LC_CTRL_DEVICE_ID_0_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(243): parameter 'LC_CTRL_DEVICE_ID_1_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(244): parameter 'LC_CTRL_DEVICE_ID_2_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(245): parameter 'LC_CTRL_DEVICE_ID_3_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(246): parameter 'LC_CTRL_DEVICE_ID_4_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(247): parameter 'LC_CTRL_DEVICE_ID_5_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(248): parameter 'LC_CTRL_DEVICE_ID_6_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(249): parameter 'LC_CTRL_DEVICE_ID_7_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(250): parameter 'LC_CTRL_MANUF_STATE_0_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(251): parameter 'LC_CTRL_MANUF_STATE_1_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(252): parameter 'LC_CTRL_MANUF_STATE_2_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(253): parameter 'LC_CTRL_MANUF_STATE_3_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(254): parameter 'LC_CTRL_MANUF_STATE_4_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(255): parameter 'LC_CTRL_MANUF_STATE_5_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(256): parameter 'LC_CTRL_MANUF_STATE_6_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(257): parameter 'LC_CTRL_MANUF_STATE_7_OFFSET' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(260): parameter 'LC_CTRL_ALERT_TEST_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(261): parameter 'LC_CTRL_ALERT_TEST_FATAL_PROG_ERROR_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(262): parameter 'LC_CTRL_ALERT_TEST_FATAL_STATE_ERROR_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(263): parameter 'LC_CTRL_ALERT_TEST_FATAL_BUS_INTEG_ERROR_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(264): parameter 'LC_CTRL_STATUS_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(265): parameter 'LC_CTRL_CLAIM_TRANSITION_IF_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(266): parameter 'LC_CTRL_CLAIM_TRANSITION_IF_MUTEX_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(267): parameter 'LC_CTRL_TRANSITION_REGWEN_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(268): parameter 'LC_CTRL_TRANSITION_REGWEN_TRANSITION_REGWEN_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(269): parameter 'LC_CTRL_TRANSITION_CMD_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(270): parameter 'LC_CTRL_TRANSITION_CTRL_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(271): parameter 'LC_CTRL_TRANSITION_TOKEN_0_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(272): parameter 'LC_CTRL_TRANSITION_TOKEN_1_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(273): parameter 'LC_CTRL_TRANSITION_TOKEN_2_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(274): parameter 'LC_CTRL_TRANSITION_TOKEN_3_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(275): parameter 'LC_CTRL_TRANSITION_TARGET_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(276): parameter 'LC_CTRL_OTP_VENDOR_TEST_CTRL_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(277): parameter 'LC_CTRL_OTP_VENDOR_TEST_STATUS_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(278): parameter 'LC_CTRL_LC_STATE_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(279): parameter 'LC_CTRL_LC_TRANSITION_CNT_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(280): parameter 'LC_CTRL_LC_ID_STATE_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(281): parameter 'LC_CTRL_HW_REVISION0_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(282): parameter 'LC_CTRL_HW_REVISION1_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(283): parameter 'LC_CTRL_HW_REVISION1_RESERVED_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(284): parameter 'LC_CTRL_DEVICE_ID_0_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(285): parameter 'LC_CTRL_DEVICE_ID_1_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(286): parameter 'LC_CTRL_DEVICE_ID_2_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(287): parameter 'LC_CTRL_DEVICE_ID_3_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(288): parameter 'LC_CTRL_DEVICE_ID_4_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(289): parameter 'LC_CTRL_DEVICE_ID_5_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(290): parameter 'LC_CTRL_DEVICE_ID_6_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(291): parameter 'LC_CTRL_DEVICE_ID_7_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(292): parameter 'LC_CTRL_MANUF_STATE_0_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(293): parameter 'LC_CTRL_MANUF_STATE_1_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(294): parameter 'LC_CTRL_MANUF_STATE_2_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(295): parameter 'LC_CTRL_MANUF_STATE_3_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(296): parameter 'LC_CTRL_MANUF_STATE_4_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(297): parameter 'LC_CTRL_MANUF_STATE_5_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(298): parameter 'LC_CTRL_MANUF_STATE_6_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(299): parameter 'LC_CTRL_MANUF_STATE_7_RESVAL' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_reg_pkg.sv(341): parameter 'LC_CTRL_PERMIT' declared inside package 'lc_ctrl_reg_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv'
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(19): parameter 'LcValueWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(21): parameter 'NumLcStateValues' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(22): parameter 'LcStateWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(23): parameter 'NumLcStates' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(24): parameter 'DecLcStateWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(25): parameter 'NumSocDbgStateValues' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(26): parameter 'SocDbgStateWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(27): parameter 'NumOwnershipStateValues' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(28): parameter 'OwnershipStateWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(29): parameter 'NumAuthStateValues' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(30): parameter 'AuthStateWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(33): parameter 'DecLcStateNumRep' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(34): parameter 'ExtDecLcStateWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(36): parameter 'NumLcCountValues' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(37): parameter 'LcCountWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(38): parameter 'NumLcCountStates' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(39): parameter 'DecLcCountWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(44): parameter 'NumLcIdStates' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(45): parameter 'DecLcIdStateWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(47): parameter 'DecLcIdStateNumRep' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(48): parameter 'ExtDecLcIdStateWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(98): parameter 'A0' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(99): parameter 'B0' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(101): parameter 'A1' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(102): parameter 'B1' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(104): parameter 'A2' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(105): parameter 'B2' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(107): parameter 'A3' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(108): parameter 'B3' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(110): parameter 'A4' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(111): parameter 'B4' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(113): parameter 'A5' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(114): parameter 'B5' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(116): parameter 'A6' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(117): parameter 'B6' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(119): parameter 'A7' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(120): parameter 'B7' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(122): parameter 'A8' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(123): parameter 'B8' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(125): parameter 'A9' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(126): parameter 'B9' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(128): parameter 'A10' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(129): parameter 'B10' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(131): parameter 'A11' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(132): parameter 'B11' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(134): parameter 'A12' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(135): parameter 'B12' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(137): parameter 'A13' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(138): parameter 'B13' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(140): parameter 'A14' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(141): parameter 'B14' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(143): parameter 'A15' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(144): parameter 'B15' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(146): parameter 'A16' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(147): parameter 'B16' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(149): parameter 'A17' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(150): parameter 'B17' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(152): parameter 'A18' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(153): parameter 'B18' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(155): parameter 'A19' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(156): parameter 'B19' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(161): parameter 'C0' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(162): parameter 'D0' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(164): parameter 'C1' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(165): parameter 'D1' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(167): parameter 'C2' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(168): parameter 'D2' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(170): parameter 'C3' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(171): parameter 'D3' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(173): parameter 'C4' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(174): parameter 'D4' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(176): parameter 'C5' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(177): parameter 'D5' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(179): parameter 'C6' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(180): parameter 'D6' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(182): parameter 'C7' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(183): parameter 'D7' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(185): parameter 'C8' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(186): parameter 'D8' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(188): parameter 'C9' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(189): parameter 'D9' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(191): parameter 'C10' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(192): parameter 'D10' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(194): parameter 'C11' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(195): parameter 'D11' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(197): parameter 'C12' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(198): parameter 'D12' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(200): parameter 'C13' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(201): parameter 'D13' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(203): parameter 'C14' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(204): parameter 'D14' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(206): parameter 'C15' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(207): parameter 'D15' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(209): parameter 'C16' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(210): parameter 'D16' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(212): parameter 'C17' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(213): parameter 'D17' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(215): parameter 'C18' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(216): parameter 'D18' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(218): parameter 'C19' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(219): parameter 'D19' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(221): parameter 'C20' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(222): parameter 'D20' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(224): parameter 'C21' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(225): parameter 'D21' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(227): parameter 'C22' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(228): parameter 'D22' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(230): parameter 'C23' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(231): parameter 'D23' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(235): parameter 'E0' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(236): parameter 'F0' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(238): parameter 'E1' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(239): parameter 'F1' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(243): parameter 'G0' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(244): parameter 'H0' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(246): parameter 'G1' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(247): parameter 'H1' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(249): parameter 'G2' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(250): parameter 'H2' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(252): parameter 'G3' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(253): parameter 'H3' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(255): parameter 'G4' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(256): parameter 'H4' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(258): parameter 'G5' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(259): parameter 'H5' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(261): parameter 'G6' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(262): parameter 'H6' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(264): parameter 'G7' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(265): parameter 'H7' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(269): parameter 'I0' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(270): parameter 'J0' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(272): parameter 'I1' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(273): parameter 'J1' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(276): parameter 'ZRO' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(416): parameter 'LcTokenWidth' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(419): parameter 'AllZeroToken' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(423): parameter 'RndCnstRawUnlockTokenDefault' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(426): parameter 'AllZeroTokenHashed' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_state_pkg.sv(429): parameter 'RndCnstRawUnlockTokenHashed' declared inside package 'lc_ctrl_state_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/lc_ctrl/rtl/lc_ctrl_pkg.sv'
+[INFO (VERI-1328)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(6): analyzing included file './src/caliptra_prim/rtl/caliptra_prim_assert.sv'
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(17): parameter 'NumTokens' declared inside package 'lc_ctrl_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(18): parameter 'TokenIdxWidth' declared inside package 'lc_ctrl_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(34): parameter 'TokenMuxBits' declared inside package 'lc_ctrl_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(41): parameter 'TxWidth' declared inside package 'lc_ctrl_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(52): parameter 'On' declared inside package 'lc_ctrl_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(53): parameter 'Off' declared inside package 'lc_ctrl_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(55): parameter 'LC_TX_DEFAULT' declared inside package 'lc_ctrl_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(57): parameter 'RmaSeedWidth' declared inside package 'lc_ctrl_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(59): parameter 'LC_FLASH_RMA_SEED_DEFAULT' declared inside package 'lc_ctrl_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(61): parameter 'LcKeymgrDivWidth' declared inside package 'lc_ctrl_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/lc_ctrl/rtl/lc_ctrl_pkg.sv(332): parameter 'TransTokenIdxMatrix' declared inside package 'lc_ctrl_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/aes/rtl/aes_reg_pkg.sv'
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(10): parameter 'NumRegsKey' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(11): parameter 'NumRegsIv' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(12): parameter 'NumRegsData' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(13): parameter 'NumAlerts' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(16): parameter 'BlockAw' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(267): parameter 'AES_ALERT_TEST_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(268): parameter 'AES_KEY_SHARE0_0_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(269): parameter 'AES_KEY_SHARE0_1_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(270): parameter 'AES_KEY_SHARE0_2_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(271): parameter 'AES_KEY_SHARE0_3_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(272): parameter 'AES_KEY_SHARE0_4_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(273): parameter 'AES_KEY_SHARE0_5_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(274): parameter 'AES_KEY_SHARE0_6_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(275): parameter 'AES_KEY_SHARE0_7_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(276): parameter 'AES_KEY_SHARE1_0_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(277): parameter 'AES_KEY_SHARE1_1_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(278): parameter 'AES_KEY_SHARE1_2_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(279): parameter 'AES_KEY_SHARE1_3_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(280): parameter 'AES_KEY_SHARE1_4_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(281): parameter 'AES_KEY_SHARE1_5_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(282): parameter 'AES_KEY_SHARE1_6_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(283): parameter 'AES_KEY_SHARE1_7_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(284): parameter 'AES_IV_0_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(285): parameter 'AES_IV_1_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(286): parameter 'AES_IV_2_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(287): parameter 'AES_IV_3_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(288): parameter 'AES_DATA_IN_0_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(289): parameter 'AES_DATA_IN_1_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(290): parameter 'AES_DATA_IN_2_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(291): parameter 'AES_DATA_IN_3_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(292): parameter 'AES_DATA_OUT_0_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(293): parameter 'AES_DATA_OUT_1_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(294): parameter 'AES_DATA_OUT_2_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(295): parameter 'AES_DATA_OUT_3_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(296): parameter 'AES_CTRL_SHADOWED_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(297): parameter 'AES_CTRL_AUX_SHADOWED_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(298): parameter 'AES_CTRL_AUX_REGWEN_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(299): parameter 'AES_TRIGGER_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(300): parameter 'AES_STATUS_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(301): parameter 'AES_CTRL_GCM_SHADOWED_OFFSET' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(304): parameter 'AES_ALERT_TEST_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(305): parameter 'AES_ALERT_TEST_RECOV_CTRL_UPDATE_ERR_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(306): parameter 'AES_ALERT_TEST_FATAL_FAULT_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(307): parameter 'AES_KEY_SHARE0_0_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(308): parameter 'AES_KEY_SHARE0_0_KEY_SHARE0_0_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(309): parameter 'AES_KEY_SHARE0_1_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(310): parameter 'AES_KEY_SHARE0_1_KEY_SHARE0_1_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(311): parameter 'AES_KEY_SHARE0_2_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(312): parameter 'AES_KEY_SHARE0_2_KEY_SHARE0_2_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(313): parameter 'AES_KEY_SHARE0_3_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(314): parameter 'AES_KEY_SHARE0_3_KEY_SHARE0_3_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(315): parameter 'AES_KEY_SHARE0_4_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(316): parameter 'AES_KEY_SHARE0_4_KEY_SHARE0_4_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(317): parameter 'AES_KEY_SHARE0_5_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(318): parameter 'AES_KEY_SHARE0_5_KEY_SHARE0_5_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(319): parameter 'AES_KEY_SHARE0_6_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(320): parameter 'AES_KEY_SHARE0_6_KEY_SHARE0_6_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(321): parameter 'AES_KEY_SHARE0_7_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(322): parameter 'AES_KEY_SHARE0_7_KEY_SHARE0_7_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(323): parameter 'AES_KEY_SHARE1_0_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(324): parameter 'AES_KEY_SHARE1_0_KEY_SHARE1_0_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(325): parameter 'AES_KEY_SHARE1_1_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(326): parameter 'AES_KEY_SHARE1_1_KEY_SHARE1_1_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(327): parameter 'AES_KEY_SHARE1_2_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(328): parameter 'AES_KEY_SHARE1_2_KEY_SHARE1_2_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(329): parameter 'AES_KEY_SHARE1_3_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(330): parameter 'AES_KEY_SHARE1_3_KEY_SHARE1_3_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(331): parameter 'AES_KEY_SHARE1_4_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(332): parameter 'AES_KEY_SHARE1_4_KEY_SHARE1_4_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(333): parameter 'AES_KEY_SHARE1_5_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(334): parameter 'AES_KEY_SHARE1_5_KEY_SHARE1_5_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(335): parameter 'AES_KEY_SHARE1_6_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(336): parameter 'AES_KEY_SHARE1_6_KEY_SHARE1_6_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(337): parameter 'AES_KEY_SHARE1_7_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(338): parameter 'AES_KEY_SHARE1_7_KEY_SHARE1_7_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(339): parameter 'AES_IV_0_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(340): parameter 'AES_IV_0_IV_0_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(341): parameter 'AES_IV_1_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(342): parameter 'AES_IV_1_IV_1_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(343): parameter 'AES_IV_2_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(344): parameter 'AES_IV_2_IV_2_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(345): parameter 'AES_IV_3_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(346): parameter 'AES_IV_3_IV_3_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(347): parameter 'AES_DATA_OUT_0_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(348): parameter 'AES_DATA_OUT_0_DATA_OUT_0_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(349): parameter 'AES_DATA_OUT_1_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(350): parameter 'AES_DATA_OUT_1_DATA_OUT_1_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(351): parameter 'AES_DATA_OUT_2_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(352): parameter 'AES_DATA_OUT_2_DATA_OUT_2_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(353): parameter 'AES_DATA_OUT_3_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(354): parameter 'AES_DATA_OUT_3_DATA_OUT_3_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(355): parameter 'AES_CTRL_SHADOWED_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(356): parameter 'AES_CTRL_SHADOWED_OPERATION_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(357): parameter 'AES_CTRL_SHADOWED_MODE_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(358): parameter 'AES_CTRL_SHADOWED_KEY_LEN_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(359): parameter 'AES_CTRL_SHADOWED_SIDELOAD_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(360): parameter 'AES_CTRL_SHADOWED_PRNG_RESEED_RATE_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(361): parameter 'AES_CTRL_SHADOWED_MANUAL_OPERATION_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(362): parameter 'AES_CTRL_GCM_SHADOWED_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(363): parameter 'AES_CTRL_GCM_SHADOWED_PHASE_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(364): parameter 'AES_CTRL_GCM_SHADOWED_NUM_VALID_BYTES_RESVAL' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_reg_pkg.sv(406): parameter 'AES_PERMIT' declared inside package 'aes_reg_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/aes/rtl/aes_pkg.sv'
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(11): parameter 'ClearStatusOnFatalAlert' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(15): parameter 'NumSharesKey' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(18): parameter 'SliceSizeCtr' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(19): parameter 'NumSlicesCtr' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(20): parameter 'SliceIdxWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(23): parameter 'SliceIdxMaxInc32' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(26): parameter 'WidthPRDClearing' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(27): parameter 'NumChunksPRDClearing128' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(28): parameter 'NumChunksPRDClearing256' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(31): parameter 'WidthPRDSBox' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(34): parameter 'WidthPRDData' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(35): parameter 'WidthPRDKey' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(36): parameter 'WidthPRDMasking' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(41): parameter 'ClearingLfsrWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(44): parameter 'RndCnstClearingLfsrSeedDefault' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(45): parameter 'RndCnstClearingLfsrPermDefault' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(50): parameter 'RndCnstClearingSharePermDefault' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(59): parameter 'MaskingLfsrWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(61): parameter 'RndCnstMaskingLfsrPermDefault' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(71): parameter 'MaskingPrngStateWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(73): parameter 'RndCnstMaskingLfsrSeedDefault' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(97): parameter 'GCMDegree' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(98): parameter 'GCMIPoly' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(104): parameter 'AES_OP_WIDTH' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(105): parameter 'AES_MODE_WIDTH' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(106): parameter 'AES_KEYLEN_WIDTH' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(107): parameter 'AES_PRNGRESEEDRATE_WIDTH' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(108): parameter 'AES_GCMPHASE_WIDTH' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(146): parameter 'BlockCtrWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(311): parameter 'Mux2SelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(333): parameter 'Mux3SelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(356): parameter 'Mux4SelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(409): parameter 'Mux6SelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(421): parameter 'DIPSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(422): parameter 'DIPSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(428): parameter 'SISelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(429): parameter 'SISelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(435): parameter 'AddSISelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(436): parameter 'AddSISelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(442): parameter 'StateSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(443): parameter 'StateSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(450): parameter 'AddRKSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(451): parameter 'AddRKSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(458): parameter 'KeyInitSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(459): parameter 'KeyInitSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(466): parameter 'IVSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(467): parameter 'IVSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(477): parameter 'KeyFullSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(478): parameter 'KeyFullSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(486): parameter 'KeyDecSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(487): parameter 'KeyDecSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(493): parameter 'KeyWordsSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(494): parameter 'KeyWordsSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(502): parameter 'RoundKeySelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(503): parameter 'RoundKeySelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(509): parameter 'AddSOSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(510): parameter 'AddSOSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(517): parameter 'GHashInSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(518): parameter 'GHashInSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(524): parameter 'GHashAddInSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(532): parameter 'GHashStateSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(533): parameter 'GHashStateSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(542): parameter 'GFMultInSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(550): parameter 'DataOutSelNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(551): parameter 'DataOutSelWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(558): parameter 'Sp2VNum' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(559): parameter 'Sp2VWidth' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(566): parameter 'SP2V_LOGIC_HIGH' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(578): parameter 'CTRL_RESET' declared inside package 'aes_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_pkg.sv(749): parameter 'CLP_AES_KV_WR_DW' declared inside package 'aes_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/aes/rtl/aes_sbox_canright_pkg.sv'
+[WARN (VERI-2418)] ./src/aes/rtl/aes_sbox_canright_pkg.sv(87): parameter 'A2X' declared inside package 'aes_sbox_canright_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_sbox_canright_pkg.sv(88): parameter 'X2A' declared inside package 'aes_sbox_canright_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_sbox_canright_pkg.sv(89): parameter 'X2S' declared inside package 'aes_sbox_canright_pkg' shall be treated as localparam
+[WARN (VERI-2418)] ./src/aes/rtl/aes_sbox_canright_pkg.sv(90): parameter 'S2X' declared inside package 'aes_sbox_canright_pkg' shall be treated as localparam
+[-- (VERI-1482)] Analyzing Verilog file './src/aes/rtl/aes_clp_reg_pkg.sv'
+% analyze -sv {*}$incdirs {*}$rtl_files
+[-- (VERI-1482)] Analyzing Verilog file './src/caliptra_prim/rtl/caliptra_prim_trivium.sv'
+[INFO (VERI-1328)] ./src/caliptra_prim/rtl/caliptra_prim_trivium.sv(57): analyzing included file './src/caliptra_prim/rtl/caliptra_prim_assert.sv'
+[-- (VERI-1482)] Analyzing Verilog file './src/aes/rtl/aes_prng_masking.sv'
+[INFO (VERI-1328)] ./src/aes/rtl/aes_prng_masking.sv(11): analyzing included file './src/caliptra_prim/rtl/caliptra_prim_assert.sv'
+% analyze -sv {*}$incdirs {*}$checker_files
+[-- (VERI-1482)] Analyzing Verilog file './cases/BUG-006/checker.sv'
+[-- (VERI-1482)] Analyzing Verilog file './formal/bind_all.sv'
+% 
+% elaborate -top aes_prng_masking
+INFO (ISW003): Top module name is "aes_prng_masking".
+[WARN (VERI-2418)] ./src/libs/rtl/caliptra_macros.svh(24): parameter 'CLP_DEBUG_MODE_KV_0' declared inside compilation unit '\$unit__tmp_csbc_caliptra_hackatdac26_phase_2_caliptra_src_integration_rtl_config_defines_svh ' shall be treated as localparam
+[WARN (VERI-2418)] ./src/libs/rtl/caliptra_macros.svh(25): parameter 'CLP_DEBUG_MODE_KV_1' declared inside compilation unit '\$unit__tmp_csbc_caliptra_hackatdac26_phase_2_caliptra_src_integration_rtl_config_defines_svh ' shall be treated as localparam
+[INFO (HIER-8002)] ./src/aes/rtl/aes_prng_masking.sv(152): Disabling old hierarchical reference handler
+[INFO (VERI-1018)] ./src/caliptra_prim/rtl/caliptra_prim_trivium.sv(59): compiling module 'caliptra_prim_trivium:(BiviumVariant=1'b1,OutputWidth=32'b010100000,StrictLockupProtection=1'b1,SeedType=SeedTypeStatePartial_caliptra_prim_trivium_pkg,PartialSeedWidth=32'b0100000,RndCnstTriviumLfsrSeed=288'b011101011000101001000100001000000011000111100001110001000110000101101110101000110100001111101100000101010011001010000010101000110000110000010011001010110101011100100011110001011010010011001111010001110100001110110011110001111100001100101101010110000000111101110100111100010111000100111010)'
+[INFO (VERI-1018)] ./cases/BUG-006/checker.sv(1): compiling module 'CSBC_CALIPTRA_AES_BUG006_checker'
+[INFO (VERI-1018)] ./src/aes/rtl/aes_prng_masking.sv(13): compiling module 'aes_prng_masking'
+[WARN (VERI-1060)] ./src/aes/rtl/aes_prng_masking.sv(149): 'initial' construct is ignored
+INFO (INL208): Elaboration synthesis summary:
+  Number of synthesized netlists          11 (8 packages)
+  Single run mode                         On
+  Pipeline                                On (3 pipelined netlists)
+  Late hierarchical reference connection  On
+  Number of analyzed Verilog modules      41 (11 synthesized)
+  Number of analyzed VHDL entities        0 (0 synthesized)
+INFO (INL003): Clearing all state information (assumes, stopats, and so forth).
+aes_prng_masking
+[<embedded>] % clock clk_i
+[<embedded>] % reset -expression {!rst_ni}
+INFO (IPM031): Clearing proof results of all properties.
+INFO (IRS006): Current reset condition is "rst_ni".
+[<embedded>] % 
+[<embedded>] % prove -all -engine_mode {H B F N} -per_property_time_limit 120s
+INFO (IPF036): Starting proof on task: "<embedded>", 5 properties to prove with 0 already proven/unreachable
+INFO (IRS029): Starting reset analysis: phase [1/4].
+INFO (IRS030): Running reset analysis: phase [2/4].
+INFO (IRS031): Running reset analysis: phase [3/4].
+INFO (IRS020): Starting the reset analysis simulation with a limit of 100 iterations (phase [4/4]).
+INFO (IRS024): Reset iterations 0 to 3 analyzed.
+INFO (IRS018): Reset analysis simulation executed for 2 iterations. Assigned values for 181 of 181 design flops, 0 of 0 design latches, 5 of 5 internal elements.
+INFO (IRS039): Reset analysis complete.
+INFO (IPF031): Settings used for proof thread 0:
+    orchestration                 = off (auto)
+    time_limit                    = 86400s
+    per_property_time_limit       = 120s * 10 ^ scan
+    engine_mode                   = H B F N 
+    proofgrid_per_engine_max_jobs = 1
+    max engine jobs               = H B F N, total 4
+    proofgrid_mode                = local
+    proofgrid_restarts            = 10
+0: Using multistage preprocessing
+0: Starting reduce
+0: Finished reduce in 0s
+0.0.PRE: Performing Proof Simplification...
+0.0.H: clocks: 1, declared: 1, looping: 0, posedge: 1, negedge: 0, noedge: 0, bothedge: 0
+0.0.H: Proof Simplification Iteration 1	[0.00 s]
+0.0.PRE: A trace with 1 cycles was found. [0.00 s]
+INFO (IPF055): 0.0.PRE: A counterexample (cex) with 1 cycles was found for the property "aes_prng_masking.u_CSBC_CALIPTRA_AES_BUG006_checker.CSBC_CALIPTRA_AES_BUG006_FORCE_MASKS_DISABLED_BLOCKS_LOCKUP" in 0.00 s.
+INFO (IPF047): 0.0.PRE: The cover property "aes_prng_masking.u_CSBC_CALIPTRA_AES_BUG006_checker.CSBC_CALIPTRA_AES_BUG006_FORCE_MASKS_DISABLED_BLOCKS_LOCKUP:precondition1" was covered in 1 cycles in 0.00 s.
+INFO (IPF055): 0.0.PRE: A counterexample (cex) with 1 cycles was found for the property "aes_prng_masking.u_CSBC_CALIPTRA_AES_BUG006_checker.CSBC_CALIPTRA_AES_BUG006_DISABLED_LOCKUP_INVARIANT" in 0.00 s.
+INFO (IPF047): 0.0.PRE: The cover property "aes_prng_masking.u_CSBC_CALIPTRA_AES_BUG006_checker.CSBC_CALIPTRA_AES_BUG006_TRIGGER" was covered in 1 cycles in 0.00 s.
+INFO (IPF047): 0.0.PRE: The cover property "aes_prng_masking.u_CSBC_CALIPTRA_AES_BUG006_checker.CSBC_CALIPTRA_AES_BUG006_VIOLATION" was covered in 1 cycles in 0.00 s.
+0.0.H: Proof Simplification Iteration 2	[0.01 s]
+0.0.PRE: A proof was found: No trace exists. [0.00 s]
+INFO (IPF057): 0.0.PRE: The property ":noDeadEnd" was proven in 0.00 s.
+    Use check_assumptions -show -dead_end to show this property in the property table.
+0.0.PRE: A proof was found: No trace exists. [0.00 s]
+INFO (IPF057): 0.0.PRE: The property ":noConflict" was proven in 0.00 s.
+    Use check_assumptions -show to show this property in the property table.
+INFO (IPF047): 0.0.PRE: The cover property ":live" was covered in 1 cycles in 0.00 s.
+    Use check_assumptions -show -live to show this property in the property table.
+0.0.PRE: Proof Simplification completed in 0.01 s
+INFO (IPF059): Completed proof on task: "<embedded>" for proof thread 0
+
+==============================================================
+SUMMARY
+==============================================================
+           Properties Considered              : 5
+                 assertions                   : 2
+                  - proven                    : 0 (0%)
+                  - bounded_proven (user)     : 0 (0%)
+                  - bounded_proven (auto)     : 0 (0%)
+                  - marked_proven             : 0 (0%)
+                  - cex                       : 2 (100%)
+                  - ar_cex                    : 0 (0%)
+                  - undetermined              : 0 (0%)
+                  - unknown                   : 0 (0%)
+                  - error                     : 0 (0%)
+                 covers                       : 3
+                  - unreachable               : 0 (0%)
+                  - bounded_unreachable (user): 0 (0%)
+                  - covered                   : 3 (100%)
+                  - ar_covered                : 0 (0%)
+                  - undetermined              : 0 (0%)
+                  - unknown                   : 0 (0%)
+                  - error                     : 0 (0%)
+determined
+[<embedded>] % report -summary -results -file "$module_root/results/bug006_property_summary.txt"
+[<embedded>] % save -jdb -force "$module_root/results/bug006.jdb"
+./results/bug006.jdb
+[<embedded>] % exit
+[<embedded>] % INFO (IPL005): Received request to exit from the console.
+INFO (IPL014): Waiting for the Tcl-thread to exit.
+INFO: Waiting for proof threads to stop...
+INFO: Proof threads stopped.
+INFO (IPL018): The peak resident set memory use for this session was 0.470 GB.
+INFO (IPL015): The Tcl-thread exited with status 0.
+INFO (IPL016): Exiting the analysis session with status 0.

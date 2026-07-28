@@ -1,0 +1,49 @@
+
+==============================================================
+    Jasper Verification Results
+==============================================================
+    2022.09p001 64 bits for Linux64 3.10.0-1062.1.2.el7.x86_64
+    Host Name: <redacted>
+    User Name: <redacted>
+    Printed on: 星期二, 7月28, 2026 11:19:46 下午 CST
+    Working Directory: ./results
+
+
+==============================================================
+SUMMARY
+==============================================================
+    Total Tasks           : 1
+    Total Properties      : 5
+          assumptions     : 0                   
+           - approved     : 0                   
+           - temporary    : 0                   
+          assertions      : 2                   
+           - proven       : 0                   ( 0.0% )
+           - marked_proven: 0                   ( 0.0% )
+           - cex          : 2                   ( 100.0% )
+           - ar_cex       : 0                   ( 0.0% )
+           - undetermined : 0                   ( 0.0% )
+           - unprocessed  : 0                   ( 0.0% )
+           - error        : 0                   ( 0.0% )
+          covers          : 3                   
+           - unreachable  : 0                   ( 0.0% )
+           - covered      : 3                   ( 100.0% )
+           - ar_covered   : 0                   ( 0.0% )
+           - undetermined : 0                   ( 0.0% )
+           - unprocessed  : 0                   ( 0.0% )
+           - error        : 0                   ( 0.0% )
+
+==============================================================
+RESULTS
+==============================================================
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+       Name                                                                                                                              |    Result    |  Engine  |  Bound  |  Time    
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+---[ <embedded> ]-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+[1]   aes_prng_masking.u_CSBC_CALIPTRA_AES_BUG006_checker.CSBC_CALIPTRA_AES_BUG006_FORCE_MASKS_DISABLED_BLOCKS_LOCKUP                         cex             PRE           1    0.000 s      
+[2]   aes_prng_masking.u_CSBC_CALIPTRA_AES_BUG006_checker.CSBC_CALIPTRA_AES_BUG006_FORCE_MASKS_DISABLED_BLOCKS_LOCKUP:precondition1           covered         PRE           1    0.000 s      
+[3]   aes_prng_masking.u_CSBC_CALIPTRA_AES_BUG006_checker.CSBC_CALIPTRA_AES_BUG006_DISABLED_LOCKUP_INVARIANT                                  cex             PRE           1    0.000 s      
+[4]   aes_prng_masking.u_CSBC_CALIPTRA_AES_BUG006_checker.CSBC_CALIPTRA_AES_BUG006_TRIGGER                                                    covered         PRE           1    0.000 s      
+[5]   aes_prng_masking.u_CSBC_CALIPTRA_AES_BUG006_checker.CSBC_CALIPTRA_AES_BUG006_VIOLATION                                                  covered         PRE           1    0.000 s      

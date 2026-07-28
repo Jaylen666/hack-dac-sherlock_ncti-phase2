@@ -1,0 +1,33 @@
+{
+  "schema_version": "csbc.property_index.v1",
+  "properties": [
+    {
+      "bug_id": "006",
+      "name": "CSBC_CALIPTRA_AES_BUG006_FORCE_MASKS_DISABLED_BLOCKS_LOCKUP",
+      "kind": "assert",
+      "intent": "When force-mask support is disabled, force_masks_i must not assert the Bivium lockup override.",
+      "expected_outcome_on_submitted_rtl": "FAIL"
+    },
+    {
+      "bug_id": "006",
+      "name": "CSBC_CALIPTRA_AES_BUG006_DISABLED_LOCKUP_INVARIANT",
+      "kind": "assert",
+      "intent": "When force-mask support is disabled, bivium_allow_lockup must remain low for all input valuations.",
+      "expected_outcome_on_submitted_rtl": "FAIL"
+    },
+    {
+      "bug_id": "006",
+      "name": "CSBC_CALIPTRA_AES_BUG006_TRIGGER",
+      "kind": "trigger_cover",
+      "intent": "Cover SecAllowForcingMasks=0 with force_masks_i=1.",
+      "expected_outcome_on_submitted_rtl": "COVERED"
+    },
+    {
+      "bug_id": "006",
+      "name": "CSBC_CALIPTRA_AES_BUG006_VIOLATION",
+      "kind": "violation_cover",
+      "intent": "Cover the disabled feature gate with force_masks_i=1 and bivium_allow_lockup=1.",
+      "expected_outcome_on_submitted_rtl": "COVERED"
+    }
+  ]
+}

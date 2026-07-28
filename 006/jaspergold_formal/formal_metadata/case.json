@@ -1,0 +1,89 @@
+{
+  "bug_id": "006",
+  "bug_name": "aes_prng_masking_force_masks_gate",
+  "module": "aes",
+  "target_module": "aes_prng_masking",
+  "status": "PROVEN_ON_SUBMITTED_RTL",
+  "checker_file": "checker.sv",
+  "bind_file": "bind_fragment.sv",
+  "bind_targets": [
+    "aes_prng_masking"
+  ],
+  "property_goal": "Show that the submitted RTL allows force_masks_i to drive the Bivium lockup override even when SecAllowForcingMasks is disabled.",
+  "expected_formal_outcome": {
+    "assertions": "FAIL on the submitted RTL when SecAllowForcingMasks=0 and force_masks_i=1 is reachable.",
+    "trigger_cover": "COVERED with force_masks_i=1 and SecAllowForcingMasks=0.",
+    "violation_cover": "COVERED in the same sampled cycle because bivium_allow_lockup follows force_masks_i."
+  },
+  "properties": [
+    {
+      "name": "CSBC_CALIPTRA_AES_BUG006_FORCE_MASKS_DISABLED_BLOCKS_LOCKUP",
+      "kind": "assert",
+      "intent": "When force-mask support is disabled, a high force_masks_i input must not assert the Bivium lockup override.",
+      "temporal_reasoning": "force_masks_i and bivium_allow_lockup are combinationally related in aes_prng_masking, so a same-cycle implication is sufficient."
+    },
+    {
+      "name": "CSBC_CALIPTRA_AES_BUG006_DISABLED_LOCKUP_INVARIANT",
+      "kind": "assert",
+      "intent": "When force-mask support is disabled, the Bivium lockup override should remain low for every input valuation.",
+      "temporal_reasoning": "The feature gate is a static parameter and the checked signal is combinational in the target RTL."
+    },
+    {
+      "name": "CSBC_CALIPTRA_AES_BUG006_TRIGGER",
+      "kind": "trigger_cover",
+      "intent": "Cover the reachable trigger: SecAllowForcingMasks is disabled and force_masks_i is high.",
+      "temporal_reasoning": "The trigger is sampled in one active clock cycle after reset."
+    },
+    {
+      "name": "CSBC_CALIPTRA_AES_BUG006_VIOLATION",
+      "kind": "violation_cover",
+      "intent": "Cover the trigger while the Bivium lockup override is high.",
+      "temporal_reasoning": "The implemented violation is same-cycle because bivium_allow_lockup is assigned directly from force_masks_i."
+    }
+  ],
+  "source_evidence": [
+    {
+      "path": "src/aes/rtl/aes_prng_masking.sv",
+      "line": 17,
+      "reason": "Declares SecAllowForcingMasks, the static feature gate for force_masks_i."
+    },
+    {
+      "path": "src/aes/rtl/aes_prng_masking.sv",
+      "line": 71,
+      "reason": "Treats force_masks_i as unused when SecAllowForcingMasks is 0."
+    },
+    {
+      "path": "src/aes/rtl/aes_prng_masking.sv",
+      "line": 87,
+      "reason": "Assigns bivium_allow_lockup directly from force_masks_i."
+    },
+    {
+      "path": "src/aes/rtl/aes_prng_masking.sv",
+      "line": 104,
+      "reason": "Forwards bivium_allow_lockup to the Bivium primitive allow_lockup_i port."
+    }
+  ],
+  "assumption_review": {
+    "assumptions_generated": false,
+    "justification": "No environmental assumptions are needed. force_masks_i is an unconstrained input and the failing path is combinational before any primitive state matters."
+  },
+  "limitations": [
+    "The proof observes the wrapper signal bivium_allow_lockup, which is the signal driving the primitive input. It does not model primitive state.",
+    "The proof establishes that the override input is assertable while the feature gate is disabled. It does not by itself establish a downstream state change; see the containment note in README.md."
+  ],
+  "source_hashes": {
+    "src/aes/rtl/aes_prng_masking.sv": "3be08943abaeb1bfd9efc40414ae15e1276b9a400e3f9f7cb9af5e4cde2ffd45"
+  },
+  "generation_metadata": {
+    "schema_version": "csbc.caliptra.formal_case.v1",
+    "generated_at_utc": "2026-07-28T09:20:00Z",
+    "local_formal_status": "RUN_ON_COMPUTE_SERVER"
+  },
+  "actual_formal_outcome": {
+    "tool": "JasperGold 2022.09p001",
+    "assertions": "2 of 2 returned counterexamples (cex) at bound 1",
+    "covers": "3 of 3 covered at bound 1",
+    "vacuity": "the :noDeadEnd and :noConflict properties were proven, and no assumptions were used",
+    "elaboration": "aes_prng_masking elaborated as top with 41 analyzed Verilog modules and no blackbox"
+  }
+}

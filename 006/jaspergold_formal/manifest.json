@@ -1,0 +1,135 @@
+{
+  "bug_id": "006",
+  "bug_name": "aes_prng_masking_force_masks_gate",
+  "module": "aes",
+  "evidence_version": "jaspergold_formal",
+  "relationship_to_sibling_evidence": "Second, independent proof of the same finding as the directed-simulation evidence packaged for bug 006. The simulation witness observes one stimulus; this formal proof shows the property fails for every reachable input valuation. Neither supersedes the other.",
+  "title": "Formal proof that force_masks_i drives the Bivium lockup override while the force-mask feature gate is disabled",
+  "outcome": "property_violated_on_submitted_rtl",
+  "evidence_method": [
+    "formal_property_proof"
+  ],
+  "tool": {
+    "name": "JasperGold",
+    "version": "2022.09p001",
+    "mode": "batch, prove -all, engine_mode {H B F N}, per-property limit 120s"
+  },
+  "target": {
+    "module": "aes_prng_masking",
+    "elaborated_top": "aes_prng_masking",
+    "primary_location": "src/aes/rtl/aes_prng_masking.sv:87",
+    "line_range": "17-104",
+    "analyzed_verilog_modules": 41,
+    "blackboxed_modules": "none",
+    "clock": "clk_i",
+    "reset": "!rst_ni",
+    "assumptions_used": 0
+  },
+  "verified_source_hash": {
+    "path": "src/aes/rtl/aes_prng_masking.sv",
+    "sha256": "3be08943abaeb1bfd9efc40414ae15e1276b9a400e3f9f7cb9af5e4cde2ffd45",
+    "note": "Recomputed against the submitted tree at packaging time and confirmed identical, so the proof ran on the same bytes as the submitted RTL."
+  },
+  "properties": {
+    "total": 5,
+    "assertions": 2,
+    "assertions_cex": 2,
+    "assertions_proven": 0,
+    "covers": 3,
+    "covers_covered": 3,
+    "covers_unreachable": 0,
+    "undetermined": 0,
+    "error": 0
+  },
+  "property_results": [
+    {
+      "name": "CSBC_CALIPTRA_AES_BUG006_FORCE_MASKS_DISABLED_BLOCKS_LOCKUP",
+      "kind": "assert",
+      "expected": "FAIL",
+      "observed": "cex",
+      "bound": 1,
+      "intent": "With the feature gate disabled, a high force_masks_i must not assert the Bivium lockup override."
+    },
+    {
+      "name": "CSBC_CALIPTRA_AES_BUG006_DISABLED_LOCKUP_INVARIANT",
+      "kind": "assert",
+      "expected": "FAIL",
+      "observed": "cex",
+      "bound": 1,
+      "intent": "With the feature gate disabled, bivium_allow_lockup must stay low for every input valuation."
+    },
+    {
+      "name": "CSBC_CALIPTRA_AES_BUG006_TRIGGER",
+      "kind": "cover",
+      "expected": "COVERED",
+      "observed": "covered",
+      "bound": 1,
+      "intent": "The trigger state is reachable: feature gate disabled with force_masks_i high."
+    },
+    {
+      "name": "CSBC_CALIPTRA_AES_BUG006_VIOLATION",
+      "kind": "cover",
+      "expected": "COVERED",
+      "observed": "covered",
+      "bound": 1,
+      "intent": "The violating state is reachable: trigger plus bivium_allow_lockup high."
+    }
+  ],
+  "vacuity_controls": {
+    "noDeadEnd": "proven",
+    "noConflict": "proven",
+    "assumptions_declared": 0,
+    "why_it_matters": "An assertion can fail vacuously if the environment is over-constrained or the precondition is unreachable. No assumptions were declared, both structural vacuity checks were proven, and the two cover properties independently establish that the trigger and the violating state are reachable. The counterexamples are therefore real rather than artifacts of the setup."
+  },
+  "counterexample": {
+    "bound": 1,
+    "witness_state": "SecAllowForcingMasks=0, force_masks_i=1, bivium_allow_lockup=1",
+    "note": "One active clock cycle after reset is sufficient, because src/aes/rtl/aes_prng_masking.sv:87 is a combinational assignment."
+  },
+  "supporting_locations": [
+    "src/aes/rtl/aes_prng_masking.sv:17",
+    "src/aes/rtl/aes_prng_masking.sv:69",
+    "src/aes/rtl/aes_prng_masking.sv:71",
+    "src/aes/rtl/aes_prng_masking.sv:73",
+    "src/aes/rtl/aes_prng_masking.sv:87",
+    "src/aes/rtl/aes_prng_masking.sv:104",
+    "src/aes/rtl/aes_cipher_core.sv:844",
+    "src/aes/rtl/aes_cipher_core.sv:858",
+    "src/aes/rtl/aes_cipher_core.sv:865",
+    "src/caliptra_prim/rtl/caliptra_prim_trivium.sv:188",
+    "src/aes/data/aes.rdl:169-177"
+  ],
+  "scope_and_containment": {
+    "what_is_proven": "The override input of the Bivium primitive is assertable from force_masks_i for every reachable input valuation while the compile-time feature gate SecAllowForcingMasks is 0, which is the shipped configuration at every level of the AES hierarchy.",
+    "what_is_not_proven": "That a lockup state actually persists. src/caliptra_prim/rtl/caliptra_prim_trivium.sv:188 computes restore = lockup & (StrictLockupProtection | ~allow_lockup_i), and the wrapper passes StrictLockupProtection(!SecAllowForcingMasks), which is 1 in the same configuration. The OR term therefore holds the restore path high and the primitive is still recovered from an all-zero state.",
+    "consequence": "This is a defense-in-depth defect: a disabled SCA-only test input reaches a security-control port it should not reach, and the containment that saves it is a separate parameter in a different module. It is not a directly exploitable masking bypass, which is why the severity recorded for bug 006 is Low."
+  },
+  "in_tree_contrast": "Every other use of force_masks_i in the AES tree qualifies it with the feature gate: src/aes/rtl/aes_cipher_core.sv:844, :858, :865, :876 and :882 all write (SecAllowForcingMasks && force_masks_i). src/aes/rtl/aes_prng_masking.sv:87 is the sole unqualified use. The same file also declares the input unused when the gate is 0 at :71-73, contradicting its own use at :87.",
+  "files": {
+    "scripts": [
+      "scripts/run_bug006_formal.sh",
+      "scripts/jasper_bug006.tcl"
+    ],
+    "tb": [
+      "tb/checker.sv",
+      "tb/bind_all.sv"
+    ],
+    "logs": [
+      "logs/bug006_jasper.log",
+      "logs/bug006_property_summary.txt"
+    ],
+    "formal_metadata": [
+      "formal_metadata/case.json",
+      "formal_metadata/property_index.json",
+      "formal_metadata/result_contract.json",
+      "formal_metadata/source_files.json"
+    ],
+    "root": [
+      "README.md",
+      "manifest.json"
+    ]
+  },
+  "reproduce": "CALIPTRA_ROOT=<caliptra checkout> ./scripts/run_bug006_formal.sh",
+  "reproduce_requires": "JasperGold on PATH (override with JASPERGOLD_BIN). Without a JasperGold license the shipped logs in logs/ are the record of the run.",
+  "detection_method": "The candidate was identified by CSBC, an LLM-driven RTL security analysis framework, and independently validated by JasperGold formal property proof against the submitted RTL."
+}
