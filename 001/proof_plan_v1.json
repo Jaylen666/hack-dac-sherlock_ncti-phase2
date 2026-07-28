@@ -1,0 +1,57 @@
+{
+  "module": "aes",
+  "bug_id": "001",
+  "bug_name": "aes_bug_001",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "An agent with authorized debug access, or with scan access to the device, able to drive the transition into debug-unlocked or scan mode and then observe the AES KeyVault export flops. No privileged software execution inside Caliptra is required.",
+    "precondition": "An AES operation with a KeyVault destination has completed, so the 512-bit export buffer holds the result and its valid bit is set, and the KeyVault has not yet consumed it.",
+    "input": "Entry into debug-unlocked or scan mode, which raises caliptra2aes.clear_secrets at src/aes/rtl/aes_clp_wrapper.sv:304.",
+    "protected_asset": "The AES KeyVault export buffer aes2caliptra_kv_data_out and its valid bit, which carry a derived key or other secret result on the KeyVault write interface.",
+    "security_property": "Entry into debug-unlocked or scan mode must clear all device secrets in hardware, as required by docs/CaliptraHardwareSpecification.md:279; the export buffer and its valid bit must therefore go to zero when clear_secrets asserts.",
+    "implemented_logic": "src/aes/rtl/aes.sv:241-282 gates both KeyVault export registers only on the firmware TRIGGER.DATA_OUT_CLEAR trigger (lines 245 and 268) and on KeyVault consumption via caliptra2aes.kv_write_done (lines 249 and 277). The AES core contains no occurrence of clear_secrets, so the clearing request raised by the wrapper is never consumed and both registers retain the secret across the transition."
+  },
+  "security_feature_bypassed": "Hardware clearing of device secrets on entry to debug-unlocked or scan mode, as required by docs/CaliptraHardwareSpecification.md:279",
+  "proof_goal": "Show that asserting caliptra2aes.clear_secrets leaves both the 512-bit AES KeyVault export buffer and its valid bit intact, while the two clear sources the RTL does implement empty them.",
+  "proof_style": "structural_audit + directed_sim",
+  "invariant": "Whenever caliptra2aes.clear_secrets is asserted, aes2caliptra.kv_data_out must become zero and aes2caliptra.kv_data_out_valid must become 0 within the following clock cycles.",
+  "attacker_model": "An agent with authorized debug access, or with scan access to the device, that can drive the transition into debug-unlocked or scan mode and then observe the AES KeyVault export flops. No privileged software execution inside Caliptra is required.",
+  "minimum_attack_sequence": [
+    "Run an AES operation whose result is destined for the KeyVault so the export buffer is loaded and its valid bit is set.",
+    "Before the KeyVault consumes the result, enter debug-unlocked or scan mode so caliptra2aes.clear_secrets asserts.",
+    "Sample aes2caliptra.kv_data_out and aes2caliptra.kv_data_out_valid."
+  ],
+  "controls": [
+    "control_data_out_clear: the firmware TRIGGER.DATA_OUT_CLEAR path must empty both registers.",
+    "control_kv_write_done: consumption of the result by the KeyVault must empty both registers."
+  ],
+  "witness_construction_note": "The testbench instantiates one real aes module. The KeyVault export buffer is loaded over the module's own capture path, which normal operation reaches through an AES-with-KeyVault-destination flow; to keep the witness short and deterministic, the internal capture controls on that same path are driven directly during the load phase only, and every such drive is released before any clear is applied. TRIGGER.DATA_OUT_CLEAR is the one exception: it resets asserted (RESVAL 1'h1 at src/aes/rtl/aes_reg_top.sv:1199) and is deasserted by the AES control FSM once a clear completes, so the testbench holds it at that normal deasserted value. Holding it deasserted is the non-clearing state and therefore cannot manufacture the retention under test.",
+  "expected_evidence": [
+    "Structural gates confirming clear_secrets is produced by the wrapper, is a declared field of the interface, and has zero occurrences in the AES core.",
+    "Structural gates confirming both export registers exist, honour only the firmware trigger and KeyVault consumption, and are exported on the KeyVault interface.",
+    "A structural gate confirming the in-tree specification requires a hardware clear of device secrets on debug entry.",
+    "A simulation log in which both control cases clear the buffer and its valid bit, and the violating case leaves both intact."
+  ],
+  "success_criteria": [
+    "All structural gates report gate_ok.",
+    "Both control cases pass, proving the clearing check is not vacuous.",
+    "Exactly one witness hit is observed and the script prints result=PASS and BUG_001_WITNESS_OBSERVED.",
+    "The script exits nonzero if either control fails or the witness is absent."
+  ],
+  "non_findings": [
+    "This case does not measure scan-chain or JTAG extraction of the retained flops; it proves the missing hardware clear and the retention of the exported buffer and its valid bit.",
+    "This case does not claim the KeyVault itself fails to clear its own storage; the scope is the AES export buffer.",
+    "This case does not claim the firmware clear path is broken; that path is exercised as a passing control."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/001/proof/tb/aes_bug_001_tb.sv",
+    "script": "final_bug_submissions/001/proof/scripts/run_bug_001_proof.sh",
+    "logs": [
+      "final_bug_submissions/001/proof/logs/run.log",
+      "final_bug_submissions/001/proof/logs/compile.log",
+      "final_bug_submissions/001/proof/logs/sim.log",
+      "final_bug_submissions/001/proof/logs/witness.log"
+    ]
+  }
+}

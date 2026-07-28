@@ -1,0 +1,49 @@
+BUG-033 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T10:41:31+08:00
+gate_ok: The DIGEST hwclr is driven by the second strobe zeroize_reg2
+gate_ok: zeroize_reg2 = ~((~ZEROIZE) & debug_or_scan), which reduces to ZEROIZE | ~debug_or_scan
+gate_ok: The correct strobe zeroize_reg = ZEROIZE || debug_or_scan is formed on the same concatenation
+gate_ok: The second strobe is declared as an ordinary local signal, so its introduction is silent
+zeroize_reg2_sites_in_file=3
+gate_ok: zeroize_reg2 appears at exactly 3 sites in this file: declaration, assignment target, and one consumer
+census_zeroize_driven_hwclr_total=22
+census_driven_by_correct_strobe=20
+census_driven_by_inverted_strobe=2
+census_inverted_site=src/sha256/rtl/sha256.sv:403
+census_inverted_site=src/sha512/rtl/sha512.sv:300
+census_crypto_blocks_using_the_convention=6 (doe,ecc,hmac,sha256,sha512,soc_ifc)
+gate_ok: The tree contains 22 zeroize-driven hwclr sites, a large in-tree control population
+gate_ok: 20 of them are driven by the correct, non-inverted strobe
+gate_ok: Only 2 are driven by an inverted second strobe
+gate_ok: One of those two is the line under audit
+gate_ok: The wipe convention spans 6 crypto blocks, so it is design-wide rather than local to one file
+ecc_zeroize_hwclr_sites=12
+gate_ok: Control: ECC wipes 12 secret registers, including PRIVKEY_OUT and SIGN_S, from the correct strobe
+gate_ok: Control: HMAC wipes its TAG output register from the correct strobe
+gate_ok: Control: the SHA-512 accelerator in soc_ifc wipes its own DIGEST window from an uninverted pulse
+gate_ok: In-file control: the next hwclr line clears GEN_PCR_HASH_DIGEST with the correct strobe
+gate_ok: In-file control: the BLOCK hwclr also uses the correct strobe
+gate_ok: In-file control: the DIGEST write-enable suppression on the line above uses the correct strobe
+gate_ok: In-file control: the internal register-clear branch keys off the correct strobe
+submodule_zeroize_ports=4
+gate_ok: In-file control: all 4 submodule .zeroize ports are fed the correct strobe
+gate_ok: Exactly one consumer in the file was moved to the inverted strobe, namely the DIGEST window
+gate_ok: RDL: ZEROIZE exists to clear internal registers after a SHA process to avoid SCA leakage
+gate_ok: RDL: ZEROIZE is a single-pulse field, so the strobe is momentary by design
+gate_ok: The generated register file wires the DIGEST hwclr to a zeroing branch, so the strobe is live
+gate_ok: That branch drives the field to zero
+files_with_zeroize_reg2=2
+gate_ok: Exactly 2 files in the whole tree carry a zeroize_reg2, sha512.sv and sha256.sv
+gate_ok: sha256.sv carries the structurally identical construct, so the mitigation must cover both blocks
+gate_ok: Its DIGEST hwclr is driven by that strobe in the same way
+gate_ok: While its own BLOCK hwclr still uses the correct strobe, the same local pattern as sha512
+top_level_switch_consumers=9
+gate_ok: The same debug/scan switch is fanned out to 8 or more blocks at the top level
+gate_ok: It is asserted on a debug-lock change, a scan-mode entry, a lifecycle change, or a fatal error
+gate_ok: It is formed from edge terms on latched security state, so it is a transition pulse not a steady level
+gate_ok: SHA512_DIGEST_0 is exposed to firmware at 0x10020100
+gate_ok: SHA512_CTRL is exposed to firmware at 0x10020010 (ZEROIZE is bit 4, mask 0x10)
+structural_gates_passed=32/32
+RESULT: PASS - all structural gates confirm BUG-033
+result=PASS

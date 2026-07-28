@@ -1,0 +1,54 @@
+{
+  "module": "aes",
+  "bug_id": "003",
+  "bug_name": "aes_bug_003",
+  "triage_id": "AES-TRIAGE-003",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "proof_method_executed": {
+    "structural_audit": "33 gates, 33 passed, 0 failed, entirely within the audited tree. The decisive gate is a computed census of the tree's own write-enable gating convention: 33 REGWEN gating assignments exist, 32 AND the write enable with a REGWEN read-back, and the single deviation is the audited line. Also gated: the intra-file evidence that the lock register is intact but consumed nowhere, the RDL contract the file declares itself generated from, and the scope limit that keeps FORCE_MASKS out of the claim.",
+    "directed_sim": "Unit-level VCS simulation of aes_reg_top over TL-UL. 7 self-checks, 7 passed, 0 errors. Cover counters: attack path exercised 1 time, data_in readback observed 2 times. No assertion failures.",
+    "negative_control": "The identical testbench run against a scratch copy of aes_reg_top.sv with this tree's own REGWEN gating idiom applied to that one line reports the locked write rejected: the field stays at 1, cover_aux_committed_while_locked drops to 0, and the self-check fails. The harness's own control checks still pass on the patched copy (the lock still engages and the field is still observable), so the failure is attributable to the RTL fix rather than to a broken harness.",
+    "tool": "VCS W-2024.09-SP1_Full64"
+  },
+  "result_summary": "The write-enable gating for the AES auxiliary control register is absent. aes_reg_top.sv:1038 reads 'always_comb begin ctrl_aux_shadowed_gated_we = ctrl_aux_shadowed_we; end', with no AND against the lock read-back. A census of the audited tree shows how far that departs from the design's own convention: 33 REGWEN write-enable gating assignments exist across four register blocks, 32 of them have the form '<reg>_gated_we = <reg>_we & <regwen>_qs', and the sole exception is this line. An independent count of gated_we declarations agrees at 33, so no site was missed. The line is a structural outlier too: 32 of the 33 sites carry the register generator's fixed marker comment and are plain continuous assignments, while this one carries hand-written prose instead and is the only single-line always_comb in the entire tree. The lock signal ctrl_aux_regwen_qs survives at exactly 3 sites: its declaration at line 223, its subreg driver at line 1136, and its MMIO readback at line 1823. It drives no logic, so software sees a lock that reads back correctly while gating nothing. The ungated qualifier feeds the .we of both AUX fields at lines 1052 and 1088. The tree also contradicts its own specification: aes.rdl:181-188 documents that clearing the bit means the auxiliary register 'cannot be written anymore', and aes_reg_top.sv declares itself generated from that RDL. The lock is SwAccessW0C with RESVAL 1, so a single write of 0 engages it permanently until reset, which is exactly the state in which the bypass matters.",
+  "security_impact_assessment": {
+    "impact": [
+      "Software that has locked the AES auxiliary configuration can still change it, so the lock provides no protection after the trusted boot stage relies on it.",
+      "KEY_TOUCH_FORCES_RESEED can be cleared from its secure default of 1 to 0, after which loading a new AES key no longer reseeds the masking and clearing PRNGs (aes_control_fsm.sv:1120 gates prng_reseed_we_o on this field).",
+      "Masking randomness then carries across key changes, degrading the first-order side-channel countermeasure that the AUX lock exists to protect."
+    ],
+    "bypassed_feature": "CTRL_AUX_REGWEN one-way write protection of the AES auxiliary control register",
+    "attacker_model": [
+      "Privileged software at supervisor mode with MMIO write access to the AES register block, acting after trusted code has engaged the lock."
+    ],
+    "confidence": "high"
+  },
+  "evidence": {
+    "competition_file": "/home/smy/hackatdac26-phase-2-caliptra/src/aes/rtl/aes_reg_top.sv:1038",
+    "line_range": "1038-1136",
+    "run_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/003/proof/logs/run.log",
+    "witness_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/003/proof/logs/witness.log",
+    "sim_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/003/proof/logs/sim.log",
+    "negative_control_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/003/proof/logs/negative_control.log",
+    "key_observation": "REGWEN reads 0x1 after reset and 0x0 after the software lock. KEY_TOUCH_FORCES_RESEED holds its secure default of 1, then transitions to 0 after two MMIO writes of 0x0 to CTRL_AUX_SHADOWED at offset 0x78 while REGWEN reads 0x0, with shadowed_update_err staying low. On the patched copy carrying this tree's own gating idiom, the same field stays at 1 and the cover counter drops to 0. Convention census: 33 REGWEN write-enable gating assignments in the audited tree, 32 gated, 1 not, and the ungated one is aes_reg_top.sv:1038. Signal-site census: ctrl_aux_regwen_qs appears at 3 sites, none of which is a gate. Style census: 32 of the 33 gating sites carry the generator's marker comment; aes_reg_top.sv is the only file with a gating site and no marker comment at all, and its line is the only single-line always_comb in the tree."
+  },
+  "non_findings": [
+    {
+      "claim": "The bypass lets an attacker set FORCE_MASKS and hold the AES masking PRNG at a constant value.",
+      "verdict": "withdrawn",
+      "reason": "aes_clp_wrapper.sv:308 instantiates aes with no parameter overrides, so SecAllowForcingMasks keeps its default of 0 from aes.sv:24. aes_prng_masking.sv:71 ties force_masks_i into an unused-signal branch in that configuration, and aes.rdl states the field is 'Only applicable if both the Masking parameter and the SecAllowForcingMasks parameter are set to one'. The field is writable but inert in this build, so no impact is claimed for it. Both halves of that reasoning are enforced by structural gates rather than left as prose."
+    },
+    {
+      "claim": "The bypass directly recovers the AES key.",
+      "verdict": "withdrawn",
+      "reason": "Clearing KEY_TOUCH_FORCES_RESEED degrades PRNG reseeding on key change, which weakens a side-channel countermeasure. Turning that into key recovery additionally requires power or electromagnetic trace collection, which is outside what this RTL proof demonstrates."
+    },
+    {
+      "claim": "The DUT's own SVA confirm the violation.",
+      "verdict": "not applicable",
+      "reason": "CLP_ASSERT_ON is deliberately left undefined. caliptra_prim_onehot_check.AssertConnected_A requires alert-handling outputs that a unit-level register harness does not instantiate, so it fires on harness structure rather than DUT behaviour. The proof rests on the testbench's own self-checks, which are independent of the DUT's assertions."
+    }
+  ],
+  "conclusion": "Confirmed security bug. A one-way configuration lock that software can read back as engaged does not in fact prevent writes, because the gating term is missing from the generated register block while the lock signal itself is left in place. The finding rests entirely on evidence inside the audited tree: the design's own 33-site gating convention, from which this line is the single deviation, and the RDL specification the file declares itself generated from. Proven by 33 structural gates, a directed unit-level simulation with nonzero cover, and a negative control that fails on corrected RTL while its own control checks keep passing."
+}

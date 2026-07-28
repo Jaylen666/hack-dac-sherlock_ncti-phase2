@@ -1,0 +1,124 @@
+
+===== the ungated write enable (src/aes/rtl/aes_reg_top.sv:1036-1038) =====
+  // Compute the write qualifier for auxiliary-control state.
+  logic ctrl_aux_shadowed_gated_we;
+  always_comb begin ctrl_aux_shadowed_gated_we = ctrl_aux_shadowed_we; end
+
+===== tree-wide census of the write-enable gating idiom (32 sites) =====
+/home/smy/hackatdac26-phase-2-caliptra/src/csrng/rtl/csrng_reg_top.sv:631:  assign ctrl_gated_we = ctrl_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/csrng/rtl/csrng_reg_top.sv:1122:  assign fips_force_gated_we = fips_force_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/csrng/rtl/csrng_reg_top.sv:2141:  assign err_code_test_gated_we = err_code_test_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:554:  assign cfg_shadowed_gated_we = cfg_shadowed_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:867:  assign prefix_0_gated_we = prefix_0_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:899:  assign prefix_1_gated_we = prefix_1_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:931:  assign prefix_2_gated_we = prefix_2_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:963:  assign prefix_3_gated_we = prefix_3_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:995:  assign prefix_4_gated_we = prefix_4_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:1027:  assign prefix_5_gated_we = prefix_5_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:1059:  assign prefix_6_gated_we = prefix_6_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:1091:  assign prefix_7_gated_we = prefix_7_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:1123:  assign prefix_8_gated_we = prefix_8_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:1155:  assign prefix_9_gated_we = prefix_9_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha3/rtl/kmac_reg_top.sv:1187:  assign prefix_10_gated_we = prefix_10_we & cfg_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/aes/rtl/aes_reg_top.sv:1038:  always_comb begin ctrl_aux_shadowed_gated_we = ctrl_aux_shadowed_we; end
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:845:  assign module_enable_gated_we = module_enable_we & me_regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:876:  assign conf_gated_we = conf_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1070:  assign entropy_control_gated_we = entropy_control_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1145:  assign health_test_windows_gated_we = health_test_windows_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1207:  assign repcnt_thresholds_gated_we = repcnt_thresholds_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1247:  assign repcnts_thresholds_gated_we = repcnts_thresholds_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1287:  assign adaptp_hi_thresholds_gated_we = adaptp_hi_thresholds_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1327:  assign adaptp_lo_thresholds_gated_we = adaptp_lo_thresholds_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1367:  assign bucket_thresholds_gated_we = bucket_thresholds_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1407:  assign markov_hi_thresholds_gated_we = markov_hi_thresholds_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1447:  assign markov_lo_thresholds_gated_we = markov_lo_thresholds_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1487:  assign extht_hi_thresholds_gated_we = extht_hi_thresholds_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1527:  assign extht_lo_thresholds_gated_we = extht_lo_thresholds_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:1996:  assign alert_threshold_gated_we = alert_threshold_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:2210:  assign fw_ov_control_gated_we = fw_ov_control_we & regwen_qs;
+/home/smy/hackatdac26-phase-2-caliptra/src/entropy_src/rtl/entropy_src_reg_top.sv:2377:  assign observe_fifo_thresh_gated_we = observe_fifo_thresh_we & regwen_qs;
+
+===== the lock bit is declared, driven and software-readable, but consumed nowhere =====
+223:  logic ctrl_aux_regwen_qs;
+1136:    .qs     (ctrl_aux_regwen_qs)
+1823:        reg_rdata_next[0] = ctrl_aux_regwen_qs;
+
+===== the ungated enable is what actually clocks both AUX fields (src/aes/rtl/aes_reg_top.sv:1052, :1088) =====
+1037:  logic ctrl_aux_shadowed_gated_we;
+1038:  always_comb begin ctrl_aux_shadowed_gated_we = ctrl_aux_shadowed_we; end
+1052:    .we     (ctrl_aux_shadowed_gated_we),
+1088:    .we     (ctrl_aux_shadowed_gated_we),
+1719:    reg_we_check[30] = ctrl_aux_shadowed_gated_we;
+
+===== RDL states the lock contract (src/aes/data/aes.rdl:181-188) =====
+        field {
+            sw = rw;
+            onwrite = woclr;
+            desc = "Auxiliary Control Register configuration enable
+            bit.  If this is cleared to 0, the Auxiliary Control
+            Register cannot be written anymore.";
+        } CTRL_AUX_REGWEN[0:0];
+    } CTRL_AUX_REGWEN @ 0x7c;
+
+===== RDL states what the protected fields do (src/aes/data/aes.rdl:156-179) =====
+        field {
+            sw = rw;
+            onwrite = woclr;
+            desc = "Allow the internal masking PRNG to advance (0) or
+            force its internal state (1) leading to constant masks.
+            Setting all masks to constant value can be useful when
+            performing SCA.  To completely disable the masking, the
+            second key share (KEY_SHARE1_0 - KEY_SHARE1_7) must be
+            zero as well.  In addition, a special seed needs to be
+            loaded into the masking PRNG using the EDN interface.
+            Only applicable if both the Masking parameter and the
+            SecAllowForcingMasks parameter are set to one.";
+        } FORCE_MASKS[1:1];
+    } CTRL_AUX_SHADOWED @ 0x78;
+
+===== computed census of REGWEN write-enable gating across the audited tree =====
+gating_assignments=33
+regwen_gated=32
+not_gated=1
+deviation=src/aes/rtl/aes_reg_top.sv:1038: always_comb begin ctrl_aux_shadowed_gated_we = ctrl_aux_shadowed_we; end
+
+===== firmware header entries for the AUX register and its lock =====
+1643:#define CLP_AES_REG_CTRL_AUX_SHADOWED                                                               (0x10011078)
+1651:#define CLP_AES_REG_CTRL_AUX_REGWEN                                                                 (0x1001107c)
+
+===== audit gate results =====
+gate_ok: The AUX write qualifier is an unconditional passthrough of the raw write enable
+gate_ok: The lock bit does not appear in that assignment at all
+gate_ok: No write-enable assignment anywhere in the file consumes the lock bit
+gate_ok: The tree contains 33 REGWEN write-enable gating assignments, a large in-tree control population
+gate_ok: The count of gated_we declarations equals the count of assignments, so no site was missed
+gate_ok: 32 of them AND the write enable with a REGWEN read-back
+gate_ok: Exactly one omits the REGWEN term, so the defect is a unique outlier in its own tree
+gate_ok: That single outlier is the line under audit
+gate_ok: Control: kmac_reg_top gates its shadowed config register write enable with its REGWEN
+gate_ok: Control: csrng_reg_top does the same, so the idiom is consistent across blocks
+gate_ok: Control: entropy_src_reg_top does the same across its 16 sites
+gate_ok: 32 of the 33 gating sites carry the generator's fixed marker comment
+gate_ok: aes_reg_top.sv is the only file with a gating site and no marker comment at all
+gate_ok: In its place is hand-written prose, a form the generated blocks in this tree never use
+gate_ok: The audited line is also the only single-line always_comb block in the entire tree
+gate_ok: The lock read-back signal is still declared, so its removal from logic is silent, not a compile error
+gate_ok: It is still driven by its own subreg instance, so the lock register holds state correctly
+gate_ok: It is still returned over MMIO, so software reads back a lock that appears engaged
+gate_ok: The lock signal appears at exactly 3 sites: declared, driven, read back. None of them gates anything
+gate_ok: The lock is SwAccessW0C, so one write of 0 engages it and software cannot undo it
+gate_ok: It resets to 1 (unlocked), so engaging the lock is an explicit software decision
+gate_ok: RDL: clearing the bit means the Auxiliary Control Register cannot be written anymore
+gate_ok: The register block declares itself auto-generated from that RDL, so the tree is self-inconsistent
+gate_ok: The AUX write enable is decoded from a live address hit, so the write path is reachable
+gate_ok: The ungated qualifier drives the .we of both AUX fields, so neither field is protected
+gate_ok: Field 1 is KEY_TOUCH_FORCES_RESEED
+gate_ok: Field 2 is FORCE_MASKS, which is inert in this build and is NOT claimed as impact (see below)
+gate_ok: KEY_TOUCH_FORCES_RESEED gates the masking-PRNG reseed on a new key load, so the claimed field is not inert
+gate_ok: The lock the RDL describes is the one covering that register, so the protected asset is correctly identified
+gate_ok: Scope limit: SecAllowForcingMasks defaults to 0 in aes.sv
+gate_ok: Scope limit: the wrapper instantiates aes with no override, so the parameter stays 0 and FORCE_MASKS is inert
+gate_ok: CTRL_AUX_SHADOWED is exposed to firmware at 0x10011078
+gate_ok: CTRL_AUX_REGWEN is exposed to firmware at 0x1001107c
+structural_gates_passed=33/33
+RESULT: PASS

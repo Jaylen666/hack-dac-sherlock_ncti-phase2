@@ -1,0 +1,59 @@
+
+===== clear_secrets production and its absence in the core =====
+304:assign caliptra2aes.clear_secrets = debugUnlock_or_scan_mode_switch;
+occurrences of clear_secrets in aes.sv: 0
+
+===== KeyVault export buffer clear conditions in aes.sv =====
+  // Signal data is valid for KV write client once full AES operation is done
+  always_ff @(posedge clk_i or negedge rst_ni) begin: aes2caliptra_kv_data_valid_reg // Track KeyVault transfer completion.
+      if (!rst_ni)
+          aes2caliptra_kv_data_out_valid <= 1'b0;
+      else begin
+        if (reg2hw_caliptra.trigger.data_out_clear.q)
+          aes2caliptra_kv_data_out_valid <= 1'b0;
+        else if (kv_data_intercept_end)
+          aes2caliptra_kv_data_out_valid <= 1'b1;
+        else if (caliptra2aes.kv_write_done)
+          aes2caliptra_kv_data_out_valid <= 1'b0;
+      end
+  end
+  assign aes2caliptra.kv_data_out_valid = aes2caliptra_kv_data_out_valid;
+  assign aes2caliptra.kv_key_in_use = hw2reg.ctrl_shadowed.sideload.d;
+  // TODO: Qualify this with anything?
+  //       Probably not needed. Timing of the kv write request is tightly controlled, and that's the only
+  //       place this signal is used.
+  always_comb aes2caliptra.aes_operation_is_ecb_decrypt = (  aes_op_e'(hw2reg.ctrl_shadowed.operation.d)     == AES_DEC) &&
+                                                          (aes_mode_e'(hw2reg.ctrl_shadowed.mode.d)          == AES_ECB);
+
+  // Capture data_out until operation is done
+  // Pack AES output into the word-granular KeyVault transfer buffer.
+  generate
+    for (kv_ii = 0; kv_ii < CLP_AES_KV_WR_DW / CLP_AES_KV_CHUNK_SIZE; kv_ii++) begin : g_kv_data_out
+      always_ff @(posedge clk_i or negedge rst_ni) begin
+        if (!rst_ni)
+          aes2caliptra_kv_data_out[kv_ii * CLP_AES_KV_CHUNK_SIZE +: CLP_AES_KV_CHUNK_SIZE] <= '0;
+        else if (reg2hw_caliptra.trigger.data_out_clear.q)
+          aes2caliptra_kv_data_out[kv_ii * CLP_AES_KV_CHUNK_SIZE +: CLP_AES_KV_CHUNK_SIZE] <= '0;
+        else if (incr_kv_data_counter && (kv_data_counter == kv_ii))
+          aes2caliptra_kv_data_out[kv_ii * CLP_AES_KV_CHUNK_SIZE +: CLP_AES_KV_CHUNK_SIZE] <= {
+            hw2reg_caliptra.data_out[3].d,
+            hw2reg_caliptra.data_out[2].d,
+            hw2reg_caliptra.data_out[1].d,
+            hw2reg_caliptra.data_out[0].d
+          };
+        else if (caliptra2aes.kv_write_done)
+          aes2caliptra_kv_data_out[kv_ii * CLP_AES_KV_CHUNK_SIZE +: CLP_AES_KV_CHUNK_SIZE] <= '0;
+      end
+    end
+  endgenerate
+  assign aes2caliptra.kv_data_out = aes2caliptra_kv_data_out;
+
+===== specification requirement for secret clearing on debug entry =====
+279:Transitions to debug mode trigger a hardware clear of all device secrets, and also trigger an interrupt to FW to inform of the transition. FW is responsible for initiating another hardware clear of device secrets utilizing the clear secrets register, in case any derivations were in progress and stored after the transition was detected. FW may open the JTAG after all secrets are cleared.
+control_data_out_clear loaded: kv_data_out_valid=1 kv_data_out[127:0]=0x5ec000035ec000025ec000015ec00000 kv_data_out[511:384]=0x5ec003035ec003025ec003015ec00300
+control_data_out_clear after stimulus: kv_data_out_valid=0 kv_data_out[127:0]=0x00000000000000000000000000000000 kv_data_out[511:384]=0x00000000000000000000000000000000
+control_kv_write_done loaded: kv_data_out_valid=1 kv_data_out[127:0]=0x5ec000035ec000025ec000015ec00000 kv_data_out[511:384]=0x5ec003035ec003025ec003015ec00300
+control_kv_write_done after stimulus: kv_data_out_valid=0 kv_data_out[127:0]=0x00000000000000000000000000000000 kv_data_out[511:384]=0x00000000000000000000000000000000
+violating_clear_secrets loaded: kv_data_out_valid=1 kv_data_out[127:0]=0x5ec000035ec000025ec000015ec00000 kv_data_out[511:384]=0x5ec003035ec003025ec003015ec00300
+violating_clear_secrets after stimulus: kv_data_out_valid=1 kv_data_out[127:0]=0x5ec000035ec000025ec000015ec00000 kv_data_out[511:384]=0x5ec003035ec003025ec003015ec00300
+WITNESS: violating_clear_secrets asserted while the KeyVault export buffer held a secret, and the buffer survived (data_retained=1 valid_retained=1)

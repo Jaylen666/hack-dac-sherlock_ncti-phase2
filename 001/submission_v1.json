@@ -1,0 +1,57 @@
+{
+  "module": "aes",
+  "bug_id": "001",
+  "bug_name": "aes_bug_001",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready",
+  "security_feature_bypassed": "Hardware clearing of device secrets on entry to debug-unlocked or scan mode, applied to the AES KeyVault export buffer that holds an AES result destined for the KeyVault",
+  "finding": "The AES wrapper raises a secret-clearing request that the AES core never consumes. src/aes/rtl/aes_clp_wrapper.sv:304 assigns caliptra2aes.clear_secrets = debugUnlock_or_scan_mode_switch, so the request asserts when the device enters debug-unlocked or scan mode, and clear_secrets is a declared field of the caliptra2aes interface at src/aes/rtl/aes_pkg.sv:755. The string clear_secrets does not appear anywhere in src/aes/rtl/aes.sv: the signal is produced, carried across the interface, and dropped. The state it should clear is the KeyVault export path. The valid bit aes2caliptra_kv_data_out_valid is a register at src/aes/rtl/aes.sv:241-252 whose clear conditions are only the firmware trigger reg2hw_caliptra.trigger.data_out_clear.q at line 245 and consumption by the KeyVault via caliptra2aes.kv_write_done at line 249. The 512-bit data buffer aes2caliptra_kv_data_out is a register bank at src/aes/rtl/aes.sv:263-281 with the same two clear conditions at lines 268 and 277. Both are exported to the KeyVault write client at src/aes/rtl/aes.sv:253 and 282, so their retained contents are visible outside the core. The in-tree specification is explicit that this state must be cleared: docs/CaliptraHardwareSpecification.md:279 states that transitions to debug mode trigger a hardware clear of all device secrets, and that firmware must then initiate another clear in case derivations were in progress and stored after the transition was detected. The AES result staged for the KeyVault is exactly such a derivation, and the hardware half of that two-part requirement is absent for this buffer.",
+  "location_or_code_reference": {
+    "competition_file": "src/aes/rtl/aes.sv:245",
+    "line_range": "241-282",
+    "supporting_references": [
+      "src/aes/rtl/aes.sv:249",
+      "src/aes/rtl/aes.sv:253",
+      "src/aes/rtl/aes.sv:268",
+      "src/aes/rtl/aes.sv:277",
+      "src/aes/rtl/aes.sv:282",
+      "src/aes/rtl/aes_clp_wrapper.sv:304",
+      "src/aes/rtl/aes_pkg.sv:755",
+      "docs/CaliptraHardwareSpecification.md:279"
+    ]
+  },
+  "detection_method": "RTL review of the AES KeyVault export path against the in-tree hardware specification, a nine-gate scripted structural witness over the submitted checkout, and a directed VCS simulation of one real aes instance with two control cases and one violating case",
+  "security_impact": "An AES result staged for the KeyVault survives entry into debug-unlocked or scan mode, together with its valid bit. The specification requires hardware to clear device secrets at that transition precisely because the transition opens observation paths that are closed in the secure state, and it treats the firmware clear as a follow-up for derivations completed during detection rather than as the primary control. With the hardware clear absent for this buffer, the window between the transition and any firmware action leaves a 512-bit AES output resident in flops that are exported on the KeyVault interface, and the valid bit continues to advertise it as a live result. An attacker with authorized debug access, or with scan access to the device, can therefore reach a secret that the design intends to have already been erased at that moment. This submission proves the missing hardware clear and the retention of both the data buffer and its valid bit; it does not measure the subsequent scan-chain or JTAG extraction of those flops.",
+  "adversary_profile": "Authorized debug access",
+  "proposed_mitigation": [
+    "Include the interface clearing request in both KeyVault export clear conditions in src/aes/rtl/aes.sv: add caliptra2aes.clear_secrets alongside reg2hw_caliptra.trigger.data_out_clear.q at line 245 for the valid bit and at line 268 for the 512-bit data bank, so entry into debug or scan mode clears the staged result in hardware.",
+    "Add an assertion that aes2caliptra.kv_data_out and aes2caliptra.kv_data_out_valid are zero within one clock of caliptra2aes.clear_secrets asserting, and bind it wherever the AES wrapper is integrated.",
+    "Add a lint or CI rule that fails when a field of a security interface struct is driven by a producer but has zero references in the consuming module, since a produced-and-dropped clearing request looks connected at the interface while gating nothing.",
+    "Add a regression test that stages a value in the KeyVault export buffer, asserts the clearing request, and fails if either the data buffer or the valid bit survives, using the testbench in this submission (proof/tb/aes_bug_001_tb.sv)."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+    "base_score": 4.6,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/001/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/001/proof_result_v1.json",
+    "script": "final_bug_submissions/001/proof/scripts/run_bug_001_proof.sh",
+    "testbench": "final_bug_submissions/001/proof/tb/aes_bug_001_tb.sv",
+    "run_log": "final_bug_submissions/001/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/001/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/001/proof/logs/sim.log",
+    "compile_log": "final_bug_submissions/001/proof/logs/compile.log",
+    "c_validation_status": "final_bug_submissions/001/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Firmware runs an AES operation whose result is destined for the KeyVault. The core captures the result chunk by chunk into aes2caliptra_kv_data_out (src/aes/rtl/aes.sv:263-281) and raises aes2caliptra_kv_data_out_valid when capture completes (line 247-248).",
+    "Before the KeyVault consumes that result, the device transitions to debug-unlocked or scan mode. src/aes/rtl/aes_clp_wrapper.sv:304 asserts caliptra2aes.clear_secrets on that transition.",
+    "docs/CaliptraHardwareSpecification.md:279 requires this transition to trigger a hardware clear of all device secrets. The AES core, however, contains no reference to clear_secrets, so neither export register reacts.",
+    "The 512-bit AES result stays resident in the export flops and aes2caliptra.kv_data_out_valid continues to assert, advertising it as a live result on the KeyVault interface (src/aes/rtl/aes.sv:253 and 282).",
+    "The attacker uses the debug or scan access that the transition just enabled to observe those flops during the window before firmware issues its own clear, which the specification treats as a follow-up rather than the primary control.",
+    "Verified in simulation on one real aes instance: with the buffer staged and valid, the firmware data_out_clear trigger drives both the data buffer and the valid bit to zero, and consumption via kv_write_done does the same, but asserting clear_secrets leaves the buffer at 0x5EC00003...5EC00000 with the valid bit still set."
+  ]
+}

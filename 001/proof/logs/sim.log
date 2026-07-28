@@ -1,0 +1,36 @@
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid re-execution or '-suppress=ASLR_DETECTED_INFO' to suppress this message.
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 12:38 2026
+  stage chunk=0 counter=0 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+  stage chunk=1 counter=1 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+  stage chunk=2 counter=2 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+  stage chunk=3 counter=3 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+control_data_out_clear loaded: kv_data_out_valid=1 kv_data_out[127:0]=0x5ec000035ec000025ec000015ec00000 kv_data_out[511:384]=0x5ec003035ec003025ec003015ec00300
+control_data_out_clear after stimulus: kv_data_out_valid=0 kv_data_out[127:0]=0x00000000000000000000000000000000 kv_data_out[511:384]=0x00000000000000000000000000000000
+PASS: control_data_out_clear cleared both the data buffer and its valid bit
+  stage chunk=0 counter=0 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+  stage chunk=1 counter=1 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+  stage chunk=2 counter=2 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+  stage chunk=3 counter=3 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+control_kv_write_done loaded: kv_data_out_valid=1 kv_data_out[127:0]=0x5ec000035ec000025ec000015ec00000 kv_data_out[511:384]=0x5ec003035ec003025ec003015ec00300
+control_kv_write_done after stimulus: kv_data_out_valid=0 kv_data_out[127:0]=0x00000000000000000000000000000000 kv_data_out[511:384]=0x00000000000000000000000000000000
+PASS: control_kv_write_done cleared both the data buffer and its valid bit
+  stage chunk=0 counter=0 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+  stage chunk=1 counter=1 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+  stage chunk=2 counter=2 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+  stage chunk=3 counter=3 threshold=3 data_out_clear=0 chunk0=0x5ec000035ec000025ec000015ec00000
+violating_clear_secrets loaded: kv_data_out_valid=1 kv_data_out[127:0]=0x5ec000035ec000025ec000015ec00000 kv_data_out[511:384]=0x5ec003035ec003025ec003015ec00300
+violating_clear_secrets after stimulus: kv_data_out_valid=1 kv_data_out[127:0]=0x5ec000035ec000025ec000015ec00000 kv_data_out[511:384]=0x5ec003035ec003025ec003015ec00300
+WITNESS: violating_clear_secrets asserted while the KeyVault export buffer held a secret, and the buffer survived (data_retained=1 valid_retained=1)
+PASS: violating_clear_secrets reproduced the missing secret clear
+checks=3 fails=0 witness_hits=1
+result=PASS
+BUG_001_WITNESS_OBSERVED
+$finish called from file "<case>/tb/aes_bug_001_tb.sv", line 263.
+$finish at simulation time               415000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 415000 ps
+CPU Time:      0.330 seconds;       Data structure size:   0.3Mb
+Tue Jul 28 12:38:43 2026

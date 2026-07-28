@@ -1,0 +1,46 @@
+BUG-005 negative control
+date=2026-07-28T10:52:51+08:00
+original=/home/smy/hackatdac26-phase-2-caliptra/src/aes/rtl/aes_reg_top.sv
+patched_copy=/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/005/proof/logs/../scratch/aes_reg_top.sv
+
+--- patch: apply the file's own write-only read treatment to DATA_IN ---
+    (the same constant-zero arm this file already uses for TRIGGER at :1826-1831)
+  addr_hit[21]: reg2hw.data_in[0].q  ->  '0
+  addr_hit[22]: reg2hw.data_in[1].q  ->  '0
+  addr_hit[23]: reg2hw.data_in[2].q  ->  '0
+  addr_hit[24]: reg2hw.data_in[3].q  ->  '0
+
+--- verification that the patch took effect ---
+remaining_leaking_read_arms_in_patched_copy=0 (expect 0)
+1784:      addr_hit[21]: reg_rdata_next[31:0] = '0;
+1786:      addr_hit[22]: reg_rdata_next[31:0] = '0;
+1788:      addr_hit[23]: reg_rdata_next[31:0] = '0;
+1790:      addr_hit[24]: reg_rdata_next[31:0] = '0;
+
+--- running the IDENTICAL testbench against the patched copy ---
+sim_exit_code=1 (nonzero is the expected outcome here)
+
+--- patched-DUT observations ---
+  DATA_IN[0] @0x54: wrote 0x4f50454e, read 0x00000000 (spec: 0x00000000)
+  DATA_IN[1] @0x58: wrote 0x53454352, read 0x00000000 (spec: 0x00000000)
+  DATA_IN[2] @0x5c: wrote 0x45545f50, read 0x00000000 (spec: 0x00000000)
+  DATA_IN[3] @0x60: wrote 0x4c41494e, read 0x00000000 (spec: 0x00000000)
+  recovered 128-bit block = 0x00000000000000000000000000000000
+  checks=11 errors=6
+  cover_data_in_leak=0 (expect 4)
+  cover_legal_read=1 (expect 1)
+PROOF_RESULT: FAIL
+
+cover_data_in_leak_on_patched_rtl=0 (expect 0)
+cover_legal_read_on_patched_rtl=1 (expect 1: harness still works)
+tbfail_lines=7 (expect >0)
+
+CONCLUSION: the testbench discriminates.
+On the audited RTL all four DATA_IN words return the written plaintext and the
+128-bit block is recoverable. With the file's own write-only read treatment applied
+to those four arms in a scratch copy, the identical testbench observes 0x00000000
+for every word, its leak cover counter drops to 0, and its self-checks fail. The
+control read still succeeds, so the failure is caused by the RTL fix and not by a
+broken harness.
+negative_control=PASS
+result=PASS

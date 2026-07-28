@@ -1,0 +1,20 @@
+===== BUG-018 negative control =====
+source DUT : /home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv
+patched DUT: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/018/proof/scratch/hmac_core.sv
+patch applied: CTRL_IDLE next_cmd test is now `else if`, giving INIT priority
+
+----- negative control results -----
+sim exit code                : 1 (nonzero expected)
+TBFAIL lines total           : 3 (must be > 0)
+  of which CTRL_IDLE-transition: 3 (must be > 0)
+  of which BUG-019 checks    : 0 (expected: this copy patches only BUG-018)
+cover_ipad_skipped           : 0 (must be 0)
+cover_next_clears (control)  : 1 (must stay 1)
+hmac_ctrl_reg after INIT+NEXT: 1 (1 = CTRL_IPAD, the corrected behaviour)
+
+CONCLUSION: On the audited RTL the FSM lands in CTRL_OPAD when INIT and NEXT
+arrive together, silently skipping the IPAD phase. With the next_cmd test made
+an else if in a scratch copy, the same stimulus lands in CTRL_IPAD, the
+IPAD-skip cover falls to 0 and the BUG-018 self-checks fail, while the harness's
+own control check still passes. The observation is a property of the audited RTL.
+NEGATIVE CONTROL: PASS

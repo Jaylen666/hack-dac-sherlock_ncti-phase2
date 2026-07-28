@@ -1,0 +1,79 @@
+{
+  "module": "axi_sub_arb",
+  "bug_id": "007",
+  "bug_name": "axi_sub_arb_bug_007",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "proof_method_executed": "Nine scripted structural gates over the submitted checkout, followed by a directed Verilator 5.024 simulation of one axi_sub_arb instance compiled from that same checkout, with three control cases and one violating case. Executed twice; identical results.",
+  "result_summary": "The arbiter grants the read channel while exporting the concurrent write channel's AXI USER value. All three control cases show coherent attributes, so the checker is not vacuous, and exactly one witness hit is produced by the violating case.",
+  "security_impact_assessment": "The AXI USER attribute is the requester identity that soc_ifc compares against its mailbox, fuse, TRNG and DMA allowlists. A granted read that carries another agent's USER value causes that read's access-control decision to be made against the wrong identity, which can admit a read that should be denied or deny a read that should be admitted. Confirmed at the arbiter's component interface and traced to the allowlist comparisons; the end-to-end disclosure over a full SoC boot was not measured.",
+  "evidence": {
+    "competition_file": "src/axi/rtl/axi_sub_arb.sv:125",
+    "line_range": "121-136",
+    "run_log": "final_bug_submissions/007/proof/logs/run.log",
+    "compile_log": "final_bug_submissions/007/proof/logs/compile.log",
+    "sim_log": "final_bug_submissions/007/proof/logs/sim.log",
+    "witness_log": "final_bug_submissions/007/proof/logs/witness.log",
+    "key_observation": "In the violating cycle the component-facing request presents addr=0x00001000 and write=0 from the read channel together with user=0x55552222 from the write channel, instead of the read channel's user=0xAAAA1111. checks=4 fails=0 witness_hits=1."
+  },
+  "evidence_items": [
+    {
+      "kind": "structural",
+      "claim": "The USER field uses a select term that no other read-side attribute uses.",
+      "source": "src/axi/rtl/axi_sub_arb.sv:125",
+      "excerpt": "assign user_from_read = ~(~r_win | w_dv);",
+      "observation": "The term reduces to r_win & ~w_dv, whereas addr (line 129), write (line 130) and id (line 132) are selected by r_win alone."
+    },
+    {
+      "kind": "structural",
+      "claim": "The disagreeing state r_win=1 with w_dv=1 is reachable inside the arbiter itself.",
+      "source": "src/axi/rtl/axi_sub_arb.sv:121",
+      "excerpt": "if (r_pri) r_win = r_dv || !w_dv;",
+      "observation": "With the persistent-priority bit set and a read valid, the read channel is granted even though a write request is valid in the same cycle."
+    },
+    {
+      "kind": "structural",
+      "claim": "The mismatched USER value is live security state.",
+      "source": "src/soc_ifc/rtl/soc_ifc_top.sv:380",
+      "excerpt": ".user  (soc_req.user    ),",
+      "observation": "axi_sub forwards the arbiter user output unmodified at src/axi/rtl/axi_sub.sv:210, soc_ifc_top binds it to soc_req.user, and soc_req.user is compared against AXI_USER allowlists at src/soc_ifc/rtl/soc_ifc_top.sv:987, 990, 994 and src/soc_ifc/rtl/soc_ifc_arb.sv:164, 166."
+    },
+    {
+      "kind": "simulation_control",
+      "claim": "A lone read request exports the read channel's identity.",
+      "source": "final_bug_submissions/007/proof/logs/sim.log",
+      "observation": "case=control_read_only granted=READ addr=0x00001000 id=0 user=0xaaaa1111 expected_user=0xaaaa1111"
+    },
+    {
+      "kind": "simulation_control",
+      "claim": "A lone write request exports the write channel's identity.",
+      "source": "final_bug_submissions/007/proof/logs/sim.log",
+      "observation": "case=control_write_only granted=WRITE addr=0x00002000 id=1 user=0x55552222 expected_user=0x55552222"
+    },
+    {
+      "kind": "simulation_control",
+      "claim": "A concurrent request with write priority grants the write channel, whose own identity is correct.",
+      "source": "final_bug_submissions/007/proof/logs/sim.log",
+      "observation": "case=control_concurrent_write_priority granted=WRITE addr=0x00002000 id=1 user=0x55552222 expected_user=0x55552222"
+    },
+    {
+      "kind": "simulation_witness",
+      "claim": "A concurrent request with read priority grants the read channel but exports the write channel's identity.",
+      "source": "final_bug_submissions/007/proof/logs/sim.log",
+      "observation": "case=violating_concurrent_read_priority granted=READ addr=0x00001000 id=0 user=0x55552222 expected_user=0xaaaa1111; the granted channel is the read channel on addr, id and write, while user carries the write channel's value."
+    }
+  ],
+  "key_observation": "In the violating cycle the component-facing request presents addr=0x00001000 and write=0 from the read channel together with user=0x55552222 from the write channel, instead of the read channel's user=0xAAAA1111. checks=4 fails=0 witness_hits=1.",
+  "non_findings": [
+    "No measured end-to-end data disclosure over a full SoC boot.",
+    "No claim that read data itself is corrupted; rdata is unaffected.",
+    "No claim about how frequently the concurrent-request window arises in a given integration."
+  ],
+  "reproduction": {
+    "command": "CALIPTRA_ROOT=<caliptra checkout> final_bug_submissions/007/proof/scripts/run_bug_007_proof.sh",
+    "tools": "Verilator 5.024 with a C++20-capable compiler (g++-10 or newer); override with VERILATOR and CXX",
+    "success_marker": "BUG_007_PROOF_COMPLETE",
+    "determinism": "Run twice; both runs reported checks=4 fails=0 witness_hits=1 and exited zero."
+  },
+  "conclusion": "Confirmed security bug. The USER select term at src/axi/rtl/axi_sub_arb.sv:125 breaks attribute coherence for a granted read whenever a write is valid in the same cycle, and the affected field is the requester identity consumed by the soc_ifc access-control allowlists."
+}

@@ -1,0 +1,60 @@
+{
+  "module": "sha512",
+  "bug_id": "033",
+  "bug_name": "sha512_bug_033",
+  "triage_id": "SHA512-TRIAGE-033",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "proof_method_executed": {
+    "structural_audit": "32 gates, 32 passed, 0 failed, entirely within the audited tree. Includes a computed census of the audited tree's own census of zeroize-driven hwclr sites: 22 sites across 6 crypto blocks (doe, ecc, hmac, sha256, sha512, soc_ifc), 20 driven from the correct strobe and exactly 2 driven from an inverted one, sha512.sv:300 and sha256.sv:403, both of them DIGEST windows, plus in-file controls showing every other consumer of the strobe was left alone.",
+    "directed_sim": "Unit-level VCS simulation of sha512 with its own generated register block, compiled from the project's own filelist (src/sha512/config/sha512_ctrl.vf). 3 self-checks, 3 passed, 0 errors. Cover counters: probe visible 1, digest survived debug/scan assertion 1. Both values of debugUnlock_or_scan_mode_switch were driven and the observed behaviour reported in each case rather than inferred from the expression.",
+    "negative_control": "The identical testbench run against a scratch copy of sha512.sv with the DIGEST hwclr driven from the file's own surviving strobe (ZEROIZE || debug_or_scan), the one its other five zeroize consumers still use reports 4 self-check failures and drops cover_no_clear_on_debug to 0, while the software-ZEROIZE control check still passes. Every case inverts to correct behaviour on the patched copy: quiescent retains, debug/scan wipes, software ZEROIZE wipes. The testbench therefore discriminates correct RTL from defective RTL, and the failure is attributable to the RTL fix rather than to a broken harness.",
+    "tool": "VCS W-2024.09-SP1_Full64"
+  },
+  "result_summary": "The SHA-512 DIGEST hardware-clear strobe was rewired through a second, inverted signal. sha512.sv:284-287 forms '{zeroize_reg, zeroize_reg2} = {ZEROIZE || debug_or_scan, ~(&{~ZEROIZE, debug_or_scan})}', and sha512.sv:300 drives 'hwif_in.SHA512_DIGEST[dword].DIGEST.hwclr = zeroize_reg2'. The second strobe reduces to ZEROIZE | ~debug_or_scan, so it is inverted with respect to the debug/scan input: it goes low exactly when debug-unlock or scan-mode entry is signalled with no software zeroize pending, which is the case the wipe exists to cover. The audited tree's own convention convicts it: a computed census of the audited tree's own census of zeroize-driven hwclr sites: 22 sites across 6 crypto blocks (doe, ecc, hmac, sha256, sha512, soc_ifc), 20 driven from the correct strobe and exactly 2 driven from an inverted one, sha512.sv:300 and sha256.sv:403, both of them DIGEST windows. The change is local, not a redefinition: the GEN_PCR_HASH_DIGEST hwclr on the very next line (305), the DIGEST write-enable suppression on the line above (298), the BLOCK hwclr (314), the internal register-clear branch (229) and all four submodule .zeroize ports still use the original zeroize_reg, and the HMAC block still clears its TAG output from a single unmodified strobe at hmac.sv:267. Exactly two files in the whole audited tree contain a zeroize_reg2, sha512.sv and sha256.sv, and they are precisely the two inverted sites.",
+  "security_impact_assessment": {
+    "impact": [
+      "A SHA-512 digest held in the SHA512_DIGEST register window is not wiped when the device transitions into debug-unlock or scan mode, so it remains readable through the very path that transition opens. This is the transition the strobe exists to cover.",
+      "The same failure applies to the other triggers of that switch: caliptra_top.sv:770 asserts it on a debug-lock change, a scan-mode entry, a device-lifecycle change, or cptra_error_fatal. The digest survives all four.",
+      "The wipe is a shared convention rather than a local nicety. The top level fans the same signal out to nine crypto blocks, and sha512_reg.rdl:83-85 states ZEROIZE exists to 'Zeroize all internal registers after SHA process, to avoid SCA leakage'. One consumer in one block now deviates from it.",
+      "As a side effect of the same inversion, the DIGEST window is held cleared while nothing is being requested (ZEROIZE=0, debug_or_scan=0), because zeroize_reg2 evaluates to 1 there and hwclr wins over the single-cycle digest_we pulse on the following cycle. This is reported as observed behaviour; it is a functional consequence, not the security claim."
+    ],
+    "bypassed_feature": "Hardware zeroization of the SHA-512 digest on debug-unlock or scan-mode entry",
+    "attacker_model": [
+      "An attacker with authorized debug access, or physical access sufficient to enter scan mode, reading a digest computed before the transition."
+    ],
+    "confidence": "high"
+  },
+  "evidence": {
+    "competition_file": "/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv:300",
+    "line_range": "284-305",
+    "run_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/logs/run.log",
+    "witness_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/logs/witness.log",
+    "sim_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/logs/sim.log",
+    "negative_control_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/logs/negative_control.log",
+    "key_observation": "With debugUnlock_or_scan_mode_switch held high and no software zeroize pending, the values 0xa5a5a5a5 and 0x5a5a5a5a seeded into SHA512_DIGEST[0] and [1] were still readable as 0xa5a5a5a5 and 0x5a5a5a5a several cycles later. On the patched copy, whose DIGEST hwclr is driven from the file's own surviving strobe (ZEROIZE || debug_or_scan), the one its other five zeroize consumers still use, the same seeding attempt read back 0x00000000 for both words. The software-ZEROIZE control cleared the window on both copies, so the inversion is selective. Signal-site census inside the file: zeroize_reg2 appears at 3 sites (declaration :88, assignment target :284, single consumer :300) while zeroize_reg drives the five other cleanup consumers. Tree-wide census: 22 zeroize-driven hwclr sites, 20 correct, 2 inverted, and only 2 files carry a zeroize_reg2 at all."
+  },
+  "non_findings": [
+    {
+      "claim": "The digest survives indefinitely after the debug/scan transition.",
+      "verdict": "scoped",
+      "reason": "caliptra_top.sv:763-767 forms the switch from edge terms (an XOR on debug_locked, an and-not on the latched scan-mode signal), so it is a transition pulse rather than a steady state. The claim proven is that no clear occurs on that transition, which is what the wipe was there to do. How long the digest then persists depends on subsequent activity in the block."
+    },
+    {
+      "claim": "The companion sha256.sv site is a separate confirmed finding with its own impact.",
+      "verdict": "recorded, not claimed here",
+      "reason": "sha256.sv carries the structurally identical rewiring and is reported so the mitigation covers both blocks, but no separate behavioural proof is offered for it in this submission. The SHA-256 DIGEST window is declared sw = r (sha256_reg.rdl:132), so the software-write probe used for SHA-512 is not available there and a different harness would be needed."
+    },
+    {
+      "claim": "The quiescent-case clear is an independent bug.",
+      "verdict": "reported, not asserted",
+      "reason": "It is the other half of the same inversion: zeroize_reg2 = ZEROIZE | ~debug_or_scan is 1 when both inputs are low. The testbench reports it via cov_clear_when_quiet without asserting on it, so the security conclusion does not depend on how that side effect is characterised."
+    },
+    {
+      "claim": "The bug yields a private key or a signature forgery.",
+      "verdict": "not claimed",
+      "reason": "The asset exposed is a SHA-512 digest result. What that discloses depends on what was hashed; no key-recovery or forgery chain is asserted."
+    }
+  ],
+  "conclusion": "Confirmed security bug. The hardware wipe that is supposed to clear the SHA-512 digest on debug-unlock or scan-mode entry was rewired through an inverted strobe, so it does the opposite of its purpose in exactly the case it exists for, while every neighbouring consumer of the same signal was left correct. The specification states the security intent, the top level fans the signal to nine blocks as a shared convention, and the tree's own census shows 20 of 22 zeroize-driven hwclr sites following that convention against 2 that do not. Proven by 32 structural gates, a directed unit-level simulation that drives both input polarities and reports the observed behaviour, and a negative control in which every case inverts to correct behaviour on patched RTL while the control check still passes."
+}

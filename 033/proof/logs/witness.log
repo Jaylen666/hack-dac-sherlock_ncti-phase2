@@ -1,0 +1,152 @@
+
+===== the two-strobe formation (src/sha512/rtl/sha512.sv:283-287) =====
+    // Form cleanup strobes before publishing the register-interface state.
+    {zeroize_reg, zeroize_reg2} = {
+      hwif_out.SHA512_CTRL.ZEROIZE.value || debugUnlock_or_scan_mode_switch,
+      ~(&{~hwif_out.SHA512_CTRL.ZEROIZE.value, debugUnlock_or_scan_mode_switch})
+    };
+
+===== DIGEST hwclr vs its immediate neighbours in the same file (src/sha512/rtl/sha512.sv:296-315) =====
+    for (int dword =0; dword < DIG_NUM_DWORDS; dword++) begin
+      restore_digest[dword] = hwif_out.SHA512_DIGEST[(DIG_NUM_DWORDS-1)-dword].DIGEST.value;
+      hwif_in.SHA512_DIGEST[dword].DIGEST.we = zeroize_reg? 0 : digest_we;
+      hwif_in.SHA512_DIGEST[dword].DIGEST.next = digest_reg[(DIG_NUM_DWORDS-1)-dword];
+      hwif_in.SHA512_DIGEST[dword].DIGEST.hwclr = zeroize_reg2;
+    end
+    //output comes in big endian
+    for (int dword =0; dword < PCR_HASH_NUM_DWORDS; dword++) begin
+      hwif_in.SHA512_GEN_PCR_HASH_DIGEST[dword].DIGEST.next = pcr_sign_reg[(PCR_HASH_NUM_DWORDS-1)-dword];
+      hwif_in.SHA512_GEN_PCR_HASH_DIGEST[dword].DIGEST.hwclr = zeroize_reg;
+    end
+
+    for (int dword=0; dword< BLOCK_NUM_DWORDS; dword++) begin
+      block_reg[dword] = hwif_out.SHA512_BLOCK[dword].BLOCK.value;
+      hwif_in.SHA512_BLOCK[dword].BLOCK.we = zeroize_reg ? 0 : 
+                                             gen_hash_ip ? gen_hash_block_write_en & (gen_hash_block_write_offset == dword) :
+                                             (kv_src_write_en & (kv_src_write_offset == dword));
+      hwif_in.SHA512_BLOCK[dword].BLOCK.next = gen_hash_ip ? gen_hash_block_write_data : kv_src_write_data;
+      hwif_in.SHA512_BLOCK[dword].BLOCK.hwclr = zeroize_reg | kv_read_data_present_reset;
+      //lock the block during gen hash operation
+
+===== every site of the two strobes in this file =====
+87:  logic zeroize_reg;
+88:  logic zeroize_reg2;
+192:                   .zeroize(zeroize_reg),
+229:    else if (zeroize_reg) begin
+284:    {zeroize_reg, zeroize_reg2} = {
+298:      hwif_in.SHA512_DIGEST[dword].DIGEST.we = zeroize_reg? 0 : digest_we;
+300:      hwif_in.SHA512_DIGEST[dword].DIGEST.hwclr = zeroize_reg2;
+305:      hwif_in.SHA512_GEN_PCR_HASH_DIGEST[dword].DIGEST.hwclr = zeroize_reg;
+310:      hwif_in.SHA512_BLOCK[dword].BLOCK.we = zeroize_reg ? 0 : 
+314:      hwif_in.SHA512_BLOCK[dword].BLOCK.hwclr = zeroize_reg | kv_read_data_present_reset;
+438:    .zeroize(zeroize_reg),
+496:  .zeroize(zeroize_reg),
+522:  .zeroize(zeroize_reg),
+
+===== every zeroize_reg2 site in the whole audited tree =====
+/home/smy/hackatdac26-phase-2-caliptra/src/sha256/rtl/sha256.sv:84:  reg zeroize_reg2;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha256/rtl/sha256.sv:388:    {zeroize_reg, zeroize_reg2} = {
+/home/smy/hackatdac26-phase-2-caliptra/src/sha256/rtl/sha256.sv:403:      hwif_in.SHA256_DIGEST[dword].DIGEST.hwclr = zeroize_reg2;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv:88:  logic zeroize_reg2;
+/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv:284:    {zeroize_reg, zeroize_reg2} = {
+/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv:300:      hwif_in.SHA512_DIGEST[dword].DIGEST.hwclr = zeroize_reg2;
+
+===== RDL security contract for ZEROIZE (src/sha512/rtl/sha512_reg.rdl:83-85) =====
+        field {desc = "Zeroize all internal registers: Zeroize all internal registers after SHA process, to avoid SCA leakage.
+                                [br] Software write generates only a single-cycle pulse on the 
+                                hardware interface and then will be erased"; singlepulse;} ZEROIZE = 1'b0;
+
+===== generated register-file hwclr precedence for DIGEST (src/sha512/rtl/sha512_reg.sv:905-922) =====
+        always_comb begin
+            automatic logic [31:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.SHA512_DIGEST[i0].DIGEST.value;
+            load_next_c = '0;
+            if(decoded_reg_strb.SHA512_DIGEST[i0] && decoded_req_is_wr) begin // SW write
+                next_c = (field_storage.SHA512_DIGEST[i0].DIGEST.value & ~decoded_wr_biten[31:0]) | (decoded_wr_data[31:0] & decoded_wr_biten[31:0]);
+                load_next_c = '1;
+            end else if(hwif_in.SHA512_DIGEST[i0].DIGEST.we) begin // HW Write - we
+                next_c = hwif_in.SHA512_DIGEST[i0].DIGEST.next;
+                load_next_c = '1;
+            end else if(hwif_in.SHA512_DIGEST[i0].DIGEST.hwclr) begin // HW Clear
+                next_c = '0;
+                load_next_c = '1;
+            end
+            field_combo.SHA512_DIGEST[i0].DIGEST.next = next_c;
+            field_combo.SHA512_DIGEST[i0].DIGEST.load_next = load_next_c;
+        end
+
+===== computed census of zeroize-driven hwclr sites across the audited tree =====
+zeroize_driven_hwclr_total=22
+driven_by_correct_strobe=20
+driven_by_inverted_strobe=2
+inverted_site=src/sha256/rtl/sha256.sv:403
+inverted_site=src/sha512/rtl/sha512.sv:300
+crypto_blocks_using_the_convention=6 (doe,ecc,hmac,sha256,sha512,soc_ifc)
+
+===== sibling SHA-256 formation (src/sha256/rtl/sha256.sv:387-392) =====
+    // Form cleanup strobes before publishing the register-interface state.
+    {zeroize_reg, zeroize_reg2} = {
+      hwif_out.SHA256_CTRL.ZEROIZE.value || debugUnlock_or_scan_mode_switch,
+      ~(&{~hwif_out.SHA256_CTRL.ZEROIZE.value, debugUnlock_or_scan_mode_switch})
+    };
+    wntz_mode = hwif_out.SHA256_CTRL.WNTZ_MODE.value;
+
+===== top-level formation of the debug/scan switch (src/integration/rtl/caliptra_top.sv:763-770) =====
+    always_comb scan_mode_switch = cptra_scan_mode_Latched_d & ~cptra_scan_mode_Latched_f;
+    // Detect transition of debug mode
+    always_comb debug_lock_switch = cptra_security_state_Latched_d.debug_locked ^ cptra_security_state_Latched_f.debug_locked;
+    // Detect transition from valid lifecycle state to invalid
+    always_comb device_lifecycle_switch = (cptra_security_state_Latched_f.device_lifecycle inside {DEVICE_MANUFACTURING, DEVICE_PRODUCTION}) &
+                                         ~(cptra_security_state_Latched_d.device_lifecycle inside {DEVICE_MANUFACTURING, DEVICE_PRODUCTION});
+
+    assign debug_lock_or_scan_mode_switch = debug_lock_switch | scan_mode_switch | device_lifecycle_switch | cptra_error_fatal;
+
+===== audit gate results =====
+gate_ok: The DIGEST hwclr is driven by the second strobe zeroize_reg2
+gate_ok: zeroize_reg2 = ~((~ZEROIZE) & debug_or_scan), which reduces to ZEROIZE | ~debug_or_scan
+gate_ok: The correct strobe zeroize_reg = ZEROIZE || debug_or_scan is formed on the same concatenation
+gate_ok: The second strobe is declared as an ordinary local signal, so its introduction is silent
+gate_ok: zeroize_reg2 appears at exactly 3 sites in this file: declaration, assignment target, and one consumer
+gate_ok: The tree contains 22 zeroize-driven hwclr sites, a large in-tree control population
+gate_ok: 20 of them are driven by the correct, non-inverted strobe
+gate_ok: Only 2 are driven by an inverted second strobe
+gate_ok: One of those two is the line under audit
+gate_ok: The wipe convention spans 6 crypto blocks, so it is design-wide rather than local to one file
+gate_ok: Control: ECC wipes 12 secret registers, including PRIVKEY_OUT and SIGN_S, from the correct strobe
+gate_ok: Control: HMAC wipes its TAG output register from the correct strobe
+gate_ok: Control: the SHA-512 accelerator in soc_ifc wipes its own DIGEST window from an uninverted pulse
+gate_ok: In-file control: the next hwclr line clears GEN_PCR_HASH_DIGEST with the correct strobe
+gate_ok: In-file control: the BLOCK hwclr also uses the correct strobe
+gate_ok: In-file control: the DIGEST write-enable suppression on the line above uses the correct strobe
+gate_ok: In-file control: the internal register-clear branch keys off the correct strobe
+gate_ok: In-file control: all 4 submodule .zeroize ports are fed the correct strobe
+gate_ok: Exactly one consumer in the file was moved to the inverted strobe, namely the DIGEST window
+gate_ok: RDL: ZEROIZE exists to clear internal registers after a SHA process to avoid SCA leakage
+gate_ok: RDL: ZEROIZE is a single-pulse field, so the strobe is momentary by design
+gate_ok: The generated register file wires the DIGEST hwclr to a zeroing branch, so the strobe is live
+gate_ok: That branch drives the field to zero
+gate_ok: Exactly 2 files in the whole tree carry a zeroize_reg2, sha512.sv and sha256.sv
+gate_ok: sha256.sv carries the structurally identical construct, so the mitigation must cover both blocks
+gate_ok: Its DIGEST hwclr is driven by that strobe in the same way
+gate_ok: While its own BLOCK hwclr still uses the correct strobe, the same local pattern as sha512
+gate_ok: The same debug/scan switch is fanned out to 8 or more blocks at the top level
+gate_ok: It is asserted on a debug-lock change, a scan-mode entry, a lifecycle change, or a fatal error
+gate_ok: It is formed from edge terms on latched security state, so it is a transition pulse not a steady level
+gate_ok: SHA512_DIGEST_0 is exposed to firmware at 0x10020100
+gate_ok: SHA512_CTRL is exposed to firmware at 0x10020010 (ZEROIZE is bit 4, mask 0x10)
+
+===== truth table for the two strobes (Z = ZEROIZE, D = debugUnlock_or_scan_mode_switch) =====
+  Z D | zeroize_reg (Z|D) | zeroize_reg2 = ~((~Z)&D) | consequence for the DIGEST window
+  ----+-------------------+-------------------------+-----------------------------------
+  0 0 |         0         |            1            | cleared while nothing is requested
+  0 1 |         1         |            0            | NOT cleared on debug-unlock / scan entry
+  1 0 |         1         |            1            | agrees
+  1 1 |         1         |            1            | agrees
+
+  Row 0/1 is the security failure: it is exactly the transition the wipe exists for.
+  Rows 1/0 and 1/1 show the software ZEROIZE path still works, so the defect is a
+  selective inversion rather than a wholesale break. This table is derived from the
+  expression; the simulation measures the same behaviour independently.
+structural_gates_passed=32/32
+RESULT: PASS

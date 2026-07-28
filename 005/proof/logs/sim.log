@@ -1,0 +1,40 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/005/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/005/proof/logs/sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 10:53 2026
+"/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv", 153: aes_reg_bug_005_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A: started at 1ps failed at 1ps
+	Offending '((unused_assert_connected === 1'b1) || (!EnableAlertTriggerSVA))'
+Error: "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv", 153: aes_reg_bug_005_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A: at time 1 ps
+0: (/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv:153) [aes_reg_bug_005_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A] [CALIPTRA_ASSERT FAILED] AssertConnected_A
+===== BUG-005: write-only AES DATA_IN registers read back plaintext =====
+  aes.rdl:68 declares DATA_IN as 'sw = w' and the subreg is
+  instantiated SwAccessWO, so every read below must return 0x00000000.
+  DATA_IN[0] @0x54: wrote 0x4f50454e, read 0x4f50454e (spec: 0x00000000)
+  ok: DATA_IN[0] returns the written plaintext on a read
+  ok: DATA_IN[0] read is not the TL-UL error pattern
+  DATA_IN[1] @0x58: wrote 0x53454352, read 0x53454352 (spec: 0x00000000)
+  ok: DATA_IN[1] returns the written plaintext on a read
+  ok: DATA_IN[1] read is not the TL-UL error pattern
+  DATA_IN[2] @0x5c: wrote 0x45545f50, read 0x45545f50 (spec: 0x00000000)
+  ok: DATA_IN[2] returns the written plaintext on a read
+  ok: DATA_IN[2] read is not the TL-UL error pattern
+  DATA_IN[3] @0x60: wrote 0x4c41494e, read 0x4c41494e (spec: 0x00000000)
+  ok: DATA_IN[3] returns the written plaintext on a read
+  ok: DATA_IN[3] read is not the TL-UL error pattern
+  recovered 128-bit block = 0x4f50454e5345435245545f504c41494e
+  ok: the full 128-bit input block is recoverable by four MMIO reads
+  DATA_IN[0] read twice: 0x4f50454e then 0x4f50454e
+  ok: reading DATA_IN does not clear it (leak is repeatable)
+  control: CTRL_AUX_REGWEN reads 0x00000001 (expect 0x1, a legal read)
+  ok: control: a legitimately readable register still reads correctly
+===== summary =====
+  checks=11 errors=0
+  cover_data_in_leak=4 (expect 4)
+  cover_legal_read=1 (expect 1)
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/005/proof/tb/aes_reg_bug_005_tb.sv", line 235.
+$finish at simulation time               540000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 540000 ps
+CPU Time:      0.370 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 10:53:41 2026

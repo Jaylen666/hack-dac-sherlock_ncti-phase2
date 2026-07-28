@@ -1,0 +1,28 @@
+%Warning-TIMESCALEMOD: ${CALIPTRA_ROOT}/src/axi/rtl/axi_pkg.sv:16:9: Timescale missing on this module as other modules have it (IEEE 1800-2023 3.14.2.3)
+   16 | package axi_pkg;
+      |         ^~~~~~~
+                       <case>/tb/axi_sub_arb_bug_007_tb.sv:22:8: ... Location of module with timescale
+   22 | module axi_sub_arb_bug_007_tb;
+      |        ^~~~~~~~~~~~~~~~~~~~~~
+                       ... For warning description see https://verilator.org/warn/TIMESCALEMOD?v=5.024
+                       ... Use "/* verilator lint_off TIMESCALEMOD */" and lint_on around source to disable this message.
+%Warning-TIMESCALEMOD: ${CALIPTRA_ROOT}/src/axi/rtl/axi_sub_arb.sv:25:8: Timescale missing on this module as other modules have it (IEEE 1800-2023 3.14.2.3)
+   25 | module axi_sub_arb import axi_pkg::*; #(
+      |        ^~~~~~~~~~~
+                       <case>/tb/axi_sub_arb_bug_007_tb.sv:22:8: ... Location of module with timescale
+   22 | module axi_sub_arb_bug_007_tb;
+      |        ^~~~~~~~~~~~~~~~~~~~~~
+make: Entering directory '<case>/build'
+ccache g++-10 -Os  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -std=c++20 -fcoroutines -DVL_TIME_CONTEXT    -c -o verilated.o /usr/local/share/verilator/include/verilated.cpp
+ccache g++-10 -Os  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -std=c++20 -fcoroutines -DVL_TIME_CONTEXT    -c -o verilated_timing.o /usr/local/share/verilator/include/verilated_timing.cpp
+ccache g++-10 -Os  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -std=c++20 -fcoroutines -DVL_TIME_CONTEXT    -c -o verilated_threads.o /usr/local/share/verilator/include/verilated_threads.cpp
+/usr/bin/python3 /usr/local/share/verilator/bin/verilator_includer -DVL_INCLUDE_OPT=include Vaxi_sub_arb_bug_007_tb.cpp Vaxi_sub_arb_bug_007_tb___024root__DepSet_h594a9c8f__0.cpp Vaxi_sub_arb_bug_007_tb___024root__DepSet_h45f103cb__0.cpp Vaxi_sub_arb_bug_007_tb__main.cpp Vaxi_sub_arb_bug_007_tb__ConstPool_0.cpp Vaxi_sub_arb_bug_007_tb___024root__Slow.cpp Vaxi_sub_arb_bug_007_tb___024root__DepSet_h594a9c8f__0__Slow.cpp Vaxi_sub_arb_bug_007_tb___024root__DepSet_h45f103cb__0__Slow.cpp Vaxi_sub_arb_bug_007_tb__Syms.cpp > Vaxi_sub_arb_bug_007_tb__ALL.cpp
+echo "" > Vaxi_sub_arb_bug_007_tb__ALL.verilator_deplist.tmp
+ccache g++-10 -Os  -I.  -MMD -I/usr/local/share/verilator/include -I/usr/local/share/verilator/include/vltstd -DVM_COVERAGE=0 -DVM_SC=0 -DVM_TRACE=0 -DVM_TRACE_FST=0 -DVM_TRACE_VCD=0 -faligned-new -fcf-protection=none -Wno-bool-operation -Wno-shadow -Wno-sign-compare -Wno-tautological-compare -Wno-uninitialized -Wno-unused-but-set-parameter -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-unused-variable    -std=c++20 -fcoroutines -DVL_TIME_CONTEXT    -c -o Vaxi_sub_arb_bug_007_tb__ALL.o Vaxi_sub_arb_bug_007_tb__ALL.cpp
+Archive ar -rcs Vaxi_sub_arb_bug_007_tb__ALL.a Vaxi_sub_arb_bug_007_tb__ALL.o
+g++    verilated.o verilated_timing.o verilated_threads.o Vaxi_sub_arb_bug_007_tb__ALL.a    -pthread -lpthread -latomic   -o Vaxi_sub_arb_bug_007_tb
+rm Vaxi_sub_arb_bug_007_tb__ALL.verilator_deplist.tmp
+make: Leaving directory '<case>/build'
+- V e r i l a t i o n   R e p o r t: Verilator 5.024 2024-04-05 rev v5.024
+- Verilator: Built from 0.069 MB sources in 4 modules, into 0.074 MB in 9 C++ files needing 0.000 MB
+- Verilator: Walltime 0.376 s (elab=0.002, cvt=0.008, bld=0.277); cpu 0.000 s on 96 threads; alloced 212.680 MB

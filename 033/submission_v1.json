@@ -1,0 +1,68 @@
+{
+  "module": "sha512",
+  "bug_id": "033",
+  "bug_name": "sha512_bug_033",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready",
+  "security_feature_bypassed": "Hardware zeroization of the SHA-512 digest register window on debug-unlock or scan-mode entry, which prevents a digest computed before the transition from being observable through the debug or scan path that the transition opens",
+  "finding": "The SHA-512 DIGEST hardware-clear strobe was rewired through a second, inverted signal. src/sha512/rtl/sha512.sv:284-287 forms two strobes where every other block in the tree forms one: '{zeroize_reg, zeroize_reg2} = {hwif_out.SHA512_CTRL.ZEROIZE.value || debugUnlock_or_scan_mode_switch, ~(&{~hwif_out.SHA512_CTRL.ZEROIZE.value, debugUnlock_or_scan_mode_switch})}'. The second reduces to ZEROIZE | ~debugUnlock_or_scan_mode_switch, i.e. it is inverted with respect to the debug/scan input. Line 300 then drives 'hwif_in.SHA512_DIGEST[dword].DIGEST.hwclr = zeroize_reg2', so the digest is not cleared when a debug-unlock or scan-mode transition is signalled with no software zeroize pending. That is exactly the case the wipe exists to cover. The change is local rather than a deliberate redefinition: the GEN_PCR_HASH_DIGEST hwclr on the very next line (305), the DIGEST write-enable suppression on the line above (298), the BLOCK hwclr (314), the internal register-clear branch (229) and all four submodule .zeroize ports still use the original zeroize_reg, and src/hmac/rtl/hmac.sv:267 still clears its TAG output from a single unmodified strobe. The register block states the security intent: src/sha512/rtl/sha512_reg.rdl:83-85 documents ZEROIZE as 'Zeroize all internal registers after SHA process, to avoid SCA leakage' and marks it singlepulse. The strobe is a shared convention, not a local nicety: src/integration/rtl/caliptra_top.sv:770 forms debug_lock_or_scan_mode_switch from a debug-lock change, a scan-mode entry, a device-lifecycle change or cptra_error_fatal, and fans it out to nine crypto blocks. The clear is live: src/sha512/rtl/sha512_reg.sv:916-918 wires the DIGEST hwclr to a branch that drives the field to zero. A computed census over the audited tree finds 22 zeroize-driven hwclr sites across 6 crypto blocks (doe, ecc, hmac, sha256, sha512, soc_ifc): 20 are driven from the correct strobe and exactly 2 from an inverted one, src/sha512/rtl/sha512.sv:300 and src/sha256/rtl/sha256.sv:403, both DIGEST windows. Those same two files are the only ones in the tree that contain a zeroize_reg2 at all, so the construct is a local deviation from the design's own convention.",
+  "location_or_code_reference": {
+    "competition_file": "/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv:300",
+    "line_range": "284-305",
+    "supporting_references": [
+      "/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv:88",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv:284",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv:298",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv:305",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv:314",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv:229",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512_reg.rdl:83",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512_reg.sv:916",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/sha256/rtl/sha256.sv:388",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/sha256/rtl/sha256.sv:403",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac.sv:267",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/integration/rtl/caliptra_top.sv:763",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/integration/rtl/caliptra_top.sv:770",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/integration/rtl/caliptra_top.sv:945",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/integration/rtl/caliptra_reg/caliptra_reg.h:7299",
+      "/home/smy/hackatdac26-phase-2-caliptra/src/integration/rtl/caliptra_reg/caliptra_reg.h:7147"
+    ]
+  },
+  "detection_method": "LLM-driven CSBC analysis of the audited RTL, confirmed against the block's own RDL security statement, against the uniform treatment of the same signal by every other consumer in the file and by the sibling crypto blocks, and against a computed tree-wide census of zeroize-driven hwclr sites, plus a 32-gate structural witness, a directed VCS simulation of sha512 with its own register block that drives both polarities of the debug/scan input, and a negative control in which the DIGEST hwclr is driven from the file's own surviving strobe in a scratch copy and the identical testbench is required to fail",
+  "security_impact": "A SHA-512 digest left in the SHA512_DIGEST register window is not wiped when the device transitions into debug-unlock or scan mode, so it stays readable through the very path that transition opens. The trigger needs no software cooperation: caliptra_top.sv:770 asserts the switch on a debug-lock change, a scan-mode entry, a device-lifecycle change into manufacturing or production, or cptra_error_fatal, and the digest survives all four. The wipe is a shared convention across the design rather than an incidental feature, since the same signal is fanned out to nine crypto blocks and the SHA-512 RDL states the field exists to avoid SCA leakage after a SHA process; here one consumer in one block was inverted while its immediate neighbours were left correct. What the exposed digest discloses depends on what was hashed, which in this device includes measurement and attestation material; no key-recovery or signature-forgery chain is claimed. As a side effect of the same inversion the window is also held cleared during normal quiescent operation, which is reported as observed behaviour rather than advanced as the security claim. Reaching the digest requires debug or scan access, so the adversary is a physical or authorized-debug attacker rather than ordinary software.",
+  "adversary_profile": "Authorized debug access",
+  "proposed_mitigation": [
+    "Delete zeroize_reg2 from src/sha512/rtl/sha512.sv and keep the single strobe the rest of the file already uses: 'zeroize_reg = hwif_out.SHA512_CTRL.ZEROIZE.value || debugUnlock_or_scan_mode_switch;', with the DIGEST hwclr on line 300 driven from zeroize_reg like every other consumer in the file.",
+    "Apply the identical fix to src/sha256/rtl/sha256.sv:388-403, which carries the same rewiring. Both files must be corrected; fixing only SHA-512 leaves the same exposure in the SHA-256 digest window.",
+    "Add a lint or CI rule that fails when a module derives more than one zeroize/clear strobe from the same ZEROIZE and debug-or-scan inputs, or when consumers of that clear within one module disagree about which strobe they use. The defect here is visible as an intra-file inconsistency and is mechanically detectable.",
+    "Add an assertion that the SHA512_DIGEST window reads zero on the cycle after debugUnlock_or_scan_mode_switch is asserted, and bind an equivalent assertion in every block that receives that signal so the convention is enforced uniformly rather than per block.",
+    "Add a regression test that seeds the digest window, asserts the debug/scan switch, and fails if the digest survives, using the testbench in this submission (proof/tb/sha512_bug_033_tb.sv) together with its negative control (proof/scripts/run_bug_033_negative_control.sh)."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+    "base_score": 4.6,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof_plan_v1.json",
+    "proof_result": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof_result_v1.json",
+    "script": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/scripts/run_bug_033_proof.sh",
+    "sim_script": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/scripts/run_bug_033_sim.sh",
+    "negative_control_script": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/scripts/run_bug_033_negative_control.sh",
+    "testbench": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/tb/sha512_bug_033_tb.sv",
+    "run_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/logs/run.log",
+    "witness_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/logs/witness.log",
+    "sim_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/logs/sim.log",
+    "negative_control_log": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/logs/negative_control.log",
+    "c_validation_status": "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "The SHA-512 engine completes a hash and the result lands in the SHA512_DIGEST register window at 0x10020100 and following.",
+    "The device transitions into debug-unlock or scan mode. caliptra_top.sv:763-767 detects the transition and line 770 asserts debug_lock_or_scan_mode_switch, which is fanned out to nine crypto blocks including SHA-512.",
+    "In a correct implementation zeroize_reg = ZEROIZE | debug_or_scan goes high on that transition and sha512_reg.sv:916-918 drives the whole DIGEST window to zero before the newly opened debug or scan path can observe it.",
+    "In this tree the DIGEST hwclr is driven by zeroize_reg2 = ~((~ZEROIZE) & debug_or_scan) instead. With no software zeroize pending that expression evaluates to 0 precisely when debug_or_scan is 1, so no clear occurs.",
+    "The digest stays in the register window and is observable through the debug or scan access that the transition just granted. The neighbouring GEN_PCR_HASH_DIGEST window, still wired to the original strobe, is wiped as intended, so nothing about the surrounding behaviour signals that the DIGEST window was skipped.",
+    "Verified in simulation: with debugUnlock_or_scan_mode_switch held high, the words 0xa5a5a5a5 and 0x5a5a5a5a seeded into SHA512_DIGEST[0] and [1] were still readable unchanged several cycles later, while a software ZEROIZE on the same RTL did clear them. With the DIGEST hwclr driven from the file's own surviving strobe in a scratch copy, the identical testbench found both words wiped to 0x00000000, its cover counter fell to 0 and four self-checks failed, while the software-ZEROIZE control check still passed."
+  ]
+}

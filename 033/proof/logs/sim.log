@@ -1,0 +1,41 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/logs/sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 10:53 2026
+===== BUG-033: SHA-512 DIGEST hwclr driven by a rewired strobe =====
+  sha512_reg.rdl:83-85 states ZEROIZE exists to 'Zeroize all internal
+  registers after SHA process, to avoid SCA leakage'.
+  sha512.sv:300 drives the DIGEST hwclr from zeroize_reg2, while
+  sha512.sv:305 still drives GEN_PCR_HASH_DIGEST from zeroize_reg.
+
+--- A: quiescent (ZEROIZE=0, debug_or_scan=0) ---
+    seeded DIGEST[0]=0x00000000 DIGEST[1]=0x00000000 (wrote 0xa5a5a5a5 / 0x5a5a5a5a)
+    after 2 further read cycles: DIGEST[0]=0x00000000 DIGEST[1]=0x00000000
+    >> OBSERVED: the DIGEST window is held cleared even though no
+       zeroize was requested and debug/scan is deasserted.
+--- B: debug-unlock / scan-mode asserted (ZEROIZE=0, debug_or_scan=1) ---
+    seeded DIGEST[0]=0xa5a5a5a5 DIGEST[1]=0x5a5a5a5a (wrote 0xa5a5a5a5 / 0x5a5a5a5a)
+    with debug_or_scan held high: DIGEST[0]=0xa5a5a5a5 DIGEST[1]=0x5a5a5a5a
+    >> BUG-033 OBSERVED: the digest SURVIVES debug-unlock/scan-mode
+       entry. A correct strobe (ZEROIZE | debug_or_scan) would have
+       cleared it, as it does for every other zeroize-driven hwclr
+       in this tree.
+  ok: a value is observable in the DIGEST window while debug/scan is asserted (probe works)
+  ok: the DIGEST window is NOT cleared on debug-unlock/scan-mode entry
+--- C: software ZEROIZE (ZEROIZE=1, debug_or_scan=0) ---
+    seeded DIGEST[0]=0x00000000 DIGEST[1]=0x00000000 (wrote 0xa5a5a5a5 / 0x5a5a5a5a)
+    after software ZEROIZE: DIGEST[0]=0x00000000 DIGEST[1]=0x00000000
+  ok: control: software ZEROIZE does clear the DIGEST window
+
+===== summary =====
+  checks=3 errors=0
+  cover_seed_visible=1 (expect 1)
+  cover_no_clear_on_debug=1 (expect 1)
+  cover_clear_when_quiet=1 (0 or 1; reported, not asserted)
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/tb/sha512_bug_033_tb.sv", line 239.
+$finish at simulation time               670000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 670000 ps
+CPU Time:      0.280 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 10:53:53 2026

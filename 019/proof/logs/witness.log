@@ -1,0 +1,91 @@
+===== BUG-019 structural audit (single-tree, audited RTL only) =====
+
+----- 1. the file's own write protocol for digest_valid_reg -----
+  PASS: hmac_core.sv:201 gates the digest_valid_reg write on digest_valid_we
+  PASS: hmac_core.sv:203 is the only place digest_valid_reg takes digest_valid_new
+  PASS: digest_valid_reg has exactly 2 assignments in the file: the reset arm and the enable-gated update
+  PASS: the reset arm clears it directly (hmac_core.sv:185), bypassing the enable
+
+----- 2. the defect: init_cmd drives the value but not the enable -----
+  PASS: hmac_core.sv:340 the init_cmd arm does drive digest_valid_new to 0
+  PASS: hmac_core.sv:339-343 the whole init_cmd arm never mentions digest_valid_we
+  PASS: in-file control: the next_cmd arm four lines below does assert it (hmac_core.sv:347)
+  PASS: the next_cmd arm drives the same value, so the two arms differ only in the enable
+
+----- 3. in-file control: every other state asserts the enable -----
+digest_valid_new_drives=7
+digest_valid_we_asserts=6
+paired=6
+unpaired=1
+unpaired_site=340: digest_valid_new = 1'b0;
+  PASS: census: 7 FSM arms drive digest_valid_new (IDLE init, IDLE next, IPAD, OPAD, HMAC, DONE, default)
+  PASS: census: 6 of the 7 also assert digest_valid_we within the same arm, so the pairing is the file's own convention
+  PASS: census: exactly 1 arm drives the value without the enable
+  PASS: census: that one unpaired arm is the init_cmd arm at hmac_core.sv:340
+  PASS: control: CTRL_IPAD asserts the enable (hmac_core.sv:357)
+  PASS: control: CTRL_OPAD asserts the enable (hmac_core.sv:370)
+
+----- 4. the stale bit is software-visible and gates the tag -----
+  PASS: hmac_core.sv:115 exports digest_valid_reg directly as tag_valid
+  PASS: hmac_core.sv:114 also gates the tag output on the same bit, so a stale 1 exposes the old H2 digest
+  PASS: hmac.sv carries that valid bit up into the register block software polls
+
+===== relevant source, quoted from the audited tree =====
+
+--- src/hmac/rtl/hmac_core.sv:196-210 (the reg_update write protocol) ---
+      end
+
+      default: begin
+        // Normal operating path: latch previous ctrl state, apply pending updates
+        hmac_ctrl_last <= hmac_ctrl_reg;
+
+        if (digest_valid_we)
+          digest_valid_reg <= digest_valid_new;
+
+        if (hmac_ctrl_we)
+          hmac_ctrl_reg <= hmac_ctrl_new;
+      end
+    endcase
+  end : reg_update
+
+
+--- src/hmac/rtl/hmac_core.sv:336-351 (the two CTRL_IDLE arms) ---
+      CTRL_IDLE: begin
+        ready_flag = 1'b1;
+
+        if (init_cmd) begin
+          digest_valid_new = 1'b0;
+          hmac_ctrl_new    = CTRL_IPAD;
+          hmac_ctrl_we     = 1'b1;
+        end
+
+        if (next_cmd) begin
+          digest_valid_new = 1'b0;
+          digest_valid_we  = 1'b1;
+          hmac_ctrl_new    = CTRL_OPAD;
+          hmac_ctrl_we     = 1'b1;
+        end
+      end
+
+--- src/hmac/rtl/hmac_core.sv:353-370 (in-file controls: IPAD and OPAD) ---
+
+        CTRL_IPAD:
+          begin
+            digest_valid_new = 0;
+            digest_valid_we  = 1;
+            if (IPAD_ready == 1)
+              begin
+                hmac_ctrl_new   = CTRL_OPAD;
+                hmac_ctrl_we    = 1;
+                set_entropy = 1;
+              end
+          end
+        
+
+        CTRL_OPAD:
+          begin  
+            digest_valid_new = 0;
+            digest_valid_we  = 1;
+
+structural_gates_passed=17/17
+RESULT: PASS

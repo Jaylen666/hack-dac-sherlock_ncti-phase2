@@ -1,0 +1,36 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/003/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/003/proof/logs/negative_control_sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 10:52 2026
+"/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv", 153: aes_reg_bug_003_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A: started at 1ps failed at 1ps
+	Offending '((unused_assert_connected === 1'b1) || (!EnableAlertTriggerSVA))'
+Error: "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv", 153: aes_reg_bug_003_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A: at time 1 ps
+0: (/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv:153) [aes_reg_bug_003_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A] [CALIPTRA_ASSERT FAILED] AssertConnected_A
+===== BUG-003: CTRL_AUX_REGWEN does not gate CTRL_AUX_SHADOWED =====
+  REGWEN after reset      = 0x1 (expect 0x1 = unlocked)
+  ok: REGWEN reads 1 after reset
+  AUX.key_touch_forces_reseed after reset = 1 (expect 1)
+  ok: KEY_TOUCH_FORCES_RESEED resets to 1 (secure default)
+  REGWEN after lock      = 0x0 (expect 0x0 = locked)
+  ok: REGWEN reads 0 after software lock
+  AUX.key_touch_forces_reseed after LOCKED write of 0 = 1
+[BUG-003-TBFAIL] AUX value changed while locked (lock is ineffective)
+  ok: no shadow update error was raised for the locked write
+===== BUG-005: DATA_IN registers read back plaintext =====
+  DATA_IN[0] wrote 0x11111111, read 0x11111111 (must be 0x0)
+  ok: DATA_IN[0] leaks the written value
+  DATA_IN[3] wrote 0x44444444, read 0x44444444 (must be 0x0)
+  ok: DATA_IN[3] leaks the written value
+===== summary =====
+  checks=7 errors=1
+  cover_aux_committed_while_locked=0
+  cover_data_in_readback=2
+[BUG-003-TBFAIL] vacuous: attack path never exercised
+PROOF_RESULT: FAIL
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/003/proof/tb/aes_reg_bug_003_tb.sv", line 237.
+$finish at simulation time               360000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 360000 ps
+CPU Time:      0.310 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 10:52:42 2026
+SIM RESULT: FAIL (self-check tripped)

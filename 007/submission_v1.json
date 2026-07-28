@@ -1,0 +1,61 @@
+{
+  "module": "axi_sub_arb",
+  "bug_id": "007",
+  "bug_name": "axi_sub_arb_bug_007",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready",
+  "security_feature_bypassed": "Integrity of the AXI USER (AXI_USER) attribute on subordinate requests, which Caliptra uses as the requester identity for its mailbox, fuse, TRNG and DMA access-control allowlists",
+  "finding": "axi_sub_arb multiplexes one read channel and one write channel onto a single component-facing request. Every read-side attribute is selected by the grant signal r_win alone: src/axi/rtl/axi_sub_arb.sv:129 selects addr, line 130 selects write, line 132 selects id and line 133 selects last. The USER field does not follow that grant. Line 125 derives a separate select term, assign user_from_read = ~(~r_win | w_dv), which reduces to r_win & ~w_dv, and line 131 uses it to drive the component-facing user output. The two terms disagree in exactly the state r_win=1 and w_dv=1, which the arbiter itself makes reachable: line 121 grants the read channel with r_win = r_dv || !w_dv whenever the persistent-priority bit r_pri is set, so a read is granted in the very same cycle a write request is valid. In that cycle the request presented to the component carries the read channel's address, id and write=0 while carrying the write channel's USER value. The module header at src/axi/rtl/axi_sub_arb.sv:16-21 describes the block as arbitrating between reads and writes onto one component interface, so exporting attributes belonging to two different transactions on a single granted request contradicts the block's own contract. The mismatched field is live security state rather than spare wiring: src/axi/rtl/axi_sub.sv:210 forwards the arbiter user output unmodified, src/soc_ifc/rtl/soc_ifc_top.sv:380 binds it to soc_req.user, and that value is then compared against the configured AXI_USER allowlists at src/soc_ifc/rtl/soc_ifc_top.sv:987, 990 and 994 and at src/soc_ifc/rtl/soc_ifc_arb.sv:164 and 166.",
+  "location_or_code_reference": {
+    "competition_file": "src/axi/rtl/axi_sub_arb.sv:125",
+    "line_range": "121-136",
+    "supporting_references": [
+      "src/axi/rtl/axi_sub_arb.sv:121",
+      "src/axi/rtl/axi_sub_arb.sv:129",
+      "src/axi/rtl/axi_sub_arb.sv:130",
+      "src/axi/rtl/axi_sub_arb.sv:131",
+      "src/axi/rtl/axi_sub_arb.sv:132",
+      "src/axi/rtl/axi_sub_arb.sv:20",
+      "src/axi/rtl/axi_sub.sv:210",
+      "src/soc_ifc/rtl/soc_ifc_top.sv:380",
+      "src/soc_ifc/rtl/soc_ifc_top.sv:987",
+      "src/soc_ifc/rtl/soc_ifc_top.sv:994",
+      "src/soc_ifc/rtl/soc_ifc_arb.sv:164"
+    ]
+  },
+  "detection_method": "RTL review of the arbiter's select terms against the block's own interface contract, a nine-gate scripted structural witness over the submitted checkout, and a directed Verilator simulation of a single axi_sub_arb instance carrying three control cases and one violating case",
+  "security_impact": "The component-facing request can present a read transaction whose USER attribute belongs to a different agent's concurrent write. Because soc_ifc compares soc_req.user against the mailbox, fuse, TRNG and DMA AXI_USER allowlists, an access-control decision for that read is made against the wrong requester identity. Two directions follow. A read issued by an agent that is not on an allowlist is evaluated against a privileged writer's USER value and can be admitted, disclosing register state the reader is not entitled to. Conversely a legitimate reader can be evaluated against a non-privileged writer's USER value and be denied. The condition requires a read and a write to be valid in the same cycle with read priority held, which an attacker who controls one of the two AXI channels can arrange by sustaining traffic, but it depends on cycle-level coincidence with the other channel rather than on a single deterministic write, so the attack complexity is high. This submission proves the identity mismatch on the arbiter's component interface and the allowlist comparison that consumes it; it does not measure the resulting data disclosure over a full SoC boot.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "Select the USER field with the same grant term as every other read-side attribute in src/axi/rtl/axi_sub_arb.sv: drive user = r_win ? r_user : w_user and remove the separate user_from_read term at line 125, so all component-facing attributes are sourced from one granted channel.",
+    "Add an assertion, bound wherever axi_sub_arb is integrated, that user equals r_user whenever write is 0 and equals w_user whenever write is 1, so an attribute that stops following the grant fails immediately instead of silently.",
+    "Add a lint or review rule that flags any select term in an arbiter output mux which is not the arbiter's grant signal, since a per-field select is how one transaction's attributes leak onto another's request.",
+    "Add a regression test that holds read priority, presents a concurrent read and write with distinct USER values, and fails if the granted request's USER does not match its granted channel, using the testbench in this submission (proof/tb/axi_sub_arb_bug_007_tb.sv)."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:H/PR:L/UI:N/S:U/C:H/I:L/A:N",
+    "base_score": 5.3,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/007/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/007/proof_result_v1.json",
+    "script": "final_bug_submissions/007/proof/scripts/run_bug_007_proof.sh",
+    "testbench": "final_bug_submissions/007/proof/tb/axi_sub_arb_bug_007_tb.sv",
+    "run_log": "final_bug_submissions/007/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/007/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/007/proof/logs/sim.log",
+    "compile_log": "final_bug_submissions/007/proof/logs/compile.log",
+    "c_validation_status": "final_bug_submissions/007/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "The arbiter's persistent-priority bit r_pri is set, which happens after any write burst completes (src/axi/rtl/axi_sub_arb.sv:99-100). Priority now sits with the read channel.",
+    "The attacker sustains read traffic on the AXI read channel so that r_dv is asserted. A second agent, or the attacker's own write channel, has a write request valid in the same cycle, so w_dv is also asserted.",
+    "Line 121 evaluates r_win = r_dv || !w_dv, which is 1, so the read channel wins the grant. Lines 129, 130, 132 and 133 correctly export the read channel's address, write=0, id and last.",
+    "Line 125 evaluates user_from_read = ~(~r_win | w_dv), which is 0 because w_dv is 1. Line 131 therefore drives the component-facing user output from w_user, the concurrent write request's identity.",
+    "axi_sub forwards that user value unmodified (src/axi/rtl/axi_sub.sv:210) and soc_ifc_top binds it to soc_req.user (src/soc_ifc/rtl/soc_ifc_top.sv:380).",
+    "soc_ifc evaluates the read against its AXI_USER allowlists using that borrowed identity (src/soc_ifc/rtl/soc_ifc_top.sv:987, 990, 994 and src/soc_ifc/rtl/soc_ifc_arb.sv:164, 166), so the read is admitted or denied on the strength of another agent's privileges.",
+    "Verified in simulation: with priority on the write channel a concurrent request exports user=0x55552222 alongside the write channel's own address, and a lone read exports user=0xAAAA1111 with the read address. With priority on the read channel the same concurrent stimulus exports address 0x00001000 and write=0 from the read channel while exporting user=0x55552222 from the write channel."
+  ]
+}

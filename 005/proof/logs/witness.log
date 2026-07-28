@@ -1,0 +1,64 @@
+
+===== the four DATA_IN read multiplexer arms (src/aes/rtl/aes_reg_top.sv:1784-1790) =====
+1784:      addr_hit[21]: reg_rdata_next[31:0] = reg2hw.data_in[0].q;
+1786:      addr_hit[22]: reg_rdata_next[31:0] = reg2hw.data_in[1].q;
+1788:      addr_hit[23]: reg_rdata_next[31:0] = reg2hw.data_in[2].q;
+1790:      addr_hit[24]: reg_rdata_next[31:0] = reg2hw.data_in[3].q;
+
+===== RDL declares DATA_IN write-only (src/aes/data/aes.rdl:66-82) =====
+    reg {
+        field {
+            sw = w;
+            onwrite = woclr;
+            desc = "Input Data Registers.
+            reset, these registers are cleared with pseudo-random data.";
+        } DATA_IN[31:0];
+    } DATA_IN[4] @ 0x54;
+
+===== generated subreg instance for DATA_IN[0] (src/aes/rtl/aes_reg_top.sv:715-721) =====
+  caliptra_prim_subreg #(
+    .DW      (32),
+    .SwAccess(caliptra_prim_subreg_pkg::SwAccessWO),
+    .RESVAL  (32'h0),
+    .Mubi    (1'b0)
+  ) u_data_in_0 (
+    .clk_i   (clk_i),
+
+===== in-tree control: TRIGGER is also SwAccessWO and its read arm returns zero (src/aes/rtl/aes_reg_top.sv:1826-1831) =====
+      addr_hit[32]: begin
+        reg_rdata_next[0] = '0;
+        reg_rdata_next[1] = '0;
+        reg_rdata_next[2] = '0;
+        reg_rdata_next[3] = '0;
+      end
+
+===== firmware header entries for DATA_IN =====
+1595:#define CLP_AES_REG_DATA_IN_0                                                                       (0x10011054)
+1599:#define CLP_AES_REG_DATA_IN_1                                                                       (0x10011058)
+1603:#define CLP_AES_REG_DATA_IN_2                                                                       (0x1001105c)
+1607:#define CLP_AES_REG_DATA_IN_3                                                                       (0x10011060)
+
+===== clear path: only the explicit trigger overwrites DATA_IN =====
+820:      hw2reg.data_in[i].d  = prd_clearing_data[i];
+821:      hw2reg.data_in[i].de = data_in_we;
+1013:  assign data_in_new_d = data_in_load || &data_in_qe_i || clear_in_out_status ? '0 :
+
+===== audit gate results =====
+gate_ok: All 4 DATA_IN words are returned from the read multiplexer as reg2hw.data_in[i].q
+gate_ok: DATA_IN[0] has a live address decode, so the read path is reachable
+gate_ok: DATA_IN[0] sits at a fixed MMIO offset (0x54)
+gate_ok: DATA_IN[0] is instantiated SwAccessWO, i.e. write-only, in this same file
+gate_ok: Yet this same file returns DATA_IN[0] contents on a read: an intra-file contradiction
+gate_ok: RDL: the DATA_IN field is declared sw = w, write-only with no software read
+gate_ok: The register block declares itself auto-generated from that RDL, so the tree is self-inconsistent
+gate_ok: The file contains 8 SwAccessWO field instances: the 4 DATA_IN words and the 4 TRIGGER bits
+gate_ok: Control: u_trigger_start is also instantiated SwAccessWO
+gate_ok: Control: the TRIGGER read arm returns constant zero, the correct treatment for a write-only window
+gate_ok: Control: every TRIGGER bit reads back zero, so the pattern is applied consistently there
+gate_ok: Control: no TRIGGER read arm returns register contents, unlike DATA_IN
+gate_ok: DATA_IN[0] is exposed to firmware at 0x10011054 in the generated header
+gate_ok: DATA_IN[3] is exposed to firmware at 0x10011060 in the generated header
+gate_ok: The registers are overwritten with pseudo-random data only via the explicit clear path
+gate_ok: That clear is asserted in the CTRL_CLEAR_I state, i.e. on the software clear trigger
+structural_gates_passed=16/16
+RESULT: PASS

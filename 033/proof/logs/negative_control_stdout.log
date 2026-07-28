@@ -1,0 +1,59 @@
+recompiling package entropy_src_ack_sm_pkg
+recompiling package entropy_src_reg_pkg
+recompiling package entropy_src_pkg
+recompiling package csrng_reg_pkg
+recompiling package csrng_pkg
+recompiling package edn_pkg
+recompiling package kv_defines_pkg
+recompiling package kv_reg_pkg
+recompiling package pv_defines_pkg
+recompiling module pv_gen_hash
+recompiling package pv_reg_pkg
+recompiling package sha512_reg_pkg
+recompiling package sha512_params_pkg
+recompiling module sha512_bug_033_tb
+All of 34 modules done
+rm -f _cuarc*.so _csrc*.so pre_vcsobj_*.so share_vcsobj_*.so
+if [ -x ../simv ]; then chmod a-x ../simv; fi
+g++  -o ../simv   -no-pie  -Wl,--no-as-needed    -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu -Wl,--no-as-needed -rdynamic  -Wl,-rpath='$ORIGIN'/simv.daidir -Wl,-rpath=./simv.daidir -Wl,-rpath=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib -L/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib  -Wl,-rpath-link=./ -Wl,--no-as-needed   objs/amcQw_d.o   _1440147_archive_1.so   SIM_l.o       rmapats_mop.o rmapats.o rmar.o rmar_nd.o  rmar_llvm_0_1.o rmar_llvm_0_0.o            -lnuma -lvirsim -lerrorinf -lsnpsmalloc -lvfs    -lvcsnew -lsimprofile -luclinative /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_tls.o   -Wl,-whole-archive  -lvcsucli    -Wl,-no-whole-archive       ./../simv.daidir/vc_hdrs.o    /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_save_restore_new.o -ldl  -lc -lm -lpthread -ldl 
+../simv up to date
+CPU time: 2.101 seconds to compile + .762 seconds to elab + .280 seconds to link
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid re-execution or '-suppress=ASLR_DETECTED_INFO' to suppress this message.
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 10:53 2026
+===== BUG-033: SHA-512 DIGEST hwclr driven by a rewired strobe =====
+  sha512_reg.rdl:83-85 states ZEROIZE exists to 'Zeroize all internal
+  registers after SHA process, to avoid SCA leakage'.
+  sha512.sv:300 drives the DIGEST hwclr from zeroize_reg2, while
+  sha512.sv:305 still drives GEN_PCR_HASH_DIGEST from zeroize_reg.
+
+--- A: quiescent (ZEROIZE=0, debug_or_scan=0) ---
+    seeded DIGEST[0]=0xa5a5a5a5 DIGEST[1]=0x5a5a5a5a (wrote 0xa5a5a5a5 / 0x5a5a5a5a)
+    after 2 further read cycles: DIGEST[0]=0xa5a5a5a5 DIGEST[1]=0x5a5a5a5a
+--- B: debug-unlock / scan-mode asserted (ZEROIZE=0, debug_or_scan=1) ---
+    seeded DIGEST[0]=0x00000000 DIGEST[1]=0x00000000 (wrote 0xa5a5a5a5 / 0x5a5a5a5a)
+    with debug_or_scan held high: DIGEST[0]=0x00000000 DIGEST[1]=0x00000000
+[BUG-033-TBFAIL] a value is observable in the DIGEST window while debug/scan is asserted (probe works)
+[BUG-033-TBFAIL] the DIGEST window is NOT cleared on debug-unlock/scan-mode entry
+--- C: software ZEROIZE (ZEROIZE=1, debug_or_scan=0) ---
+    seeded DIGEST[0]=0xa5a5a5a5 DIGEST[1]=0x5a5a5a5a (wrote 0xa5a5a5a5 / 0x5a5a5a5a)
+    after software ZEROIZE: DIGEST[0]=0x00000000 DIGEST[1]=0x00000000
+  ok: control: software ZEROIZE does clear the DIGEST window
+
+===== summary =====
+  checks=3 errors=2
+  cover_seed_visible=0 (expect 1)
+  cover_no_clear_on_debug=0 (expect 1)
+  cover_clear_when_quiet=0 (0 or 1; reported, not asserted)
+[BUG-033-TBFAIL] vacuous: the debug/scan non-clear was never observed
+[BUG-033-TBFAIL] vacuous: the probe value was never observable, harness suspect
+PROOF_RESULT: FAIL
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/tb/sha512_bug_033_tb.sv", line 239.
+$finish at simulation time               670000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 670000 ps
+CPU Time:      0.360 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 10:53:17 2026
+SIM RESULT: FAIL (self-check tripped)

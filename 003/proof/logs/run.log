@@ -1,0 +1,47 @@
+BUG-003 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T10:56:13+08:00
+gate_ok: The AUX write qualifier is an unconditional passthrough of the raw write enable
+gate_ok: The lock bit does not appear in that assignment at all
+gate_ok: No write-enable assignment anywhere in the file consumes the lock bit
+census_gating_assignments=33
+census_regwen_gated=32
+census_not_gated=1
+census_deviation=src/aes/rtl/aes_reg_top.sv:1038: always_comb begin ctrl_aux_shadowed_gated_we = ctrl_aux_shadowed_we; end
+gated_we_declarations=33
+gate_ok: The tree contains 33 REGWEN write-enable gating assignments, a large in-tree control population
+gate_ok: The count of gated_we declarations equals the count of assignments, so no site was missed
+gate_ok: 32 of them AND the write enable with a REGWEN read-back
+gate_ok: Exactly one omits the REGWEN term, so the defect is a unique outlier in its own tree
+gate_ok: That single outlier is the line under audit
+gate_ok: Control: kmac_reg_top gates its shadowed config register write enable with its REGWEN
+gate_ok: Control: csrng_reg_top does the same, so the idiom is consistent across blocks
+gate_ok: Control: entropy_src_reg_top does the same across its 16 sites
+gating_marker_comments=32 aes_reg_top_markers=0 oneline_always_comb_tree_wide=1
+gate_ok: 32 of the 33 gating sites carry the generator's fixed marker comment
+gate_ok: aes_reg_top.sv is the only file with a gating site and no marker comment at all
+gate_ok: In its place is hand-written prose, a form the generated blocks in this tree never use
+gate_ok: The audited line is also the only single-line always_comb block in the entire tree
+gate_ok: The lock read-back signal is still declared, so its removal from logic is silent, not a compile error
+gate_ok: It is still driven by its own subreg instance, so the lock register holds state correctly
+gate_ok: It is still returned over MMIO, so software reads back a lock that appears engaged
+lock_signal_sites=3
+gate_ok: The lock signal appears at exactly 3 sites: declared, driven, read back. None of them gates anything
+gate_ok: The lock is SwAccessW0C, so one write of 0 engages it and software cannot undo it
+gate_ok: It resets to 1 (unlocked), so engaging the lock is an explicit software decision
+gate_ok: RDL: clearing the bit means the Auxiliary Control Register cannot be written anymore
+gate_ok: The register block declares itself auto-generated from that RDL, so the tree is self-inconsistent
+gate_ok: The AUX write enable is decoded from a live address hit, so the write path is reachable
+ungated_we_consumers=2
+gate_ok: The ungated qualifier drives the .we of both AUX fields, so neither field is protected
+gate_ok: Field 1 is KEY_TOUCH_FORCES_RESEED
+gate_ok: Field 2 is FORCE_MASKS, which is inert in this build and is NOT claimed as impact (see below)
+gate_ok: KEY_TOUCH_FORCES_RESEED gates the masking-PRNG reseed on a new key load, so the claimed field is not inert
+gate_ok: The lock the RDL describes is the one covering that register, so the protected asset is correctly identified
+gate_ok: Scope limit: SecAllowForcingMasks defaults to 0 in aes.sv
+gate_ok: Scope limit: the wrapper instantiates aes with no override, so the parameter stays 0 and FORCE_MASKS is inert
+gate_ok: CTRL_AUX_SHADOWED is exposed to firmware at 0x10011078
+gate_ok: CTRL_AUX_REGWEN is exposed to firmware at 0x1001107c
+structural_gates_passed=33/33
+RESULT: PASS - all structural gates confirm BUG-003
+result=PASS

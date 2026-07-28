@@ -1,0 +1,9 @@
+{"vcs1":{"timestamp_begin":1785207222.704883433, "rt":4.09, "ut":1.66, "st":0.33}}
+{"vcselab":{"timestamp_begin":1785207226.937794259, "rt":2.71, "ut":0.62, "st":0.23}}
+{"link":{"timestamp_begin":1785207229.744271174, "rt":0.29, "ut":0.18, "st":0.14}}
+{"SNPS_VCS_INTERNAL_ROOT_START_TIME": 1785207222.035290890}
+{"VCS_COMP_START_TIME": 1785207222.035290890}
+{"VCS_COMP_END_TIME": 1785207230.170328380}
+{"VCS_USER_OPTIONS": "-full64 -sverilog -timescale=1ns/1ps -assert svaext +lint=none -f filelist.f -top sha512_bug_033_tb -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/logs/compile.log -o simv"}
+{"vcs1": {"peak_mem": 486052}}
+{"vcselab": {"peak_mem": 233160}}

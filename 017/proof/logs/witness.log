@@ -1,0 +1,98 @@
+===== BUG-017 structural audit (single-tree, audited RTL only) =====
+
+----- 1. the intended reseed chain exists in the file -----
+  PASS: hmac_core.sv:243 builds entropy_block from entropy_digest, lfsr_seed and a counter
+  PASS: hmac_core.sv:282 presents entropy_block to the H2 core inside CTRL_IPAD
+  PASS: hmac_core.sv:229-231 latches entropy_digest from H2_digest when set_entropy fires
+  PASS: hmac_core.sv:362 fires set_entropy at the IPAD -> OPAD transition
+  PASS: hmac_core.sv:242 feeds the masking LFSRs from entropy_digest XOR lfsr_seed
+  PASS: hmac_core.sv:167 seeds all 12 caliptra_prim_lfsr instances from lfsr_entropy
+
+----- 2. the chain is broken: H2 is never started for that block -----
+  PASS: the CTRL_IPAD first_round arm drives H2_init to 0 (hmac_core.sv:277)
+  PASS: the CTRL_IPAD first_round arm drives H2_next to 0 (hmac_core.sv:278)
+  PASS: no assignment anywhere in the CTRL_IPAD branch ever raises an H2 start strobe
+
+----- 3. in-file control: every other block presentation has a start strobe -----
+  PASS: control: CTRL_IPAD starts H1 on key_ipadded (hmac_core.sv:275)
+  PASS: control: CTRL_OPAD starts H2 on key_opadded (hmac_core.sv:291)
+  PASS: control: CTRL_OPAD starts H1 on block_msg (hmac_core.sv:290)
+  PASS: control: CTRL_HMAC starts H2 on HMAC_padded (hmac_core.sv:304)
+start_strobe_assertions=4
+  PASS: census: the file asserts a start strobe exactly 4 times, one per real block presentation, none of them for the entropy block
+
+----- 4. the entropy is security-relevant, not decorative -----
+  PASS: H2 is a masked SHA-512 core, so its entropy input is a side-channel countermeasure
+  PASS: hmac_core.sv:145 wires the LFSR output into H2's masking entropy port
+  PASS: hmac_core.sv:126 wires the same LFSR output into H1's masking entropy port
+  PASS: hmac.sv:311 sources lfsr_seed from the software-writable HMAC512_LFSR_SEED register
+  PASS: hmac.sv:159-160 passes that register value straight through to the core
+
+----- 5. scope: the defect is predictability, not a stall -----
+  PASS: entropy_digest resets to zero (hmac_core.sv:227), which is what set_entropy then latches
+  PASS: the LFSRs are reseeded on every init_cmd (hmac_core.sv:166), so the weak seed is applied per HMAC
+
+===== relevant source, quoted from the audited tree =====
+
+--- src/hmac/rtl/hmac_core.sv:273-284 (the CTRL_IPAD branch) ---
+      CTRL_IPAD: begin
+        if (first_round) begin
+          H1_init    = 1'b1;
+          H1_next    = 1'b0;
+          H2_init    = 1'b0;
+          H2_next    = 1'b0;
+          IPAD_ready = 1'b0;
+        end
+
+        H2_block = entropy_block;
+      end
+
+
+--- src/hmac/rtl/hmac_core.sv:285-306 (in-file controls: every other presentation) ---
+        CTRL_OPAD:
+          begin
+            if (first_round)
+              begin
+                H1_init = 0;
+                H1_next = 1;
+                H2_init = 1;
+                H2_next = 0;
+                OPAD_ready = 0;
+              end
+
+            H1_block = block_msg;
+          end
+
+        CTRL_HMAC:
+          begin
+            if (first_round)
+              begin
+                H2_init = 0;
+                H2_next = 1;  
+                HMAC_ready = 0;  
+              end
+
+--- src/hmac/rtl/hmac_core.sv:224-243 (the latch and the LFSR seed) ---
+  // without zeroize to make it more complex
+  always_ff @(posedge clk or negedge reset_n) begin
+    if (!reset_n) begin
+      entropy_digest <= '0;
+    end
+    else if (set_entropy) begin
+      entropy_digest <= H2_digest[383:0];
+    end
+  end
+  
+  //without zeroize to make it more complex
+  always_ff @(posedge clk or negedge reset_n) begin
+    if (!reset_n)
+      counter_reg <= '0;
+    else
+      counter_reg <= counter_reg + 1;
+  end
+
+  always_comb lfsr_entropy = entropy_digest ^ lfsr_seed;
+  always_comb entropy_block = {entropy_digest, lfsr_seed, counter_reg, ENTROPY_PAD};
+
+structural_gates_passed=21/21
+RESULT: PASS

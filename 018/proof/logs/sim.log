@@ -1,0 +1,37 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/018/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/018/proof/logs/sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 12:30 2026
+===== BUG-018 / BUG-019 directed simulation on hmac_core =====
+[test 1] assert init_cmd and next_cmd together in CTRL_IDLE
+  ok: precondition: FSM is in CTRL_IDLE
+  ok: precondition: ready is high, so the command is accepted
+  combinational: hmac_ctrl_new=2 hmac_ctrl_we=1
+  ok: the second if overwrites hmac_ctrl_new: CTRL_OPAD, not CTRL_IPAD
+  OBSERVED: hmac_ctrl_reg=2 after the command cycle
+  ok: BUG-018 OBSERVED: FSM landed in CTRL_OPAD, the IPAD phase is skipped
+  ok: the INIT was lost: the FSM never entered CTRL_IPAD
+[test 2] a previous HMAC left digest_valid_reg set; issue INIT
+  ok: precondition: tag_valid is high from the previous run
+  combinational: digest_valid_new=0 digest_valid_we=0
+  ok: the init_cmd branch does drive digest_valid_new to 0
+  ok: BUG-019 OBSERVED: but digest_valid_we is never asserted, so the write is dropped
+  OBSERVED: tag_valid=1 during the INIT command cycle, tag[63:0]=0000000000000000
+  ok: BUG-019 OBSERVED: stale VALID survives the INIT command cycle
+[test 3] in-file control: the next_cmd branch asserts digest_valid_we
+  ok: precondition: tag_valid is high again
+  combinational: digest_valid_new=0 digest_valid_we=1
+  ok: control: next_cmd asserts digest_valid_we, the treatment init_cmd omits
+  OBSERVED: tag_valid=0 one cycle after the NEXT command
+  ok: control: the stale VALID is cleared, so the harness can observe clearing
+cover_ipad_skipped=1
+cover_stale_valid=1
+cover_next_clears=1
+checks=12 errors=0
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/018/proof/tb/hmac_core_bug_018_019_tb.sv", line 168.
+$finish at simulation time               245000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 245000 ps
+CPU Time:      0.330 seconds;       Data structure size:   0.1Mb
+Tue Jul 28 12:30:51 2026

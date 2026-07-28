@@ -1,0 +1,29 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/017/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/017/proof/logs/negative_control_sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 12:37 2026
+===== BUG-017 directed simulation on hmac_core =====
+  ok: precondition: entropy_digest is zero out of reset
+[phase] FSM entered CTRL_IPAD; watching the entropy window
+[phase] FSM left CTRL_IPAD after 92 cycles
+  ok: the FSM did spend time in CTRL_IPAD
+  ok: entropy_block was presented on H2_block during CTRL_IPAD
+  ok: control: H1 was started in the same window, so start strobes do reach the cores
+  OBSERVED: over 92 CTRL_IPAD cycles, H2_init|H2_next was ever high: 1
+TBFAIL: BUG-017 OBSERVED: H2 was never started, so the entropy block was never hashed
+  OBSERVED: entropy_digest[63:0]=039dffff910bb3b8 after the IPAD->OPAD transition
+TBFAIL: BUG-017 OBSERVED: entropy_digest latched zero, the unstarted core's output
+TBFAIL: BUG-017 OBSERVED: lfsr_entropy collapses to the software-written LFSR_SEED alone
+  ok: the seed is not zero, so the LFSRs still run: the defect is predictability, not a stall
+cover_h2_never_started=0
+cover_entropy_zero=0
+cover_seed_is_sw=0
+checks=8 errors=3
+PROOF_RESULT: FAIL
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/017/proof/tb/hmac_core_bug_017_tb.sv", line 153.
+$finish at simulation time              1015000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 1015000 ps
+CPU Time:      0.330 seconds;       Data structure size:   0.1Mb
+Tue Jul 28 12:37:21 2026
+SIM RESULT: FAIL (self-check tripped)

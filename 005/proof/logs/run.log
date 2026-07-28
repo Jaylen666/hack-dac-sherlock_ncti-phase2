@@ -1,0 +1,24 @@
+BUG-005 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T10:53:53+08:00
+data_in_read_arms=4
+gate_ok: All 4 DATA_IN words are returned from the read multiplexer as reg2hw.data_in[i].q
+gate_ok: DATA_IN[0] has a live address decode, so the read path is reachable
+gate_ok: DATA_IN[0] sits at a fixed MMIO offset (0x54)
+gate_ok: DATA_IN[0] is instantiated SwAccessWO, i.e. write-only, in this same file
+gate_ok: Yet this same file returns DATA_IN[0] contents on a read: an intra-file contradiction
+gate_ok: RDL: the DATA_IN field is declared sw = w, write-only with no software read
+gate_ok: The register block declares itself auto-generated from that RDL, so the tree is self-inconsistent
+swaccesswo_instances=8
+gate_ok: The file contains 8 SwAccessWO field instances: the 4 DATA_IN words and the 4 TRIGGER bits
+gate_ok: Control: u_trigger_start is also instantiated SwAccessWO
+gate_ok: Control: the TRIGGER read arm returns constant zero, the correct treatment for a write-only window
+gate_ok: Control: every TRIGGER bit reads back zero, so the pattern is applied consistently there
+gate_ok: Control: no TRIGGER read arm returns register contents, unlike DATA_IN
+gate_ok: DATA_IN[0] is exposed to firmware at 0x10011054 in the generated header
+gate_ok: DATA_IN[3] is exposed to firmware at 0x10011060 in the generated header
+gate_ok: The registers are overwritten with pseudo-random data only via the explicit clear path
+gate_ok: That clear is asserted in the CTRL_CLEAR_I state, i.e. on the software clear trigger
+structural_gates_passed=16/16
+RESULT: PASS - all structural gates confirm BUG-005
+result=PASS

@@ -1,0 +1,64 @@
+{
+  "module": "aes",
+  "bug_id": "003",
+  "bug_name": "aes_bug_003",
+  "triage_id": "AES-TRIAGE-003",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Privileged software at supervisor mode able to issue MMIO writes to the AES register block, after the trusted boot stage has locked the AES auxiliary configuration.",
+    "precondition": "Trusted software has cleared CTRL_AUX_REGWEN to 0 to freeze the AES auxiliary control register. The lock is write-0-to-clear and cannot be reopened without a reset, so a correct implementation offers no path back.",
+    "input": "Two consecutive MMIO writes of 0x0 to CTRL_AUX_SHADOWED at offset 0x78 (a shadowed register commits on the second matching write).",
+    "protected_asset": "The AES auxiliary security configuration, specifically KEY_TOUCH_FORCES_RESEED, which decides whether loading a new key reseeds the masking and clearing PRNGs.",
+    "security_property": "integrity",
+    "modification": "The write-enable gating term was deleted from the shadowed AUX register. aes_reg_top.sv:1038 assigns ctrl_aux_shadowed_gated_we = ctrl_aux_shadowed_we with no AND against ctrl_aux_regwen_qs, so the lock bit no longer gates anything."
+  },
+  "security_feature_bypassed": "CTRL_AUX_REGWEN provides one-way, reset-only write protection for the AES auxiliary control register, so that once trusted boot code freezes the SCA-related configuration no later software can change it.",
+  "proof_goal": "Show that the lock bit is fully software-visible and behaves correctly as a register, yet gates no logic, so a locked CTRL_AUX_SHADOWED still commits an attacker-chosen value; and show the same testbench rejects the claim once this tree's own REGWEN gating idiom is applied to that line.",
+  "proof_style": {
+    "primary": "structural_audit",
+    "secondary": [
+      "directed_sim",
+      "negative_control"
+    ]
+  },
+  "minimum_attack_sequence": [
+    "Reset. CTRL_AUX_REGWEN reads 1 (unlocked) and KEY_TOUCH_FORCES_RESEED holds its secure default of 1.",
+    "Trusted software writes 0 to CTRL_AUX_REGWEN, locking the auxiliary configuration. A read confirms 0.",
+    "Attacker issues two MMIO writes of 0x0 to CTRL_AUX_SHADOWED, satisfying the shadow-register two-write commit protocol.",
+    "The shadow register commits. KEY_TOUCH_FORCES_RESEED becomes 0 with no error signalled.",
+    "AES no longer reseeds its masking PRNG when a new key is loaded, so masking randomness carries across key changes."
+  ],
+  "expected_evidence": [
+    "aes_reg_top.sv:1038 assigns ctrl_aux_shadowed_gated_we directly from ctrl_aux_shadowed_we, with no gating term.",
+    "A census of the audited tree finds 33 REGWEN write-enable gating assignments; 32 AND the write enable with a REGWEN read-back and exactly 1 does not, and that one is aes_reg_top.sv:1038. The count of gated_we declarations independently agrees at 33.",
+    "In-tree controls for that idiom include kmac_reg_top.sv:554 for an equally shadowed register, csrng_reg_top.sv:631, and 16 sites in entropy_src_reg_top.sv.",
+    "The line is also a structural outlier: 32 of the 33 sites carry the register generator's fixed marker comment and are plain continuous assignments, while this one has neither, carrying hand-written prose and being the only single-line always_comb in the whole tree.",
+    "ctrl_aux_regwen_qs appears at exactly 3 sites in the file: its declaration at 223, its subreg driver at 1136 and its MMIO readback at 1823. None of them gates anything, so the lock register is intact while its effect is gone.",
+    "No gated_we assignment anywhere in the file references the lock bit.",
+    "The tree's own RDL at aes.rdl:181-188 states the AUX register cannot be written once REGWEN is 0, and aes_reg_top.sv declares itself generated from that RDL, so the tree contradicts itself.",
+    "The lock bit is SwAccessW0C with RESVAL 1, so locking is a deliberate one-way software action.",
+    "The ungated qualifier drives the .we of both AUX fields at lines 1052 and 1088, so neither field is protected.",
+    "In simulation, KEY_TOUCH_FORCES_RESEED transitions 1 to 0 while REGWEN reads 0, and shadowed_update_err stays low.",
+    "With this tree's own gating idiom applied to that line in a scratch copy, the identical testbench reports the field unchanged at 1 and its cover counter drops to zero."
+  ],
+  "success_criteria": [
+    "Every structural gate holds, including the tree-wide census that isolates the audited line as the single deviation from a 33-site convention.",
+    "The census is computed by the audit script rather than asserted, tolerates line-wrapped assignments, and is cross-checked against an independent count of declarations.",
+    "The directed simulation observes the locked write committing, with a nonzero cover count so the result cannot be vacuous.",
+    "The negative control fails on patched RTL while its own control checks still pass, establishing that the testbench discriminates rather than always passing.",
+    "The attack is demonstrated on KEY_TOUCH_FORCES_RESEED, a field with a live effect in this build.",
+    "FORCE_MASKS is explicitly withdrawn as an impact claim, and the reason is gated rather than merely stated: aes.sv:24 defaults SecAllowForcingMasks to 0, the wrapper instantiates aes with no override, and aes.rdl says the field only applies when that parameter is 1. Any claim resting on forcing constant masks is therefore not asserted.",
+    "No claim is made that this bug alone recovers an AES key. Weakened PRNG reseeding degrades a side-channel countermeasure; key recovery would additionally require power or electromagnetic measurement access."
+  ],
+  "artifacts": {
+    "script": "proof/scripts/run_bug_003_proof.sh",
+    "sim_script": "proof/scripts/run_bug_003_sim.sh",
+    "testbench": "proof/tb/aes_reg_bug_003_tb.sv",
+    "run_log": "proof/logs/run.log",
+    "witness_log": "proof/logs/witness.log",
+    "sim_log": "proof/logs/sim.log",
+    "negative_control_log": "proof/logs/negative_control.log",
+    "negative_control_script": "proof/scripts/run_bug_003_negative_control.sh"
+  }
+}

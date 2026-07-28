@@ -1,0 +1,24 @@
+===== BUG-017 negative control =====
+source DUT : /home/smy/hackatdac26-phase-2-caliptra/src/hmac/rtl/hmac_core.sv
+patched DUT: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/017/proof/scratch/hmac_core.sv
+patch applied: CTRL_IPAD first_round now starts H2 on the entropy block
+
+----- negative control results -----
+sim exit code                     : 1 (nonzero expected)
+TBFAIL lines total                : 3 (must be > 0)
+H2 start strobe seen in CTRL_IPAD  : 1 (must be 1)
+entropy_digest[63:0] after IPAD    : 039dffff910bb3b8 (must be nonzero)
+cover_h2_never_started            : 0 (must be 0)
+cover_entropy_zero                : 0 (must be 0)
+cover_seed_is_sw                  : 0 (must be 0)
+H1 control check still ok          : 1 (must be 1)
+
+CONCLUSION: On the audited RTL the entropy block is presented to H2 during
+CTRL_IPAD but H2 is never started, so set_entropy latches the unstarted core's
+output and the masking seed collapses to the software-written LFSR_SEED alone.
+With H2 started from the same first_round arm in a scratch copy, matching the
+start-strobe form used by every other block presentation in this file, H2
+produces a real digest, entropy_digest latches a nonzero value, all three covers
+fall to 0 and the self-checks fail, while the H1 control check still passes.
+The observation is a property of the audited RTL.
+NEGATIVE CONTROL: PASS

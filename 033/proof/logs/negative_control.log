@@ -1,0 +1,50 @@
+BUG-033 negative control
+date=2026-07-28T10:53:05+08:00
+original=/home/smy/hackatdac26-phase-2-caliptra/src/sha512/rtl/sha512.sv
+patched_copy=/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/033/proof/logs/../scratch/sha512.sv
+
+--- patch: drive the DIGEST hwclr from the file's own surviving strobe ---
+  formation -> zeroize_reg = ZEROIZE || debugUnlock_or_scan_mode_switch
+  DIGEST hwclr -> zeroize_reg
+  zeroize_reg2 declaration removed
+
+--- verification that the patch took effect ---
+remaining_zeroize_reg2_sites_in_patched_copy=0 (expect 0)
+283:    zeroize_reg = hwif_out.SHA512_CTRL.ZEROIZE.value || debugUnlock_or_scan_mode_switch;
+296:      hwif_in.SHA512_DIGEST[dword].DIGEST.hwclr = zeroize_reg;
+301:      hwif_in.SHA512_GEN_PCR_HASH_DIGEST[dword].DIGEST.hwclr = zeroize_reg;
+
+--- running the IDENTICAL testbench against the patched copy ---
+sim_exit_code=1 (nonzero is the expected outcome here)
+
+--- patched-DUT observations ---
+--- A: quiescent (ZEROIZE=0, debug_or_scan=0) ---
+    seeded DIGEST[0]=0xa5a5a5a5 DIGEST[1]=0x5a5a5a5a (wrote 0xa5a5a5a5 / 0x5a5a5a5a)
+--- B: debug-unlock / scan-mode asserted (ZEROIZE=0, debug_or_scan=1) ---
+    seeded DIGEST[0]=0x00000000 DIGEST[1]=0x00000000 (wrote 0xa5a5a5a5 / 0x5a5a5a5a)
+    with debug_or_scan held high: DIGEST[0]=0x00000000 DIGEST[1]=0x00000000
+--- C: software ZEROIZE (ZEROIZE=1, debug_or_scan=0) ---
+    seeded DIGEST[0]=0xa5a5a5a5 DIGEST[1]=0x5a5a5a5a (wrote 0xa5a5a5a5 / 0x5a5a5a5a)
+    after software ZEROIZE: DIGEST[0]=0x00000000 DIGEST[1]=0x00000000
+  checks=3 errors=2
+  cover_seed_visible=0 (expect 1)
+  cover_no_clear_on_debug=0 (expect 1)
+  cover_clear_when_quiet=0 (0 or 1; reported, not asserted)
+PROOF_RESULT: FAIL
+
+cover_no_clear_on_debug_on_patched_rtl=0 (expect 0)
+cover_seed_visible_on_patched_rtl=0 (expect 0: the seed is now wiped)
+control_check_still_passes=1 (expect 1)
+tbfail_lines=4 (expect >0)
+
+CONCLUSION: the testbench discriminates.
+On the audited RTL the seeded digest survives debug-unlock/scan-mode entry.
+With the DIGEST hwclr driven from the file's own surviving strobe in a scratch
+copy, the identical testbench
+finds the digest wiped instead, its cover_no_clear_on_debug counter drops to 0,
+and its self-checks fail. The software-ZEROIZE control check still passes on the
+patched copy, so the failure is caused by the RTL fix and not by a broken
+harness. Note also that on the patched copy the quiescent case no longer holds
+the window cleared, which is the second half of the same inversion.
+negative_control=PASS
+result=PASS

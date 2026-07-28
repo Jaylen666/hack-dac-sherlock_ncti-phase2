@@ -1,0 +1,55 @@
+BUG-003 negative control
+date=2026-07-28T10:52:29+08:00
+original=/home/smy/hackatdac26-phase-2-caliptra/src/aes/rtl/aes_reg_top.sv
+patched_copy=/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/003/proof/logs/../scratch/aes_reg_top.sv
+
+--- patch: apply this tree's own REGWEN gating idiom to the AUX write enable ---
+    (the form used by 32 of the 33 gating sites, e.g. kmac_reg_top.sv:554)
+  before: always_comb begin ctrl_aux_shadowed_gated_we = ctrl_aux_shadowed_we; end
+  after:  assign ctrl_aux_shadowed_gated_we = ctrl_aux_shadowed_we & ctrl_aux_regwen_qs;
+
+--- verification that the patch took effect ---
+gated_assignments_in_patched_copy=1 (expect 1)
+ungated_assignments_in_patched_copy=0 (expect 0)
+1037:  logic ctrl_aux_shadowed_gated_we;
+1038:  assign ctrl_aux_shadowed_gated_we = ctrl_aux_shadowed_we & ctrl_aux_regwen_qs;
+1052:    .we     (ctrl_aux_shadowed_gated_we),
+1088:    .we     (ctrl_aux_shadowed_gated_we),
+1719:    reg_we_check[30] = ctrl_aux_shadowed_gated_we;
+
+--- running the IDENTICAL testbench against the patched copy ---
+sim_exit_code=1 (nonzero is the expected outcome here)
+
+--- patched-DUT observations ---
+  ok: REGWEN reads 1 after reset
+  AUX.key_touch_forces_reseed after reset = 1 (expect 1)
+  ok: REGWEN reads 0 after software lock
+  AUX.key_touch_forces_reseed after LOCKED write of 0 = 1
+[BUG-003-TBFAIL] AUX value changed while locked (lock is ineffective)
+  ok: no shadow update error was raised for the locked write
+  checks=7 errors=1
+  cover_aux_committed_while_locked=0
+  cover_data_in_readback=2
+[BUG-003-TBFAIL] vacuous: attack path never exercised
+PROOF_RESULT: FAIL
+
+cover_aux_committed_while_locked_on_patched_rtl=0 (expect 0)
+control_lock_engages=1 (expect 1: the lock register itself still works)
+control_secure_default=1 (expect 1: the harness still drives and observes the field)
+tbfail_lines=2 (expect >0)
+cover_data_in_readback_on_patched_rtl=2 (BUG-005 is unpatched here, so this stays nonzero)
+
+CONCLUSION: the testbench discriminates.
+On the audited RTL a write to CTRL_AUX_SHADOWED commits while CTRL_AUX_REGWEN reads
+0, so the engaged lock does not prevent the reconfiguration. With this tree's own
+REGWEN gating idiom applied to that one line in a scratch copy, the identical
+testbench finds the locked write rejected: the field keeps its value, the
+cover_aux_committed_while_locked counter drops to 0, and the self-check fails.
+
+The harness itself is unaffected by the patch: the lock still reads back 0 after
+being engaged and the protected field is still observable, so the failure is caused
+by the RTL fix and not by a broken testbench. The BUG-005 checks in the same
+testbench continue to fail on this copy, as expected, because only the BUG-003
+gating line was patched.
+negative_control=PASS
+result=PASS

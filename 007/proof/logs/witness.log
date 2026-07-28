@@ -1,0 +1,30 @@
+
+===== axi_sub_arb select terms =====
+87:    logic user_from_read;
+112://            3'b000: r_win = 0;
+113://            3'b001: r_win = 0;
+114://            3'b010: r_win = 1;
+115://            3'b011: r_win = 0;
+116://            3'b100: r_win = 1;
+117://            3'b101: r_win = 0;
+118://            3'b110: r_win = 1;
+119://            3'b111: r_win = 1;
+121:        if (r_pri) r_win = r_dv || !w_dv;
+122:        else       r_win = r_dv && !w_dv;
+125:    assign user_from_read = ~(~r_win | w_dv);
+129:        addr    = r_win ? r_addr : w_addr;
+130:        write   = r_win ?      0 :      1;
+131:        user    = user_from_read ? r_user : w_user;
+132:        id      = r_win ? r_id   : w_id  ;
+
+===== AXI_USER access-control consumers =====
+${CALIPTRA_ROOT}/src/soc_ifc/rtl/soc_ifc_top.sv:987:        always_comb valid_fuse_user = soc_req_dv & (soc_req.user == CPTRA_FUSE_VALID_AXI_USER);
+${CALIPTRA_ROOT}/src/soc_ifc/rtl/soc_ifc_top.sv:990:                                     (soc_req.user == soc_ifc_reg_hwif_out.CPTRA_FUSE_VALID_AXI_USER.AXI_USER.value[AXI_USER_WIDTH-1:0]));
+${CALIPTRA_ROOT}/src/soc_ifc/rtl/soc_ifc_top.sv:994:always_comb valid_sha_user = soc_req_dv & (soc_req.user == soc_ifc_reg_hwif_out.SS_CALIPTRA_DMA_AXI_USER.user.value);
+${CALIPTRA_ROOT}/src/soc_ifc/rtl/soc_ifc_arb.sv:164:        valid_mbox_req |= soc_req_dv & (soc_req_data.user == valid_mbox_users[i]);
+${CALIPTRA_ROOT}/src/soc_ifc/rtl/soc_ifc_arb.sv:166:    valid_mbox_req |= soc_req_dv & (soc_req_data.user == CPTRA_DEF_MBOX_VALID_AXI_USER[SOC_IFC_USER_W-1:0]);
+case=control_read_only granted=READ  dv=1 addr=0x00001000 id=0 user=0xaaaa1111 expected_user=0xaaaa1111
+case=control_write_only granted=WRITE dv=1 addr=0x00002000 id=1 user=0x55552222 expected_user=0x55552222
+case=control_concurrent_write_priority granted=WRITE dv=1 addr=0x00002000 id=1 user=0x55552222 expected_user=0x55552222
+case=violating_concurrent_read_priority granted=READ  dv=1 addr=0x00001000 id=0 user=0x55552222 expected_user=0xaaaa1111
+WITNESS: violating_concurrent_read_priority granted the  read channel but exported user=0x55552222, which belongs to the write channel

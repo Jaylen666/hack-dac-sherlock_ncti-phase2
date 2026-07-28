@@ -1,0 +1,48 @@
+rm -f _cuarc*.so _csrc*.so pre_vcsobj_*.so share_vcsobj_*.so
+if [ -x ../simv ]; then chmod a-x ../simv; fi
+g++  -o ../simv   -no-pie  -Wl,--no-as-needed    -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu -Wl,--no-as-needed -rdynamic  -Wl,-rpath='$ORIGIN'/simv.daidir -Wl,-rpath=./simv.daidir -Wl,-rpath=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib -L/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib  -Wl,-rpath-link=./ -Wl,--no-as-needed   objs/amcQw_d.o   _1429474_archive_1.so   SIM_l.o       rmapats_mop.o rmapats.o rmar.o rmar_nd.o  rmar_llvm_0_1.o rmar_llvm_0_0.o            -lnuma -lvirsim -lerrorinf -lsnpsmalloc -lvfs    -lvcsnew -lsimprofile -luclinative /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_tls.o   -Wl,-whole-archive  -lvcsucli    -Wl,-no-whole-archive       ./../simv.daidir/vc_hdrs.o    /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_save_restore_new.o -ldl  -lc -lm -lpthread -ldl 
+../simv up to date
+CPU time: 1.445 seconds to compile + .785 seconds to elab + .432 seconds to link
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid re-execution or '-suppress=ASLR_DETECTED_INFO' to suppress this message.
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 10:53 2026
+"/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv", 153: aes_reg_bug_005_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A: started at 1ps failed at 1ps
+	Offending '((unused_assert_connected === 1'b1) || (!EnableAlertTriggerSVA))'
+Error: "/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv", 153: aes_reg_bug_005_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A: at time 1 ps
+0: (/home/smy/hackatdac26-phase-2-caliptra/src/caliptra_prim/rtl/caliptra_prim_onehot_check.sv:153) [aes_reg_bug_005_tb.dut.u_caliptra_prim_reg_we_check.u_caliptra_prim_onehot_check.AssertConnected_A] [CALIPTRA_ASSERT FAILED] AssertConnected_A
+===== BUG-005: write-only AES DATA_IN registers read back plaintext =====
+  aes.rdl:68 declares DATA_IN as 'sw = w' and the subreg is
+  instantiated SwAccessWO, so every read below must return 0x00000000.
+  DATA_IN[0] @0x54: wrote 0x4f50454e, read 0x00000000 (spec: 0x00000000)
+[BUG-005-TBFAIL] DATA_IN[0] returns the written plaintext on a read
+  ok: DATA_IN[0] read is not the TL-UL error pattern
+  DATA_IN[1] @0x58: wrote 0x53454352, read 0x00000000 (spec: 0x00000000)
+[BUG-005-TBFAIL] DATA_IN[1] returns the written plaintext on a read
+  ok: DATA_IN[1] read is not the TL-UL error pattern
+  DATA_IN[2] @0x5c: wrote 0x45545f50, read 0x00000000 (spec: 0x00000000)
+[BUG-005-TBFAIL] DATA_IN[2] returns the written plaintext on a read
+  ok: DATA_IN[2] read is not the TL-UL error pattern
+  DATA_IN[3] @0x60: wrote 0x4c41494e, read 0x00000000 (spec: 0x00000000)
+[BUG-005-TBFAIL] DATA_IN[3] returns the written plaintext on a read
+  ok: DATA_IN[3] read is not the TL-UL error pattern
+  recovered 128-bit block = 0x00000000000000000000000000000000
+[BUG-005-TBFAIL] the full 128-bit input block is recoverable by four MMIO reads
+  DATA_IN[0] read twice: 0x00000000 then 0x00000000
+[BUG-005-TBFAIL] reading DATA_IN does not clear it (leak is repeatable)
+  control: CTRL_AUX_REGWEN reads 0x00000001 (expect 0x1, a legal read)
+  ok: control: a legitimately readable register still reads correctly
+===== summary =====
+  checks=11 errors=6
+  cover_data_in_leak=0 (expect 4)
+  cover_legal_read=1 (expect 1)
+[BUG-005-TBFAIL] vacuous: not all four DATA_IN words were observed leaking
+PROOF_RESULT: FAIL
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/005/proof/tb/aes_reg_bug_005_tb.sv", line 235.
+$finish at simulation time               540000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 540000 ps
+CPU Time:      0.370 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 10:53:05 2026
+SIM RESULT: FAIL (self-check tripped)

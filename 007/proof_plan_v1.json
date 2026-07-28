@@ -1,0 +1,56 @@
+{
+  "module": "axi_sub_arb",
+  "bug_id": "007",
+  "bug_name": "axi_sub_arb_bug_007",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "An agent able to issue AXI reads on the Caliptra subordinate interface while a write request from any agent is valid in the same cycle. No debug access and no physical access are required.",
+    "precondition": "The arbiter's persistent-priority bit r_pri favours the read channel, which is the state left behind by any completed write burst.",
+    "input": "A read request and a write request asserted in the same cycle with distinct AXI USER values.",
+    "protected_asset": "The AXI USER attribute of the granted request, which the soc_ifc allowlists treat as the authenticated requester identity for mailbox, fuse, TRNG and DMA accesses.",
+    "security_property": "Every attribute of a granted request must describe the same transaction: when the component-facing write output is 0 the addr, id and user outputs must all originate from the read channel, and when it is 1 they must all originate from the write channel.",
+    "implemented_logic": "src/axi/rtl/axi_sub_arb.sv:125 derives the USER select as ~(~r_win | w_dv), a function of both the grant decision and the write-valid signal, while addr, id and write at src/axi/rtl/axi_sub_arb.sv:129-133 are selected by r_win alone. A read grant taken while a write is valid therefore exports the write channel's USER value alongside the read channel's address and id."
+  },
+  "security_feature_bypassed": "Integrity of the AXI USER attribute used as the requester identity by the Caliptra mailbox, fuse, TRNG and DMA access-control allowlists",
+  "proof_goal": "Show that a single axi_sub_arb instance can grant the read channel while exporting the concurrent write channel's USER value, and that the affected USER output reaches the soc_ifc allowlist comparisons.",
+  "proof_style": "structural_audit + directed_sim",
+  "invariant": "For every cycle in which dv is asserted, the component-facing addr, id and user must all originate from the channel identified by the write output: write==0 implies the read channel, write==1 implies the write channel.",
+  "attacker_model": "An agent that can issue AXI reads on the subordinate interface while a write from another agent, or from its own write channel, is valid in the same cycle. No debug access and no physical access are required.",
+  "minimum_attack_sequence": [
+    "Complete a write burst so the arbiter's persistent-priority bit r_pri is set toward the read channel.",
+    "Assert a read request and a write request in the same cycle with distinct USER values.",
+    "Sample the component-facing write, addr, id and user outputs in that cycle."
+  ],
+  "controls": [
+    "control_read_only: a lone read request must export the read channel's USER value.",
+    "control_write_only: a lone write request must export the write channel's USER value.",
+    "control_concurrent_write_priority: a concurrent request with priority on the write channel grants the write channel, whose own USER value is then correct."
+  ],
+  "expected_evidence": [
+    "Structural gates confirming the USER select term differs from the addr, id and write select terms, and that the read grant is reachable while a write is valid.",
+    "Structural gates confirming the arbiter USER output reaches soc_req.user and that soc_req.user is compared against AXI_USER allowlists.",
+    "A simulation log in which three control cases report coherent attributes and the violating case reports a read grant carrying the write channel's USER value."
+  ],
+  "success_criteria": [
+    "All structural gates report gate_ok.",
+    "All three control cases pass, proving the checker is not vacuous.",
+    "Exactly one witness hit is observed and the script prints result=PASS and BUG_007_WITNESS_OBSERVED.",
+    "The script exits nonzero if any control fails or the witness is absent."
+  ],
+  "non_findings": [
+    "This case does not claim a measured data disclosure over a full SoC boot; it proves the identity mismatch on the arbiter's component interface and identifies the allowlist comparisons that consume it.",
+    "This case does not claim the arbiter drops or corrupts the read data itself; rdata is unaffected.",
+    "This case does not assert how often the concurrent-request window occurs in a given integration; the attack complexity is rated high for that reason."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/007/proof/tb/axi_sub_arb_bug_007_tb.sv",
+    "script": "final_bug_submissions/007/proof/scripts/run_bug_007_proof.sh",
+    "logs": [
+      "final_bug_submissions/007/proof/logs/run.log",
+      "final_bug_submissions/007/proof/logs/compile.log",
+      "final_bug_submissions/007/proof/logs/sim.log",
+      "final_bug_submissions/007/proof/logs/witness.log"
+    ]
+  }
+}
