@@ -18,3 +18,32 @@ if [ -x ../simv ]; then chmod a-x ../simv; fi
 g++  -o ../simv   -no-pie  -Wl,--no-as-needed    -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu -Wl,--no-as-needed -rdynamic  -Wl,-rpath='$ORIGIN'/simv.daidir -Wl,-rpath=./simv.daidir -Wl,-rpath=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib -L/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib  -Wl,-rpath-link=./ -Wl,--no-as-needed   objs/amcQw_d.o   _3811403_archive_1.so   SIM_l.o       rmapats_mop.o rmapats.o rmar.o rmar_nd.o  rmar_llvm_0_1.o rmar_llvm_0_0.o            -lnuma -lvirsim -lerrorinf -lsnpsmalloc -lvfs    -lvcsnew -lsimprofile -luclinative /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_tls.o   -Wl,-whole-archive  -lvcsucli    -Wl,-no-whole-archive       ./../simv.daidir/vc_hdrs.o    /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_save_restore_new.o -ldl  -lc -lm -lpthread -ldl 
 ../simv up to date
 CPU time: .890 seconds to compile + .568 seconds to elab + .343 seconds to link
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid re-execution or '-suppress=ASLR_DETECTED_INFO' to suppress this message.
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 13:54 2026
+===== BUG-027 directed witness: non-AES write to the key release slot =====
+release slot under test: KV23 (OCP_LOCK_KEY_RELEASE_KV_SLOT)
+--- control_non_aes_release_no_forward ---
+  case=control_non_aes_release_no_forward PASS expect_allowed=0 write_allow=0
+--- control_aes_release_legal ---
+  case=control_aes_release_legal PASS expect_allowed=1 write_allow=1
+--- control_non_aes_lock_source_leaves_region ---
+  case=control_non_aes_lock_source_leaves_region PASS expect_allowed=0 write_allow=0
+--- violating_non_aes_release_with_forward ---
+    metrics: ocp_lock=1 src=HMAC(bit0) dst=KV23 data0_present=1 data0_entry=KV23 aes_ecb=0
+  case=violating_non_aes_release_with_forward PASS expect_allowed=0 write_allow=0
+--- discriminator: same stimulus, kv_data0_present=0 ---
+    write_allow=0 with the only changed input being kv_data0_present
+cover_non_aes_release_allowed=0
+cover_non_aes_release_blocked=2
+checks=4 fails=0 witness_hits=0
+PROOF_RESULT: FAIL
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/027/proof/tb/kv_write_rule_check_bug_027_tb.sv", line 199.
+$finish at simulation time               195000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 195000 ps
+CPU Time:      0.400 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 13:54:19 2026
+SIM RESULT: FAIL (no PASS verdict)

@@ -1,0 +1,64 @@
+{
+  "module": "sha256",
+  "bug_id": "032",
+  "bug_name": "sha256_bug_032",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_functional_defect",
+  "security_feature_bypassed": "None. This is submitted as a proven functional defect in the SHA-256 register-window cleanup logic, not as a security bypass. The evidence gathered specifically rules out the disclosure that the inverted strobe suggests: no digest material is readable after the debug-unlock or scan-mode transition, and the wipe still occurs through the correctly-driven clear of the internal digest_reg.",
+  "finding": "The SHA-256 DIGEST window's hardware-clear strobe is driven from the logical complement of the intended cleanup condition. src/sha256/rtl/sha256.sv:388-391 forms two strobes in one concatenation; the second is ~(&{~CTRL.ZEROIZE, debugUnlock_or_scan_mode_switch}), which reduces to ZEROIZE OR NOT switch. Line 403 drives hwif_in.SHA256_DIGEST[dword].DIGEST.hwclr from that second strobe, while the adjacent BLOCK window at :408 and the internal digest_reg at :357 both use the first, correct strobe. Because debugUnlock_or_scan_mode_switch is an edge-detected transition pulse (src/integration/rtl/caliptra_top.sv:763-770) it is low throughout normal operation, so the clear is asserted continuously, and src/sha256/rtl/sha256_reg.sv:719-740 gives hwclr priority over the unconditional hardware write. The published digest window is consequently pinned to zero while STATUS.VALID reports the hash complete.",
+  "location_or_code_reference": {
+    "competition_file": "src/sha256/rtl/sha256.sv:403",
+    "line_range": "387-408",
+    "supporting_references": [
+      "src/sha256/rtl/sha256.sv:84",
+      "src/sha256/rtl/sha256.sv:357",
+      "src/sha256/rtl/sha256.sv:359",
+      "src/sha256/rtl/sha256.sv:369",
+      "src/sha256/rtl/sha256.sv:388",
+      "src/sha256/rtl/sha256.sv:390",
+      "src/sha256/rtl/sha256.sv:397",
+      "src/sha256/rtl/sha256.sv:402",
+      "src/sha256/rtl/sha256.sv:408",
+      "src/sha256/rtl/sha256_reg.sv:726",
+      "src/sha256/rtl/sha256_reg.sv:730",
+      "src/sha256/rtl/sha256_reg.rdl:135",
+      "src/integration/rtl/caliptra_top.sv:763",
+      "src/integration/rtl/caliptra_top.sv:770"
+    ]
+  },
+  "detection_method": "The module forms two cleanup strobes in a single concatenation at src/sha256/rtl/sha256.sv:388-391 and then uses them in two adjacent loops twenty lines later. Reducing the second expression by De Morgan's law showed it to be the complement of the first, and tracing each strobe to its consumers showed only one register window in the file using the complemented form while every other cleanup consumer used the plain one. The generated register block was then read to establish which of hwclr and the hardware write takes priority, which is what turns the polarity error into an observable effect. The conclusion was confirmed by running a real hash on one unmodified instance and reading the window back through the module's own bus.",
+  "security_impact": "Availability and specification compliance only. No SHA-256 digest can be read through the register interface: the window that publishes the result is held at zero in every state except the single-cycle transition it was meant to act on, and hwclr priority means no software access sequence can recover the value. STATUS.VALID still reports success, so callers are told the result is ready and given zeros. Any consumer of the SHA-256 acceleration path, including measurement flows that hash firmware images, receives a constant zero digest instead of the true one; a caller that compares the returned digest against an expected value will fail closed, while one that stores it propagates zeros. The security wipe on debug unlock and scan-mode entry is not weakened, because the internal digest_reg is cleared from the correct strobe and the window is already at zero, so no confidentiality or integrity boundary is crossed by an adversary.",
+  "adversary_profile": "Unprivileged software at user-level mode",
+  "proposed_mitigation": [
+    "Drive the DIGEST window's hardware clear from the same strobe the file's other cleanup consumers use, so that src/sha256/rtl/sha256.sv:403 reads hwif_in.SHA256_DIGEST[dword].DIGEST.hwclr = zeroize_reg;",
+    "Remove the now-unused second strobe and its declaration at src/sha256/rtl/sha256.sv:84 rather than leaving a dead signal that invites the same error, or if a distinct strobe is genuinely wanted, define it positively as ZEROIZE || debugUnlock_or_scan_mode_switch instead of as a negated reduction-AND.",
+    "Add a directed check that a completed SHA-256 hash of a known message returns the expected digest through the register interface, which is the assertion this defect would have failed and which no existing check covers."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+    "base_score": 5.5,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/032/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/032/proof_result_v1.json",
+    "script": "final_bug_submissions/032/proof/scripts/run_bug_032_proof.sh",
+    "sim_script": "final_bug_submissions/032/proof/scripts/run_bug_032_sim.sh",
+    "negative_control_script": "final_bug_submissions/032/proof/scripts/run_bug_032_negative_control.sh",
+    "testbench": "final_bug_submissions/032/proof/tb/sha256_bug_032_tb.sv",
+    "run_log": "final_bug_submissions/032/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/032/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/032/proof/logs/sim.log",
+    "compile_log": "final_bug_submissions/032/proof/logs/compile.log",
+    "negative_control_log": "final_bug_submissions/032/proof/logs/negative_control_sim.log",
+    "c_validation_status": "final_bug_submissions/032/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Reset is released. debugUnlock_or_scan_mode_switch is low, being an edge-detected transition, and CTRL.ZEROIZE is low, so the inverted strobe is asserted and the DIGEST window's hardware clear is held on.",
+    "Software writes a message block to SHA256_BLOCK[0..15] through the register interface.",
+    "Software writes CTRL with MODE and INIT set, starting a SHA-256 hash.",
+    "The core completes the hash and digest_reg latches the true digest; STATUS.VALID is set and READY returns high.",
+    "Software reads SHA256_DIGEST[0..7] and receives all zeros, because the generated register block applies the asserted hwclr in preference to the hardware write that would have published digest_reg. The result is unobtainable, and no error is reported."
+  ]
+}

@@ -23,7 +23,9 @@ always_comb_default_assignments=8
 ----- 3. the child module states what clear_i is for and needs -----
   PASS: keccak_round.sv:99 declares clear_i, commented as clearing the internal state to zero
   PASS: keccak_round.sv:219 acts on clear_i only when it passes mubi4_test_true_strict, so a constant MuBi4False can never trigger it
-  FAIL: keccak_round.sv:224 is the only place rst_storage is raised, and it sits inside that clear_i-guarded branch, so the state storage is never reset through this path
+  PASS: keccak_round.sv:226 is the only place rst_storage is raised, and it sits inside that clear_i-guarded branch, so the state storage is never reset through this path
+  PASS: rst_storage is raised at exactly 1 site in the whole file, so no other path can clear the storage
+  PASS: keccak_round.sv:473 is where rst_storage actually zeroes the state storage, the effect the constant-False clear_i withholds
   PASS: keccak_round.sv:603 assumes clear_i is asserted in the idle state, an assumption that is vacuous when the driver is a constant False
 
 ----- 4. the FSM leaves the squeeze window without any other clear -----
@@ -39,7 +41,21 @@ always_comb_default_assignments=8
   PASS: ot_sha3.sv:492 wires the SAME signal to the round's clear_i, so in the twin the clear does fire when done_i is strictly valid
   PASS: ot_sha3.sv contains no keccak_done2 at all, so the tree carries both the correct wiring and its violation
 
------ 6. in-file control: the file's own error-detection assertion -----
+----- 6. why the withheld clear matters: the sponge absorbs by XOR -----
+  PASS: keccak_round.sv:489 opens the absorb path, which XORs the incoming block into the existing storage rather than overwriting it
+  PASS: keccak_round.sv:496-497 is the XOR itself, so whatever the previous run left in storage becomes part of the next run's sponge
+  PASS: keccak_round.sv:474 is the zeroing assignment inside the rst_storage arm, the write that would have cleared the sponge between runs and that the constant-False clear_i never reaches
+  PASS: keccak_round.sv:475 shows the only other write arm is the absorb update, so with rst_storage withheld the storage can only ever be XOR-accumulated, never zeroed
+
+----- 7. consumer contract: the block that issues done says what it wants -----
+  PASS: entropy_src_core.sv instantiates this exact sha3 module as its conditioning engine
+  PASS: entropy_src_core.sv wires its own sha3_done to this module's done_i, so the done that fails to clear is the one the entropy source relies on
+  PASS: entropy_src_main_sm.sv:246 states the intent of that done in a comment: clear the internal state of the SHA3 engine
+  PASS: entropy_src_main_sm.sv:247 completes the sentence, 'to start from scratch for the next seed', which is exactly the guarantee the withheld clear removes
+  PASS: entropy_src_main_sm.sv:248-249 issues that done as a strictly-valid MuBi4True, so the command the module ignores is well formed
+  PASS: entropy_src_core.sv:2734 takes the squeezed state as the conditioned entropy that becomes a seed, so cross-run carryover lands in the seed stream
+
+----- 8. in-file control: the file's own error-detection assertion -----
   PASS: sha3.sv:532-533 lists the signals through which controls must propagate, and keccak_done is in that list
   PASS: keccak_done2 is absent from that list, so the file's own propagation check cannot observe the constant-False clear path
   PASS: the twin carries the same assertion over the same signal list, which in the twin covers the clear path because one signal drives both ports
@@ -93,5 +109,5 @@ always_comb_default_assignments=8
     .clear_i    (keccak_done)
   );
 
-structural_gates_passed=25/26
-RESULT: FAIL
+structural_gates_passed=38/38
+RESULT: PASS

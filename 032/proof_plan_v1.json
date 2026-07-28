@@ -1,0 +1,54 @@
+{
+  "module": "sha256",
+  "bug_id": "032",
+  "bug_name": "sha256_bug_032",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "No adversary is required to trigger the primary effect: it is present in the steady operating state with no attacker input at all. The plan therefore sets out to test whether an adversary-reachable disclosure also exists, and the containment case below is the test that decides it. The party affected is any software using the SHA-256 acceleration path.",
+    "precondition": "None beyond a released reset. debugUnlock_or_scan_mode_switch is low throughout normal operation because src/integration/rtl/caliptra_top.sv:763-770 builds it from edge-detected transitions, and CTRL.ZEROIZE is low unless software asks for cleanup.",
+    "input": "A single ordinary SHA-256 hash: write the sixteen BLOCK dwords, set CTRL.MODE and CTRL.INIT, poll STATUS.VALID, then read the eight DIGEST dwords.",
+    "protected_asset": "The integrity and availability of the SHA-256 digest result, and the guarantee that a completed digest is wiped when the device transitions into debug-unlock or scan mode.",
+    "security_property": "src/sha256/rtl/sha256_reg.rdl:135 declares the DIGEST field with a hardware clear, and the tree fans debugUnlock_or_scan_mode_switch into the crypto blocks so that a result left in a register window is cleared on that transition. In every other state a completed digest must be readable, which is what STATUS.VALID advertises.",
+    "implemented_logic": "src/sha256/rtl/sha256.sv:388-391 forms two cleanup strobes in one concatenation. The second reduces to ZEROIZE OR NOT switch, the logical complement of the intended condition. Line 403 drives the DIGEST window's hwclr from that second strobe, while the BLOCK window at :408 and the internal digest_reg at :357 both use the correct one."
+  },
+  "security_feature_bypassed": "To be determined by the containment case. The strobe governing a security-relevant wipe is inverted, so the plan tests both directions: whether the wipe fails to occur when required, and whether the released clear leaves digest material readable. If neither holds, the finding is reported as an availability and specification-compliance defect rather than a bypass.",
+  "proof_goal": "Establish on one unmodified sha256 instance compiled from the audited checkout that a genuinely computed digest is not readable through the SHA256_DIGEST window in the normal operating state, while STATUS.VALID reports the hash complete; and determine by direct probe whether the inverted strobe also leaves digest material readable across a debug-unlock or scan-mode transition.",
+  "proof_style": "Directed port-driven simulation of one real DUT with its own generated register block, paired with a scripted structural audit of the submitted tree and a negative control that corrects the strobe.",
+  "invariant": "After a hash completes with CTRL.ZEROIZE low and debugUnlock_or_scan_mode_switch low, at least one SHA256_DIGEST dword must read non-zero for a message whose true digest is non-zero; and after a debug-unlock or scan-mode transition no digest material may remain readable.",
+  "attacker_model": "Unprivileged software at user-level mode, being the lowest privilege level that can reach the SHA-256 register interface and observe the effect. No physical access, no debug access and no privileged operation is needed for the primary effect.",
+  "minimum_attack_sequence": [
+    "Write a message block to SHA256_BLOCK[0..15] through the register interface.",
+    "Write CTRL with MODE and INIT set to start a SHA-256 hash.",
+    "Poll STATUS until VALID is set, then read SHA256_DIGEST[0..7]."
+  ],
+  "controls": [
+    "quiescent_digest_readable: after a completed hash with no cleanup requested, the digest window must be readable. This is the case the defect breaks.",
+    "containment_transition_pulse_not_readable: pulse debugUnlock_or_scan_mode_switch for one cycle in its real shape and read the window afterwards, testing directly for the disclosure the inverted strobe might allow.",
+    "sw_zeroize_clears: an explicit CTRL.ZEROIZE must still leave the window clear, showing the harness can observe a real clear and that the cleanup path is not wholly broken."
+  ],
+  "witness_construction_note": "The testbench instantiates one sha256 and drives it only through its declared ports, using the module's own cs/we/address/write_data bus for every register access. There is no force, no deposit and no hierarchical assignment anywhere in the harness. The digest is produced by running a real hash rather than seeded, because src/sha256/rtl/sha256_reg.rdl:131 declares the window software-read-only.",
+  "expected_evidence": [
+    "A simulation line showing all eight DIGEST dwords reading zero after a completed hash.",
+    "The same run showing STATUS READY=1 and VALID=1, so the block reports success.",
+    "A containment line recording what the window reads after the transition pulse.",
+    "A software-ZEROIZE line showing the window clear, confirming the harness observes clears correctly.",
+    "Sixteen structural gates over the audited tree, including the hwclr priority rule in the generated register block."
+  ],
+  "success_criteria": [
+    "checks=3 and fails=1 in the directed simulation, with the single failure being the quiescent readability case.",
+    "cov_digest_readable_when_quiet=0 and cov_sw_zeroize_clears=1.",
+    "structural_gates_passed=16/16 with RESULT: PASS.",
+    "The negative control fails the identical testbench once the strobe is corrected, and specifically reports case=quiescent_digest_readable PASS."
+  ],
+  "non_findings": [
+    "No claim is planned that this discloses digest material to an attacker. The containment case tests exactly that, and if it passes the disclosure claim will be withdrawn rather than argued.",
+    "No claim is planned about any block other than sha256. The identical expression in src/sha512/rtl/sha512.sv:284-287 is the subject of a separate submission and is not restated here.",
+    "No claim is planned about the KeyVault or PCR write paths, which do not consume this strobe."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/032/proof/tb/sha256_bug_032_tb.sv",
+    "script": "final_bug_submissions/032/proof/scripts/run_bug_032_proof.sh",
+    "logs": "final_bug_submissions/032/proof/logs/"
+  }
+}

@@ -1,0 +1,50 @@
+BUG-031 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T15:06:48+08:00
+gate_ok: pv_gen_hash.sv:199 opens the single always_ff that holds all of this FSM's state, named api_regs
+gate_ok: pv_gen_hash.sv:200 opens the reset arm
+gate_ok: pv_gen_hash.sv:204 shows the reset arm clearing read_entry
+gate_ok: pv_gen_hash.sv:205 shows the reset arm clearing read_offset, so the reset arm treats both pointer registers as state that must be cleared
+gate_ok: pv_gen_hash.sv:207 opens the zeroize arm, three lines below, on the same registers
+gate_ok: no line in the zeroize arm (pv_gen_hash.sv:207-211) clears read_entry
+gate_ok: no line in the zeroize arm clears read_offset either, so a security zeroize leaves the PCR read pointer wherever the aborted hash left it
+reset_arm_assignments=5
+zeroize_arm_assignments=3
+else_arm_assignments=5
+gate_ok: the reset arm assigns all 5 registers this always_ff holds
+gate_ok: the zeroize arm assigns only 3 of them
+gate_ok: the difference is exactly 2 registers, matching the two pointer registers named above, so the omission is complete and not a partial clear
+gate_ok: the else arm also assigns all 5, so both omitted registers are ordinary state of this always_ff rather than signals held elsewhere
+gate_ok: pv_gen_hash.sv:217 is the only other write to read_entry, and it is the normal next-state update in the else arm
+gate_ok: pv_gen_hash.sv:218 is the only other write to read_offset, likewise the normal next-state update
+gate_ok: pv_gen_hash.sv:110 shows read_entry_nxt clearing only on rst_rd_ptr, so the pointer's own reset is a functional one, not a security one
+gate_ok: pv_gen_hash.sv:122 defines rst_rd_ptr purely from two mid-hash FSM arcs, neither of which involves zeroize, so no functional path clears the pointer on a zeroize
+gate_ok: no line in the pointer's next-state logic (pv_gen_hash.sv:105-125) mentions zeroize at all, so the combinational path offers no clear either
+read_entry_references=8
+read_offset_references=9
+gate_ok: read_entry appears 8 times and read_offset 9 times in the file, and the gates above account for every write among them
+gate_ok: pv_gen_hash.sv:196 drives the read-entry field of the PCR read request straight from the uncleared register
+gate_ok: pv_gen_hash.sv:197 does the same for the read-offset field
+gate_ok: pv.sv:137 opens the PCR read mux, which is what answers that request
+gate_ok: pv.sv:145 selects the returned PCR data by matching read_entry against the entry index, so a stale entry pointer returns a different PCR
+gate_ok: pv.sv:146 selects the dword within that entry by read_offset, so a stale offset pointer returns a different dword
+gate_ok: pv.sv:147 is the PCR data those two indices select, so the pointer decides which measurement leaves the vault
+gate_ok: pv_gen_hash.sv:160 feeds whatever the mux returned into the hash block being assembled, in GEN_HASH_BLOCK_0
+gate_ok: pv_gen_hash.sv:165 does the same in GEN_HASH_BLOCK_N, so both read states consume the mux output
+gate_ok: pv_gen_hash.sv:119 derives the end-of-read condition from the same two registers, so a stale pointer also shortens the walk: the hash ends when the pointer reaches the last entry, not after all entries have been read
+gate_ok: kv_fsm.sv:158 opens the equivalent always_ff in the key vault's read/write FSM, the tree's other pointer-driven vault FSM
+gate_ok: kv_fsm.sv:159-161 shows its reset arm clearing the FSM state and its offset pointer
+gate_ok: kv_fsm.sv:163-166 shows its zeroize arm clearing the SAME two things, so the sibling's zeroize arm mirrors its reset arm line for line
+gate_ok: kv_fsm.sv:180-182 shows a second always_ff whose zeroize arm clears even a pure dword-count bookkeeping register, so the sibling's convention is to mirror the reset arm exhaustively
+kv_fsm_reset_arm_assignments=2
+kv_fsm_zeroize_arm_assignments=2
+gate_ok: in the sibling the two arms assign the same number of registers (2 each), which is exactly the relation pv_gen_hash breaks
+gate_ok: sha512.sv instantiates this module as pv_gen_hash1, so the parent below is the block that owns the zeroize
+gate_ok: sha512.sv wires its own zeroize_reg into this module's zeroize port
+gate_ok: sha512.sv:284-285 sources that strobe from the software-writable SHA512_CTRL.ZEROIZE field, so an unprivileged write reaches the incomplete arm
+gate_ok: sha512.sv:229 opens the parent's own zeroize arm, on the same strobe it passes into this module
+sha512_zeroize_arm_assignments=8
+gate_ok: sha512.sv:230-237 clears 8 registers in that arm, so the parent's convention on the very same zeroize strobe is to clear exhaustively
+structural_gates_passed=36/36
+RESULT: PASS - all structural gates confirm BUG-031
+result=PASS

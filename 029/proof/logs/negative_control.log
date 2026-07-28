@@ -1,0 +1,27 @@
+===== BUG-029 negative control =====
+source DUT : /home/smy/hackatdac26-phase-2-caliptra/src/kmac/rtl/sha3.sv
+patched DUT: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/029/proof/scratch/sha3.sv
+patch applied: clear_i now driven by the same done_i-derived signal as the pad's done_i
+
+----- negative control results -----
+sim exit code                     : 1 (nonzero expected)
+TBFAIL lines total                : 6 (must be > 0)
+  of which BUG-029 checks         : 5 (must be > 0)
+cover_state_survives_done         : 0 (must be 0)
+cover_clear_never_strict          : 0 (must be 0)
+cover_cross_run_carryover         : 0 (must be 0)
+cover_fsm_did_advance (harness)   : 1 (must stay 1)
+reset control still passing       : 1 (must be > 0)
+
+CONCLUSION: On the audited RTL a strictly-valid done_i moves the SHA3 FSM out of
+the squeeze window but leaves the 1600-bit Keccak state storage bit-for-bit intact,
+because the clear_i port is fed a constant MuBi4False that can never pass the
+strict test the child requires, so rst_storage never fires. A second absorb of the
+byte-identical message therefore XORs into that residue and yields a different
+sponge state, so consecutive hashes are not independent. With clear_i rewired to
+the same done_i-derived signal the twin SHA3 in this tree uses, the same stimulus
+clears the state, the second run reproduces the first run's state exactly, all
+three defect covers fall to 0 and the BUG-029 self-checks fail, while the harness's
+own control observations still pass. The observation is a property of the audited
+RTL.
+NEGATIVE CONTROL: PASS

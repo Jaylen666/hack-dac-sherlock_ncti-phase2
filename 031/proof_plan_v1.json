@@ -1,0 +1,57 @@
+{
+  "triage_id": "gen_hash_zeroize_leaves_pcr_read_pointer",
+  "module": "pcrvault",
+  "rtl_file": "src/pcrvault/rtl/pv_gen_hash.sv",
+  "bug_id": "031",
+  "bug_name": "pcrvault_bug_031",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Privileged software that can write the SHA-512 control register, which is the level at which both the zeroize strobe and the gen-hash start command are issued.",
+    "precondition": "A PCR gen-hash (quote) is in progress, so the read pointer has advanced part-way through the PCR bank. No other state is required.",
+    "input": "A write to SHA512_CTRL.ZEROIZE while the walk is in progress, followed by a normal gen-hash start command.",
+    "protected_asset": "The completeness of the PCR quote: the guarantee that the digest a quote produces covers every PCR entry in the bank, so that an attestation cannot omit a measurement.",
+    "security_property": "src/pcrvault/rtl/pv_gen_hash.sv:119 declares the walk finished only when read_offset and read_entry have both reached their maxima, so a quote covers the whole bank precisely when the walk begins at entry zero. A zeroize is a security cleanup and must not leave state that changes the meaning of the next operation.",
+    "implemented_logic": "src/pcrvault/rtl/pv_gen_hash.sv:199-219 holds five registers in one always_ff. The reset branch clears all five; the zeroize branch three lines below clears only three, omitting read_entry and read_offset while still forcing the FSM to IDLE. The pointer's next-state logic at :107-112 returns to zero only on rst_rd_ptr, and :122 builds rst_rd_ptr from the two BLOCK-to-NONCE arcs, which require the pointer to have already reached the last entry. The IDLE-to-BLOCK_0 start arc at :130 does not reset it."
+  },
+  "security_feature_bypassed": "The completeness of the PCR quote. The plan sets out to determine whether a quote started after a zeroize covers the full PCR bank or only the tail of it, and if the latter, whether the engine reports any error while doing so.",
+  "proof_goal": "Establish on one unmodified pv_gen_hash instance compiled from the audited checkout that a gen-hash started after a mid-run zeroize walks only the PCR entries from the interrupted run's position onward, producing a digest over a strict subset of the bank with no error indication, while a run from reset and a run following an idle zeroize both cover the bank in full.",
+  "proof_style": "Directed port-driven simulation of one real DUT with a PCR responder that tags each returned dword with the entry it came from, paired with a scripted structural audit of the submitted tree and a negative control that clears the pointer.",
+  "invariant": "For every gen-hash run that reaches GEN_HASH_DONE, the set of PCR entries whose data enters the hash block must be all of 0 through PV_NUM_PCR-1.",
+  "attacker_model": "Privileged software at supervisor mode, being the privilege level that writes SHA512_CTRL.ZEROIZE and issues the gen-hash start. No physical access and no debug access is needed.",
+  "minimum_attack_sequence": [
+    "Start a PCR gen-hash and let the read pointer advance into the bank.",
+    "Write SHA512_CTRL.ZEROIZE, which returns the FSM to IDLE but leaves the read pointer where the walk had reached.",
+    "Issue a fresh gen-hash start and collect the resulting quote, which covers only the entries from that position onward."
+  ],
+  "controls": [
+    "control_full_walk_from_reset: a quote started from reset must read every PCR entry, showing the harness can observe a complete walk.",
+    "containment_idle_zeroize_then_full_walk: a zeroize taken while the engine is already idle with the pointer at zero must leave the next quote complete, separating this defect from any claim that zeroize itself is broken.",
+    "The interrupting zeroize is anchored on an observed pointer value rather than a cycle count, so the stimulus stays meaningful if the walk's timing changes."
+  ],
+  "witness_construction_note": "The testbench instantiates one pv_gen_hash and drives it only through its declared ports. There is no force, no deposit and no hierarchical assignment anywhere in the harness. Coverage is measured from the tagged data the DUT writes into the hash block rather than from the address it drives, so the nonce and padding phases cannot be mistaken for PCR reads.",
+  "expected_evidence": [
+    "A simulation line showing 32 of 32 entries covered by a run from reset.",
+    "A line recording the pointer value at the moment the interrupting zeroize is applied.",
+    "A line showing the engine reporting itself idle after the zeroize while the pointer remains where it was.",
+    "A simulation line showing the following run covering fewer than 32 entries, with its lowest entry equal to the stale pointer.",
+    "A containment line showing an idle zeroize leaves the next run complete.",
+    "Structural gates over the audited tree covering the arm asymmetry, the absence of any other clearing path, and what the stale pointer selects in the PCR read mux."
+  ],
+  "success_criteria": [
+    "checks=3, fails=1 and witness_hits=1 in the directed simulation, with the single failure being the post-zeroize run.",
+    "cov_full_walk_from_reset=1, cov_truncated_walk_after_zeroize=1 and cov_idle_zeroize_harmless=1.",
+    "All structural gates passing with RESULT: PASS.",
+    "The negative control fails the identical testbench once the pointer is cleared, and specifically reports case=violating_walk_after_mid_run_zeroize PASS."
+  ],
+  "non_findings": [
+    "No claim is planned that the omitted registers leak PCR contents directly. The defect changes which entries are hashed, not who may read them.",
+    "No claim is planned that zeroize fails generally. The containment case tests the idle path and is expected to pass.",
+    "No claim is planned about the KeyVault FSM, which is examined only as an in-tree comparison for how a zeroize branch is normally written."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/031/proof/tb/pv_gen_hash_bug_031_tb.sv",
+    "script": "final_bug_submissions/031/proof/scripts/run_bug_031_proof.sh",
+    "logs": "final_bug_submissions/031/proof/logs/"
+  }
+}

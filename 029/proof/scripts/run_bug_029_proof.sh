@@ -9,8 +9,8 @@
 # clear semantics stated by the child module the signal drives; and a twin SHA3
 # implementation inside the same tree whose line structure is nearly identical
 # and which wires the same child port to the same signal as done_i, with no
-# second signal anywhere in it. No external repository, reference revision, or
-# expected-answer list is consulted anywhere below.
+# second signal anywhere in it. No external repository, no other revision of this
+# design, and no expected-answer list is consulted anywhere below.
 set -euo pipefail
 
 CMP="${CMP_ROOT:-/home/smy/hackatdac26-phase-2-caliptra}"
@@ -21,6 +21,8 @@ RUN_LOG="$LOGS/run.log"
 SHA3="$CMP/src/kmac/rtl/sha3.sv"
 ROUND="$CMP/src/kmac/rtl/keccak_round.sv"
 TWIN="$CMP/src/sha3/rtl/ot_sha3.sv"
+ES="$CMP/src/entropy_src/rtl/entropy_src_core.sv"
+ESM="$CMP/src/entropy_src/rtl/entropy_src_main_sm.sv"
 
 PASS=0; FAIL=0
 : > "$W"
@@ -96,8 +98,12 @@ gate "sed -n '99p' '$ROUND' | grep -q 'clear_i'" \
      "keccak_round.sv:99 declares clear_i, commented as clearing the internal state to zero"
 gate "sed -n '219p' '$ROUND' | grep -q 'mubi4_test_true_strict(clear_i)'" \
      "keccak_round.sv:219 acts on clear_i only when it passes mubi4_test_true_strict, so a constant MuBi4False can never trigger it"
-gate "sed -n '224p' '$ROUND' | grep -q \"rst_storage = 1'b 1\"" \
-     "keccak_round.sv:224 is the only place rst_storage is raised, and it sits inside that clear_i-guarded branch, so the state storage is never reset through this path"
+gate "sed -n '226p' '$ROUND' | grep -q \"rst_storage = 1'b 1\"" \
+     "keccak_round.sv:226 is the only place rst_storage is raised, and it sits inside that clear_i-guarded branch, so the state storage is never reset through this path"
+gate "[ \"\$(grep -cE \"rst_storage[[:space:]]+= 1'b 1\" '$ROUND')\" = '1' ]" \
+     "rst_storage is raised at exactly 1 site in the whole file, so no other path can clear the storage"
+gate "sed -n '473p' '$ROUND' | grep -q 'else if (rst_storage)'" \
+     "keccak_round.sv:473 is where rst_storage actually zeroes the state storage, the effect the constant-False clear_i withholds"
 gate "sed -n '603p' '$ROUND' | grep -q 'mubi4_test_true_strict(clear_i)'" \
      "keccak_round.sv:603 assumes clear_i is asserted in the idle state, an assumption that is vacuous when the driver is a constant False"
 
@@ -128,7 +134,35 @@ gate "! grep -q 'keccak_done2' '$TWIN'" \
      "ot_sha3.sv contains no keccak_done2 at all, so the tree carries both the correct wiring and its violation"
 
 show ""
-show "----- 6. in-file control: the file's own error-detection assertion -----"
+show "----- 6. why the withheld clear matters: the sponge absorbs by XOR -----"
+
+gate "sed -n '489p' '$ROUND' | grep -q 'if (xor_message)'" \
+     "keccak_round.sv:489 opens the absorb path, which XORs the incoming block into the existing storage rather than overwriting it"
+gate "sed -n '496,497p' '$ROUND' | grep -q \"storage\[j\]\[i\*DInWidth+:DInWidth\] \^ data_i\[j\]\"" \
+     "keccak_round.sv:496-497 is the XOR itself, so whatever the previous run left in storage becomes part of the next run's sponge"
+gate "sed -n '474p' '$ROUND' | grep -q \"storage <= '{default:'0}\"" \
+     "keccak_round.sv:474 is the zeroing assignment inside the rst_storage arm, the write that would have cleared the sponge between runs and that the constant-False clear_i never reaches"
+gate "sed -n '475p' '$ROUND' | grep -q 'else if (update_storage)'" \
+     "keccak_round.sv:475 shows the only other write arm is the absorb update, so with rst_storage withheld the storage can only ever be XOR-accumulated, never zeroed"
+
+show ""
+show "----- 7. consumer contract: the block that issues done says what it wants -----"
+
+gate "grep -qn 'sha3 #(' '$ES'" \
+     "entropy_src_core.sv instantiates this exact sha3 module as its conditioning engine"
+gate "grep -q '.done_i     (sha3_done' '$ES'" \
+     "entropy_src_core.sv wires its own sha3_done to this module's done_i, so the done that fails to clear is the one the entropy source relies on"
+gate "sed -n '246p' '$ESM' | grep -q 'clear the'" \
+     "entropy_src_main_sm.sv:246 states the intent of that done in a comment: clear the internal state of the SHA3 engine"
+gate "sed -n '247p' '$ESM' | grep -q 'start from scratch for the next seed'" \
+     "entropy_src_main_sm.sv:247 completes the sentence, 'to start from scratch for the next seed', which is exactly the guarantee the withheld clear removes"
+gate "sed -n '248,249p' '$ESM' | grep -q 'sha3_done_o = caliptra_prim_mubi_pkg::MuBi4True'" \
+     "entropy_src_main_sm.sv:248-249 issues that done as a strictly-valid MuBi4True, so the command the module ignores is well formed"
+gate "sed -n '2734p' '$ES' | grep -q 'pfifo_cond_rdata = sha3_state' " \
+     "entropy_src_core.sv:2734 takes the squeezed state as the conditioned entropy that becomes a seed, so cross-run carryover lands in the seed stream"
+
+show ""
+show "----- 8. in-file control: the file's own error-detection assertion -----"
 
 gate "sed -n '532,533p' '$SHA3' | grep -q 'keccak_start, keccak_process, sw_keccak_run, keccak_done'" \
      "sha3.sv:532-533 lists the signals through which controls must propagate, and keccak_done is in that list"

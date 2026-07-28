@@ -1,0 +1,34 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/032/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/032/proof/logs/sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 14:36 2026
+===== BUG-032 directed witness: SHA-256 DIGEST hwclr polarity =====
+--- quiescent_digest_readable (debug_or_scan=0, no software zeroize) ---
+      status after hash: READY=1 VALID=1
+      digest: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+      OBSERVED: BUG_032_WITNESS_OBSERVED digest window reads all-zero after a completed hash in the normal debug-locked state
+  TBFAIL case=quiescent_digest_readable a completed digest must be readable while no cleanup is requested
+--- debug_entry_wipe (debug_or_scan=1, no software zeroize) ---
+      digest: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+--- containment_transition_pulse_not_readable (1-cycle debug_or_scan pulse) ---
+      status after hash: READY=1 VALID=1
+      digest: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+  case=containment_transition_pulse_not_readable PASS no digest material is left readable after the transition pulse
+--- sw_zeroize_clears (debug_or_scan=0, ZEROIZE written) ---
+      status after hash: READY=1 VALID=1
+      digest: 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+  case=sw_zeroize_clears PASS a software ZEROIZE must leave the digest window clear
+
+cov_digest_readable_when_quiet=0
+cov_digest_survives_debug_entry=0
+cov_digest_exposed_under_wipe=0
+cov_sw_zeroize_clears=1
+checks=3 fails=1
+result=PASS
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/032/proof/tb/sha256_bug_032_tb.sv", line 242.
+$finish at simulation time              3930000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 3930000 ps
+CPU Time:      0.340 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 14:36:25 2026

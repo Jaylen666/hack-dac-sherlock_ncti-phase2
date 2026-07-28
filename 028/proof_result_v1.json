@@ -1,0 +1,45 @@
+{
+  "module": "kv_write_rule_check",
+  "bug_id": "028",
+  "bug_name": "keyvault_bug_028",
+  "version": 1,
+  "status": "partial_proof",
+  "blocker": "The RTL defect is proven, but no security property violation could be established, so this is not submitted as a confirmed security bug. The containment case shows LOCK-region data is still refused entry to slot 15, and the structural audit shows dst_in_std_region has no un-negated use anywhere in the module, so the narrower destination set can only add rejections and cannot grant a write that would otherwise be refused. The demonstrated consequence is that a specification-permitted write is rejected, which is an availability and compatibility defect. It is reported here in full, with the negative evidence, rather than being escalated into a bypass claim the evidence does not support.",
+  "proof_method_executed": "Fourteen scripted structural gates over the submitted checkout, a directed VCS W-2024.09-SP1 simulation of one real kv_write_rule_check compiled unmodified from that same checkout through the project's own src/keyvault/config/kv_defines_pkg.vf, and a negative control in which the destination bound is restored in a scratch copy and the identical testbench is required to stop witnessing.",
+  "result_summary": "With ocp_lock_in_progress asserted, a write whose forwarded source was standard slot KV5 and whose destination was standard slot KV15 was refused: write_allow=0. Moving only kv_write_entry from 15 to 14 produced write_allow=1, isolating the destination slot as the single input that flips the verdict. Writes into slots 0 and 14 were both allowed. The containment case, a LOCK-region source KV16 targeting slot 15, was blocked, and remained blocked after the bound was restored.",
+  "security_impact_assessment": "The impact is availability and specification compliance, not confidentiality or integrity. src/keyvault/config/keyvault.md:194 reserves slots 0-15 for standard use-cases and src/keyvault/rtl/kv_defines_pkg.sv:36 fixes KV_STANDARD_SLOT_HI at 15, so slot 15 is a legitimate destination that the implemented classifier refuses during OCP LOCK. Firmware using that slot loses one sixteenth of the standard region while OCP LOCK is in progress, and the failure is silent from the rule's point of view: :151 drives write_allow as the NOR of the rule vector, so the write simply does not occur. Region separation is not weakened. The destination signal is consumed only under negation at :116, so shrinking the set it represents can only make rule_fail.std_to_std assert on more stimuli, never fewer, and the LOCK classifiers at :76-81 and :90-91 are untouched by the short bound. An attacker gains nothing from this defect: the outcome it produces, a KeyVault write not happening, is one that any party able to trigger it could achieve by simply not issuing the write.",
+  "evidence": {
+    "competition_file": "src/keyvault/rtl/kv_write_rule_check.sv:88",
+    "line_range": "83-88",
+    "run_log": "final_bug_submissions/028/proof/logs/run.log",
+    "compile_log": "final_bug_submissions/028/proof/logs/compile.log",
+    "sim_log": "final_bug_submissions/028/proof/logs/sim.log",
+    "witness_log": "final_bug_submissions/028/proof/logs/witness.log",
+    "negative_control_log": "final_bug_submissions/028/proof/logs/negative_control.log",
+    "key_observation": "BUG_028_WITNESS_OBSERVED write_allow=0 for a legal standard-to-standard write into KV15, with metrics ocp_lock=1 src=HMAC data0_entry=KV5 dst=KV15; the discriminator with dst=KV14 gave write_allow=1. The containment case with data0_entry=KV16 (LOCK) and dst=KV15 gave write_allow=0. structural_gates_passed=14/14, checks=4 fails=1 witness_hits=1, cover_std_mid_allowed=1 cover_std_top_blocked=1 cover_lock_src_to_std_top_blocked=1.",
+    "negative_evidence": "The containment case passed both before and after the negative-control patch, and the gate at src/keyvault/rtl/kv_write_rule_check.sv:116 shows dst_in_std_region's only use is negated. Together these are the grounds for not claiming a security bypass."
+  },
+  "evidence_items": [
+    "src/keyvault/rtl/kv_write_rule_check.sv:87-88 classifies the destination using [KV_STANDARD_SLOT_LOW:KV_STANDARD_SLOT_HI-1], one slot short of the region.",
+    "src/keyvault/rtl/kv_write_rule_check.sv:69-74 classifies both forwarded sources using the full KV_STANDARD_SLOT_HI, so the asymmetry is visible within a twenty-line span of one file.",
+    "src/keyvault/rtl/kv_defines_pkg.sv:35-36 fixes the standard region at slots 0 through 15, and src/keyvault/config/keyvault.md:194 reserves slots 0-15 for standard use-cases, both inclusive of slot 15.",
+    "src/keyvault/rtl/kv_write_rule_check.sv:116 is the single use of dst_in_std_region and it is negated, so the short bound is monotonically restrictive; the structural audit additionally gates that no un-negated use exists anywhere in the rule block.",
+    "src/keyvault/rtl/kv_defines_pkg.sv:37 fixes KV_OCP_LOCK_SLOT_LOW at 16, so slot 15 lies outside the LOCK region and rule (c) at :123-125 still rejects a LOCK-sourced write targeting it.",
+    "src/keyvault/rtl/kv_write_rule_check.sv:151 drives write_allow as ~|rule_fail, so the spurious rule_fail suppresses a legitimate write rather than merely raising a status flag.",
+    "The negative control restored the bound in a scratch copy; the previously refused write was then accepted, cover_std_top_blocked fell to 0 and the witness stopped firing, while cover_lock_src_to_std_top_blocked stayed 1, so the bound is not load-bearing for containment.",
+    "The in-file comment at src/keyvault/rtl/kv_write_rule_check.sv:83-86 asserts that the short bound allows LOCK-region data to be forwarded into the boundary slot. The simulation contradicts that assertion: rule (c) lock_to_lock still rejects such a write, because slot 15 is outside the LOCK region and the rule fires when a LOCK source's destination leaves that region. The finding reported here follows the observed behaviour and the parameters, not the comment."
+  ],
+  "non_findings": [
+    "This is not a cross-region bypass. LOCK-region data cannot reach slot 15 through this defect, as the containment case demonstrates directly.",
+    "No confidentiality or integrity impact was demonstrated, and none is claimed.",
+    "No claim is made about the release-slot rule at :103-107, which is tracked separately.",
+    "No claim is made about behaviour outside OCP LOCK mode."
+  ],
+  "reproduction": {
+    "command": "final_bug_submissions/028/proof/scripts/run_bug_028_proof.sh && final_bug_submissions/028/proof/scripts/run_bug_028_sim.sh && final_bug_submissions/028/proof/scripts/run_bug_028_negative_control.sh",
+    "tools": "VCS W-2024.09-SP1 at /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/bin, bash, python3. CALIPTRA_ROOT is set by the scripts to the audited checkout.",
+    "success_marker": "PROOF_RESULT: PASS from the simulation script, RESULT: PASS from the structural audit, NEGATIVE CONTROL: PASS from the negative control.",
+    "determinism": "Fully deterministic. The stimulus is a fixed directed sequence with no randomization and no seed dependence; the build tree is removed and rebuilt on each run."
+  },
+  "conclusion": "The RTL defect is confirmed and reproducible: an off-by-one on the standard-region destination bound causes a specification-permitted write into slot 15 to be refused during OCP LOCK. The security claim is not confirmed. Both the containment simulation and the structural argument about the signal's polarity show that the error is monotonically restrictive and cannot open a path between regions, so this is reported as an availability and compatibility defect rather than a security bypass. Reviewers wanting a security finding in this module should look at case 027, which concerns the release-slot rule in the same file."
+}

@@ -1,0 +1,33 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/031/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/031/proof/logs/sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 14:46 2026
+===== BUG-031 directed witness: gen-hash read pointer across zeroize =====
+      PV_NUM_PCR=32 PV_NUM_DWORDS=12
+--- control_full_walk_from_reset ---
+      entries visited=32 lowest=0
+  case=control_full_walk_from_reset PASS a quote started from reset must read every PCR entry
+--- violating_walk_after_mid_run_zeroize ---
+      read pointer when zeroize asserted: entry=20 offset=0
+      gen_hash_ip after zeroize=0 (engine reports idle)
+      read pointer after zeroize:  entry=20 offset=1
+      entries visited=12 lowest=20
+      OBSERVED: BUG_031_WITNESS_OBSERVED fresh quote after zeroize covered only 12 of 32 PCR entries, starting at entry 20
+  TBFAIL case=violating_walk_after_mid_run_zeroize a quote started after a zeroize must still read every PCR entry
+--- containment_idle_zeroize_then_full_walk ---
+      entries visited=32 lowest=0
+  case=containment_idle_zeroize_then_full_walk PASS a zeroize taken while idle must leave the next quote complete
+
+cov_full_walk_from_reset=1
+cov_truncated_walk_after_zeroize=1
+cov_idle_zeroize_harmless=1
+witness_hits=1
+checks=3 fails=1
+result=PASS
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/031/proof/tb/pv_gen_hash_bug_031_tb.sv", line 243.
+$finish at simulation time             13145000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 13145000 ps
+CPU Time:      0.340 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 14:46:51 2026

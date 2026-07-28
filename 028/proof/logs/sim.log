@@ -1,0 +1,37 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/028/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/028/proof/logs/sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 13:57 2026
+===== BUG-028 directed witness: standard-region destination bound =====
+KV_STANDARD_SLOT_LOW=0 KV_STANDARD_SLOT_HI=15
+destination classifier upper bound as implemented: 14
+--- control_std_to_std_mid_slot ---
+      metrics: ocp_lock=1 src=HMAC data0_entry=KV5 dst=KV14
+  case=control_std_to_std_mid_slot PASS expect_allowed=1 write_allow=1
+--- control_std_to_std_low_slot ---
+      metrics: ocp_lock=1 src=HMAC data0_entry=KV5 dst=KV0
+  case=control_std_to_std_low_slot PASS expect_allowed=1 write_allow=1
+--- violating_std_to_std_top_slot ---
+      metrics: ocp_lock=1 src=HMAC data0_entry=KV5 dst=KV15
+  TBFAIL case=violating_std_to_std_top_slot expect_allowed=1 write_allow=0
+  OBSERVED: BUG_028_WITNESS_OBSERVED write_allow=0 for a legal standard-to-standard write into KV15
+--- discriminator: same stimulus, dst=KV14 ---
+      metrics: ocp_lock=1 src=HMAC data0_entry=KV5 dst=KV14
+      write_allow=1 with the only changed input being kv_write_entry
+--- containment_lock_src_to_std_top_slot ---
+      metrics: ocp_lock=1 src=HMAC data0_entry=KV16 (LOCK) dst=KV15
+  case=containment_lock_src_to_std_top_slot PASS expect_allowed=0 write_allow=0
+      LOCK-region data is still refused entry to KV15, so the off-by-one does not open a cross-region path
+
+cover_std_mid_allowed=1
+cover_std_top_blocked=1
+cover_lock_src_to_std_top_blocked=1
+checks=4 fails=1 witness_hits=1
+result=PASS
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/028/proof/tb/kv_write_rule_check_bug_028_tb.sv", line 201.
+$finish at simulation time               195000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 195000 ps
+CPU Time:      0.330 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 13:57:34 2026

@@ -1,0 +1,20 @@
+BUG-028 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T13:59:50+08:00
+gate_ok: kv_defines_pkg.sv fixes KV_STANDARD_SLOT_HI at 15, so slot 15 is a standard slot
+gate_ok: the standard region starts at slot 0
+gate_ok: keyvault.md reserves slots 0-15 for standard use-cases, an inclusive range that includes slot 15
+gate_ok: the data0 source classifier uses the full bound KV_STANDARD_SLOT_HI (line 71)
+gate_ok: the data1 source classifier uses the full bound KV_STANDARD_SLOT_HI (line 74)
+gate_ok: the destination classifier uses KV_STANDARD_SLOT_HI-1 instead (line 88)
+gate_ok: the short bound occurs exactly once in executable code, so the destination classifier is the only affected site
+gate_ok: dst_in_std_region appears exactly 3 times: declaration, definition and a single use
+gate_ok: that single use is negated inside rule (b), so shrinking the set can only add rejections
+gate_ok: no rule consumes dst_in_std_region un-negated, so no grant path depends on it
+gate_ok: the LOCK destination classifier is separate and uses its own full bound
+gate_ok: rule (c) lock_to_lock keys off the LOCK source classifiers, which the short bound does not touch
+gate_ok: the LOCK region starts at 16, so slot 15 is outside it and a LOCK source writing slot 15 still trips rule (c)
+gate_ok: write_allow is the NOR of the rule vector, so a spurious rule_fail suppresses a legitimate write
+structural_gates_passed=14/14
+RESULT: PASS - all structural gates confirm BUG-028
+result=PASS

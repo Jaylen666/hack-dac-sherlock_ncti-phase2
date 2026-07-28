@@ -1,0 +1,71 @@
+===== BUG-028 structural audit (single-tree, audited RTL only) =====
+
+----- 1. the region the tree defines -----
+  PASS: kv_defines_pkg.sv fixes KV_STANDARD_SLOT_HI at 15, so slot 15 is a standard slot
+  PASS: the standard region starts at slot 0
+  PASS: keyvault.md reserves slots 0-15 for standard use-cases, an inclusive range that includes slot 15
+
+----- 2. the classifiers disagree inside one file -----
+  PASS: the data0 source classifier uses the full bound KV_STANDARD_SLOT_HI (line 71)
+  PASS: the data1 source classifier uses the full bound KV_STANDARD_SLOT_HI (line 74)
+  PASS: the destination classifier uses KV_STANDARD_SLOT_HI-1 instead (line 88)
+  PASS: the short bound occurs exactly once in executable code, so the destination classifier is the only affected site
+
+----- 3. the direction of the error, which sets its severity -----
+  PASS: dst_in_std_region appears exactly 3 times: declaration, definition and a single use
+  PASS: that single use is negated inside rule (b), so shrinking the set can only add rejections
+  PASS: no rule consumes dst_in_std_region un-negated, so no grant path depends on it
+
+----- 4. the LOCK region is unaffected, so containment still holds -----
+  PASS: the LOCK destination classifier is separate and uses its own full bound
+  PASS: rule (c) lock_to_lock keys off the LOCK source classifiers, which the short bound does not touch
+  PASS: the LOCK region starts at 16, so slot 15 is outside it and a LOCK source writing slot 15 still trips rule (c)
+
+----- 5. the verdict reaches the datapath -----
+  PASS: write_allow is the NOR of the rule vector, so a spurious rule_fail suppresses a legitimate write
+
+----- 6. the audited source, verbatim -----
+
+--- src/keyvault/rtl/kv_write_rule_check.sv:69,91 (the three classifiers) ---
+    assign src0_in_std_region  = write_metrics.kv_data0_present &&
+                                 (write_metrics.kv_data0_entry inside
+                                    {[KV_STANDARD_SLOT_LOW:KV_STANDARD_SLOT_HI]});
+    assign src1_in_std_region  = write_metrics.kv_data1_present &&
+                                 (write_metrics.kv_data1_entry inside
+                                    {[KV_STANDARD_SLOT_LOW:KV_STANDARD_SLOT_HI]});
+
+    assign src0_in_lock_region = write_metrics.kv_data0_present &&
+                                 (write_metrics.kv_data0_entry inside
+                                    {[KV_OCP_LOCK_SLOT_LOW:KV_OCP_LOCK_SLOT_HI]});
+    assign src1_in_lock_region = write_metrics.kv_data1_present &&
+                                 (write_metrics.kv_data1_entry inside
+                                    {[KV_OCP_LOCK_SLOT_LOW:KV_OCP_LOCK_SLOT_HI]});
+
+    // BUG 1C: off-by-one on the upper bound of the STD region.
+    // KV_STANDARD_SLOT_HI-1 excludes the boundary slot from STD, allowing
+    // LOCK-region data to be forwarded into that slot with rule_fail.std_to_std
+    // silently clearing.
+    assign dst_in_std_region   = (write_metrics.kv_write_entry inside
+                                    {[KV_STANDARD_SLOT_LOW:KV_STANDARD_SLOT_HI-1]});
+
+    assign dst_in_lock_region  = (write_metrics.kv_write_entry inside
+                                    {[KV_OCP_LOCK_SLOT_LOW:KV_OCP_LOCK_SLOT_HI]});
+
+--- src/keyvault/rtl/kv_write_rule_check.sv:113,126 (rules (b) and (c)) ---
+    always_comb begin : eval_std_to_std
+        rule_fail.std_to_std = write_metrics.ocp_lock_in_progress &&
+                               (src0_in_std_region || src1_in_std_region) &&
+                               !dst_in_std_region;
+    end
+
+    // ---------------------------------------------------------------- //
+    // Rule (c): lock_to_lock                                           //
+    // ---------------------------------------------------------------- //
+    always_comb begin : eval_lock_to_lock
+        rule_fail.lock_to_lock = write_metrics.ocp_lock_in_progress &&
+                                 (src0_in_lock_region || src1_in_lock_region) &&
+                                 !dst_in_lock_region;
+    end
+
+structural_gates_passed=14/14
+RESULT: PASS

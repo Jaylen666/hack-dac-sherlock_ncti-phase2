@@ -1,0 +1,68 @@
+{
+  "module": "kmac",
+  "bug_id": "029",
+  "bug_name": "sha3_bug_029",
+  "triage_id": "sha3_done_never_clears_keccak_state",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "proof_method_executed": {
+    "structural_audit": "38 gates, 38 passed, 0 failed, entirely within the audited tree. Gated evidence: the constant-False second done signal and the clear_i port it drives; the always_comb default block that gives defaults to 8 signals but not to this one; the child module's clear semantics and the single site at which it raises rst_storage; the XOR-based absorb path that turns a withheld clear into cross-run accumulation; the FSM leaving the squeeze window with no other clear anywhere downstream; the consumer that issues the done and states in a comment what it expects the done to do; a near-line-aligned twin SHA3 inside the same tree that wires the same port correctly; and the file's own error-detection assertion, which covers keccak_done but not the second signal. Three computed censuses: keccak_done2_direct_assignments=0, keccak_done2_total_references=3, always_comb_default_assignments=8.",
+    "directed_sim": "sha3 with EnMasking=0 compiled under VCS from the project's own filelist src/kmac/config/kmac.vf, with the testbench reading the child's storage register and rst_storage hierarchically and never forcing anything. 16 checks, 0 errors, all four cover counters at 1. Observed: the sponge state 04618e735288ea59 in the squeeze window; keccak_done=0x6 but keccak_done2=0x9 and clear_i=0x9 in the very branch that accepts the done; the FSM moving StSqueeze to StIdle on that same done_i; the state bit-for-bit identical afterwards; rst_storage never asserting and clear_i never passing the strict test at any point in the whole run, tracked by continuous monitors rather than single-cycle samples; and a second absorb of the byte-identical message yielding cdb5488900229739 instead of 04618e735288ea59, which is the cross-run carryover. Also observed that keccak_done2 reads X before the first done, since the always_comb gives it no default.",
+    "negative_control": "The identical testbench run against a scratch copy of sha3.sv whose only change is the one port connection, with clear_i fed the same done_i-derived signal the twin ot_sha3.sv:492 uses, reports 6 self-check failures of which 5 are BUG-029 checks and drops cover_state_survives_done, cover_clear_never_strict and cover_cross_run_carryover all to 0. On the patched copy clear_i reads 0x6 in the done branch, the state goes to zero, and the second identical run reproduces the first run's state 04618e735288ea59 exactly. cover_fsm_did_advance stays at 1 and the reset control check still passes, so the harness is intact and the failure is attributable to the RTL change.",
+    "tool": "VCS W-2024.09-SP1_Full64"
+  },
+  "result_summary": "The SHA3 done command does not clear the Keccak state. The completion branch of StSqueeze at sha3.sv:290-292 assigns the incoming done_i to keccak_done but pairs it with a second signal, keccak_done2, pinned to the constant caliptra_prim_mubi_pkg::MuBi4False, and sha3.sv:494 wires that constant-False signal to the Keccak round's clear_i port. The child acts on clear_i only through mubi4_test_true_strict at keccak_round.sv:219, so a constant MuBi4False can never trigger it; rst_storage, raised at exactly one site in that file at :226 and inside that guard, therefore never fires, and the zeroing write at :474 is never reached. The FSM still accepts the command and leaves the squeeze window, so the block reports completion while retaining the entire 1600-bit sponge state. The file convicts itself several independent ways. sha3.sv:451 wires the real done_i-derived signal to the pad's done_i, so the two child ports that both need the done are fed from different signals. The always_comb default block at sha3.sv:241-256 gives defaults to 8 signals including keccak_done at :247 but none to keccak_done2, so in simulation the signal reads X before the first done. A computed census finds keccak_done2 with zero standalone assignments and exactly 3 references in the whole file, so no other write can rescue it. The file's own ErrDetection_A assertion at sha3.sv:532-533 lists keccak_done among the signals controls must propagate through but does not list keccak_done2, so the file's own propagation check cannot observe the dead clear path. The tree carries the correct wiring alongside the violation: the twin SHA3 at src/sha3/rtl/ot_sha3.sv, whose line numbers are nearly aligned with this file, assigns keccak_done = done_i at :289 and wires that single signal to both the pad's done_i at :450 and the round's clear_i at :492, and contains no keccak_done2 anywhere. The consequence is not a stale value sitting harmlessly in a register. The sponge absorbs by XORing each incoming block into the existing storage at keccak_round.sv:496-497, and :475 shows that arm is the only write besides the withheld reset, so the storage can only ever accumulate. The consumer of this exact module states the guarantee it is being denied: entropy_src_core.sv instantiates it as the entropy source's conditioning engine, entropy_src_main_sm.sv:246-247 comments that the done it issues is there to clear the SHA3 internal state and start from scratch for the next seed, and entropy_src_core.sv:2734 feeds the squeezed state straight into the conditioned-entropy path that becomes a seed.",
+  "security_impact_assessment": {
+    "impact": [
+      "Consecutive conditioned-entropy seeds are not independent. Each seed is derived from a sponge that still contains the whole previous seed's state, so the seed stream carries less entropy than it is credited with while still passing as a fresh seed.",
+      "The simulation makes this concrete: byte-identical input produced 04618e735288ea59 on the first run and cdb5488900229739 on the second, purely because of the residue, and on corrected RTL the second run reproduces the first exactly.",
+      "The affected block is the entropy source's conditioning engine, so every key and nonce derived from those seeds inherits the degradation, which is a confidentiality loss that reaches beyond this module.",
+      "The block reports completion normally: the FSM returns to idle, the done is accepted, and no error is raised, so nothing in the design signals that the clear did not happen.",
+      "The child's own rst_storage integrity checker at keccak_round.sv:508-518 only fires when rst_storage is asserted in the wrong conditions, so a rst_storage that never asserts at all produces no error, and the sha3 keccak_storage_rst_error_o output stays quiet.",
+      "keccak_round.sv:603 carries an assumption that clear_i is asserted in the idle state; with a constant-False driver that assumption is vacuous, so a formal check written against it would pass without exercising anything."
+    ],
+    "bypassed_feature": "The state-clearing effect of the SHA3 done command, and with it the independence of consecutive conditioned-entropy seeds",
+    "attacker_model": [
+      "Software that consumes conditioned entropy from the entropy source built on this SHA3 engine. It does not need to do anything unusual: the defect holds on every ordinary done, so simply requesting successive seeds yields related ones.",
+      "An analyst holding several consecutive seeds, who can exploit the algebraic relation between them that the surviving sponge state creates."
+    ],
+    "confidence": "high"
+  },
+  "evidence": {
+    "competition_file": "/home/smy/hackatdac26-phase-2-caliptra/src/kmac/rtl/sha3.sv:291",
+    "line_range": "288-293",
+    "run_log": "final_bug_submissions/029/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/029/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/029/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/029/proof/logs/negative_control.log",
+    "key_observation": "A strictly-valid done_i was accepted, keccak_done read 0x6 in the completion branch, but keccak_done2 and hence clear_i read 0x9 in that same branch. The FSM went StSqueeze to StIdle while the 1600-bit sponge state stayed bit-for-bit at 04618e735288ea59, and continuous monitors confirmed rst_storage never asserted and clear_i never passed the strict test anywhere in the run. Absorbing the byte-identical message again then produced cdb5488900229739 rather than repeating 04618e735288ea59. On a scratch copy whose only change is clear_i being fed the twin's signal, clear_i read 0x6, the state went to zero, the second run reproduced 04618e735288ea59 exactly, all three defect covers fell to 0 and five BUG-029 checks failed, while the FSM-advance cover and the reset control check still passed."
+  },
+  "non_findings": [
+    {
+      "claim": "The surviving state is readable by software, so this is a direct state disclosure.",
+      "verdict": "withdrawn",
+      "reason": "It is not. sha3.sv:333-338 mux the outward-facing state through MuxGuard, which returns zero outside the squeeze window, and sha3.sv:517-519 assert that property. The harm is the cross-run carryover into the next sponge, which the simulation observes directly, not a readback of the stale value."
+    },
+    {
+      "claim": "A later reset clears the storage anyway, so the residue does not persist.",
+      "verdict": "withdrawn",
+      "reason": "A reset does clear it, and the testbench includes that as a harness control so a DUT that clears nothing would be visible as a broken harness. But the whole point of done is to clear between runs without a reset: the entropy source issues a done per seed and never resets between seeds, and entropy_src_main_sm.sv:246-247 says so in a comment."
+    },
+    {
+      "claim": "The second signal may be an intentional auxiliary clear for a different purpose, so the pairing is deliberate.",
+      "verdict": "withdrawn",
+      "reason": "It cannot serve any purpose. A computed census finds it has zero standalone assignments and exactly 3 references in the file, its only write is the constant MuBi4False, and it has no default in its always_comb so it reads X until that write. A signal that is never anything but the constant False, or X, cannot implement a clear whose child requires a strict true."
+    },
+    {
+      "claim": "The design's own rst_storage integrity check or the keccak_storage_rst_error_o output would catch this.",
+      "verdict": "withdrawn",
+      "reason": "Those detect the opposite fault. keccak_round.sv:508-518 raises the error only when rst_storage is asserted while the FSM is not idle or clear_i is not true, so a rst_storage that never asserts produces no error at all. The simulation confirms the error output stays quiet throughout."
+    },
+    {
+      "claim": "Only this copy of sha3 is affected, so the impact is narrow.",
+      "verdict": "retained_as_scoped",
+      "reason": "Correct that the twin at src/sha3/rtl/ot_sha3.sv is sound, and the audit gates that explicitly as its tree-level control. The scope is still meaningful because this copy is the one instantiated as the entropy source's conditioning engine, so the degradation lands in the seed stream that keys the rest of the system."
+    }
+  ],
+  "conclusion": "Confirmed security bug. A strictly-valid SHA3 done is accepted and returns the FSM to idle but never clears the 1600-bit Keccak sponge state, because the child's clear_i port is fed a second signal pinned to the constant MuBi4False that can never pass the strict test the child requires, so rst_storage never fires. Since the sponge absorbs by XOR, the next run accumulates into that residue and consecutive hashes stop being independent, which matters because this copy of sha3 is the entropy source's conditioning engine and its consumer states in a comment that the done exists precisely to start each seed from scratch. The finding rests entirely on evidence inside the audited tree: the file's own default-assignment block skips the signal, the file's own other port connection uses the real done, the child names what clear_i is for and raises rst_storage at exactly one guarded site, the consumer states the guarantee, and a near-line-aligned twin SHA3 inside the same tree wires one signal to both ports and has no second signal at all. Proven by 38 structural gates, a directed simulation with 16 checks and 0 errors that observes the state surviving bit-for-bit and the second identical run diverging, and a negative control that fails on corrected RTL with all three defect covers at zero while its control observations still pass."
+}

@@ -1,0 +1,61 @@
+{
+  "module": "kmac",
+  "bug_id": "029",
+  "bug_name": "sha3_bug_029",
+  "triage_id": "sha3_done_never_clears_keccak_state",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Software that consumes conditioned entropy from the entropy source built on this SHA3 engine, and therefore benefits from consecutive seeds being mathematically related rather than independent.",
+    "precondition": "The SHA3 engine has absorbed a message and reached the squeeze window, so its 1600-bit Keccak state storage holds the sponge state of that run. This is the normal state of the block at the end of every hash.",
+    "input": "A strictly-valid done_i, which is exactly what the entropy source's main state machine issues at the end of every seed, followed by a normal start/absorb/process sequence for the next run.",
+    "protected_asset": "The 1600-bit Keccak sponge state, and through it the independence of consecutive conditioned-entropy seeds.",
+    "security_property": "A strictly-valid done_i must clear the Keccak state storage to zero, so that the next absorb starts from a fresh sponge and consecutive hashes are independent. The child module names this as the purpose of the port it exposes, and the consumer that issues the command names it as the purpose of the command.",
+    "modification": "In sha3.sv the completion branch of StSqueeze at sha3.sv:290-292 assigns the incoming done_i to keccak_done but pairs it with a second signal, keccak_done2, pinned to the constant MuBi4False. That second signal is what sha3.sv:494 wires to the Keccak round's clear_i port. Because keccak_round.sv:219 acts on clear_i only when it passes mubi4_test_true_strict, a constant MuBi4False can never trigger it, so rst_storage never fires and the sponge state survives the done that was supposed to clear it."
+  },
+  "security_feature_bypassed": "The state-clearing effect of the SHA3 done command, which is what makes consecutive hashes independent and what the entropy source relies on to start each seed from scratch",
+  "proof_goal": "Show that a strictly-valid done_i moves the SHA3 FSM out of the squeeze window but leaves the Keccak state storage bit-for-bit intact, that no other path in the child can clear it, that the sponge's XOR-based absorb therefore carries that residue into the next run, that the block's own consumer states in a comment the guarantee it is being denied, that a near-line-aligned twin SHA3 in the same tree wires the same port correctly, and that restoring that wiring makes the same testbench reject the claim.",
+  "proof_style": {
+    "primary": "structural audit of the audited RTL against its own child contract, its own default-assignment block, its own consumer's stated intent, and a twin implementation inside the same tree",
+    "secondary": [
+      "directed unit-level simulation of sha3 with hierarchical reads and continuous monitors, including a second identical run that exposes the cross-run carryover",
+      "negative control on a patched scratch copy"
+    ]
+  },
+  "minimum_attack_sequence": [
+    "The entropy source absorbs raw entropy into the SHA3 conditioning engine and the FSM reaches the squeeze window with a non-zero 1600-bit sponge state.",
+    "The entropy source's main state machine issues a strictly-valid done, which entropy_src_main_sm.sv:246-247 documents as being there to clear the SHA3 internal state so the next seed starts from scratch.",
+    "The SHA3 FSM accepts the command and returns to idle, but keccak_done2 is a constant MuBi4False, so clear_i never passes the strict test at keccak_round.sv:219, rst_storage never fires, and the storage keeps the whole previous sponge state.",
+    "The next seed's raw entropy is absorbed. keccak_round.sv:496-497 XORs each incoming block into the existing storage rather than overwriting it, so the second run's sponge is a function of the first run's residue.",
+    "entropy_src_core.sv:2734 takes the squeezed state as the conditioned entropy that becomes a seed, so consecutive seeds are related instead of independent, and the entropy the seed stream is credited with is not the entropy it carries."
+  ],
+  "expected_evidence": [
+    "sha3.sv:290-292 assigns done_i to keccak_done but pins keccak_done2 to the constant MuBi4False, and sha3.sv:494 wires that constant-False signal to the Keccak round's clear_i.",
+    "In-file control: sha3.sv:451 wires the real done_i-derived signal to the pad's done_i, so the two child ports that both need the done are fed from different signals.",
+    "In-file control: a computed census finds keccak_done2 with zero standalone assignments and exactly 3 references in the whole file, so the constant-False claim covers every use of the signal.",
+    "In-file control: the always_comb default block at sha3.sv:241-256 gives defaults to 8 signals including keccak_done at :247, but never to keccak_done2, so the signal has no default in a combinational block.",
+    "Child contract: keccak_round.sv:99 declares clear_i as clearing the internal state to zero, keccak_round.sv:219 acts on it only through mubi4_test_true_strict, and a census confirms rst_storage is raised at exactly 1 site in the file, at :226, inside that guard.",
+    "Consequence mechanism: keccak_round.sv:474 is the zeroing write in the rst_storage arm and :475 shows the only other write arm is the XOR-based absorb update, so with rst_storage withheld the storage can only ever accumulate.",
+    "Consumer contract: entropy_src_core.sv instantiates this exact module and wires its own sha3_done to done_i, and entropy_src_main_sm.sv:246-247 states in a comment that this done exists to clear the SHA3 internal state and start from scratch for the next seed.",
+    "Tree-level control: the twin SHA3 at ot_sha3.sv, whose lines are nearly aligned with this file, assigns keccak_done = done_i at :289 and wires that one signal to both the pad's done_i at :450 and the round's clear_i at :492, and contains no keccak_done2 anywhere.",
+    "In simulation, a strictly-valid done_i returns the FSM to idle while the state storage stays bit-for-bit equal to its pre-done value, rst_storage never asserts at any point in the run, and clear_i never passes the strict test at any point in the run.",
+    "In simulation, absorbing the byte-identical message a second time after that done produces a different sponge state, which is the cross-run carryover the missing clear causes.",
+    "With clear_i rewired to the same done_i-derived signal the twin uses, the same stimulus clears the state, the second run reproduces the first run's state exactly, all three defect covers fall to zero and the self-checks fail."
+  ],
+  "success_criteria": [
+    "Every structural gate holds, including the computed censuses over keccak_done2 references and rst_storage assertion sites.",
+    "The simulation observes the state surviving done bit-for-bit, rst_storage never asserting, and a second identical run producing a different state.",
+    "The negative control fails on corrected RTL with all three defect covers at zero, while the harness's own control observations still pass.",
+    "The finding is anchored on the audited tree's own child contract, its own default-assignment block, its own consumer's stated intent and a twin implementation inside the same tree, not on any external comparison."
+  ],
+  "artifacts": {
+    "script": "final_bug_submissions/029/proof/scripts/run_bug_029_proof.sh",
+    "sim_script": "final_bug_submissions/029/proof/scripts/run_bug_029_sim.sh",
+    "testbench": "final_bug_submissions/029/proof/tb/sha3_bug_029_tb.sv",
+    "run_log": "final_bug_submissions/029/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/029/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/029/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/029/proof/logs/negative_control.log",
+    "negative_control_script": "final_bug_submissions/029/proof/scripts/run_bug_029_negative_control.sh"
+  }
+}

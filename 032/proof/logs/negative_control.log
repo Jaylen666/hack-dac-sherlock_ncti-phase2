@@ -1,0 +1,21 @@
+BUG-032 negative control
+source DUT : /home/smy/hackatdac26-phase-2-caliptra/src/sha256/rtl/sha256.sv
+patched DUT: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/032/proof/scripts/../scratch/sha256.sv
+date=2026-07-28T14:35:25+08:00
+patch applied: DIGEST window hardware clear driven from zeroize_reg
+
+sim exit code                     : 1 (nonzero expected)
+BUG_032 witness lines             : 0 (must be 0)
+digest now readable when quiet    : 1 (must be 1)
+containment case still passing    : 1 (must stay 1)
+software ZEROIZE still clears     : 1 (must stay 1)
+TBFAIL lines total                : 0 (must be 0)
+
+CONCLUSION: On the audited RTL a completed SHA-256 hash leaves the DIGEST
+window reading all-zero. With the window's hardware clear driven from
+zeroize_reg in a scratch copy, the same hash becomes readable and the
+witness stops firing, while the containment probe and the software
+ZEROIZE case pass both before and after the change. The observation is a
+property of the audited RTL, not of the testbench, and the strobe is not
+load-bearing for the debug-unlock wipe.
+NEGATIVE CONTROL: PASS

@@ -1,0 +1,22 @@
+BUG-032 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T14:31:29+08:00
+gate_ok: sha256_reg.rdl declares the DIGEST field with a hardware clear, so a clear strobe is expected
+gate_ok: the DIGEST window is software-readable only, so its value is produced entirely by hardware
+gate_ok: the window is eight dwords wide, the full SHA-256 result
+gate_ok: the first strobe is ZEROIZE OR switch: asserted only when cleanup is actually requested
+gate_ok: the second strobe is NOT(NOT ZEROIZE AND switch), which reduces to ZEROIZE OR NOT switch
+gate_ok: zeroize_reg2 appears exactly three times: its declaration, this assignment and a single use
+gate_ok: the DIGEST window's hardware clear is the sole consumer of the second strobe
+gate_ok: the BLOCK window beside it clears from the first strobe, so the two windows disagree
+gate_ok: the internal digest_reg is also cleared from the first strobe, so the register file is the outlier
+gate_ok: no write-enable suppression guards the DIGEST window, so the clear strobe alone decides its value
+gate_ok: the generated register block gives hwclr priority over the unconditional hardware write
+gate_ok: caliptra_top builds the switch input from edge-detected transitions
+gate_ok: those transitions are single-cycle pulses, so the switch is low throughout normal operation
+gate_ok: the debug-lock term is likewise a transition, not a level
+gate_ok: STATUS.VALID still reports a completed hash, so software is told to read a window that is held at zero
+gate_ok: the window's hardware-write source is the live digest, which the priority clear overrides
+structural_gates_passed=16/16
+RESULT: PASS - all structural gates confirm BUG-032
+result=PASS

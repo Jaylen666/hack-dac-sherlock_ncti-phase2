@@ -1,0 +1,82 @@
+{
+  "module": "pcrvault",
+  "bug_id": "031",
+  "bug_name": "pcrvault_bug_031",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready",
+  "security_feature_bypassed": "The completeness of the PCR quote, and with it the clean-slate guarantee a security zeroize is supposed to give the next gen-hash operation",
+  "finding": "In src/pcrvault/rtl/pv_gen_hash.sv the zeroize branch of the module's only state-holding always_ff omits the two registers that form the PCR read pointer, so a security zeroize returns the FSM to idle while leaving the pointer wherever an interrupted PCR walk had reached. Line 199 opens that always_ff, named api_regs, and it holds five registers. The reset branch at lines 200-206 clears all five, including read_entry at line 204 and read_offset at line 205, which establishes that the file itself regards both pointer registers as state a full clear must zero. The zeroize branch three lines below at lines 207-211 clears only gen_hash_fsm_ps, block_offset_i and nonce_offset_i, and a computed census over the three branches of that same always_ff confirms the shape independently of any signal name: the reset branch carries five assignments, the zeroize branch three, the else branch five, so the difference is exactly the two pointer registers and the omission is total rather than partial. No other path restores them. Lines 217-218 are the only other writes and they are the ordinary next-state updates; line 110 shows read_entry_nxt returning to zero only when rst_rd_ptr is set; line 122 builds rst_rd_ptr solely from the two BLOCK-to-NONCE FSM arcs, and line 119 shows the condition guarding those arcs requires the pointer to have already reached the last entry and last dword, so a walk aborted part-way never takes them. No line in the pointer's whole next-state region, lines 105-125, mentions zeroize at all. The IDLE-to-BLOCK_0 start arc at line 130 does not touch the pointer either, so a fresh quote inherits whatever survived. What survives is not bookkeeping: lines 196-197 drive the PCR read request's entry and offset fields straight from those two registers, and the PCR read mux in src/pcrvault/rtl/pv.sv selects the measurement it returns by matching exactly those fields, entry at line 145 and dword at line 146, against PCR_ENTRY[entry][dword].data.value at line 147, whose result pv_gen_hash.sv:160 and :165 write into the hash block being assembled. Because line 119 also derives the end-of-walk condition from the same two registers, a stale pointer does not wrap the walk, it shortens it: the hash ends when the pointer reaches the last entry, not after every entry has been read. The tree carries the correct convention beside the violation. src/keyvault/rtl/kv_fsm.sv is the tree's other pointer-driven vault FSM, and its zeroize branch at lines 163-166 mirrors its reset branch at lines 159-161 register for register, two assignments each, while a second always_ff at lines 180-182 clears even a pure dword-count bookkeeping register on zeroize. The parent that owns the strobe agrees: src/sha512/rtl/sha512.sv instantiates this module as pv_gen_hash1 and passes its own zeroize_reg into the zeroize port at line 522, and that parent's own zeroize branch at lines 229-237 clears eight registers exhaustively on the very same strobe.",
+  "location_or_code_reference": {
+    "competition_file": "src/pcrvault/rtl/pv_gen_hash.sv:207",
+    "line_range": "199-219",
+    "supporting_references": [
+      "src/pcrvault/rtl/pv_gen_hash.sv:199",
+      "src/pcrvault/rtl/pv_gen_hash.sv:200",
+      "src/pcrvault/rtl/pv_gen_hash.sv:204",
+      "src/pcrvault/rtl/pv_gen_hash.sv:205",
+      "src/pcrvault/rtl/pv_gen_hash.sv:217",
+      "src/pcrvault/rtl/pv_gen_hash.sv:218",
+      "src/pcrvault/rtl/pv_gen_hash.sv:110",
+      "src/pcrvault/rtl/pv_gen_hash.sv:119",
+      "src/pcrvault/rtl/pv_gen_hash.sv:122",
+      "src/pcrvault/rtl/pv_gen_hash.sv:130",
+      "src/pcrvault/rtl/pv_gen_hash.sv:160",
+      "src/pcrvault/rtl/pv_gen_hash.sv:165",
+      "src/pcrvault/rtl/pv_gen_hash.sv:196",
+      "src/pcrvault/rtl/pv_gen_hash.sv:197",
+      "src/pcrvault/rtl/pv.sv:137",
+      "src/pcrvault/rtl/pv.sv:145",
+      "src/pcrvault/rtl/pv.sv:146",
+      "src/pcrvault/rtl/pv.sv:147",
+      "src/keyvault/rtl/kv_fsm.sv:158",
+      "src/keyvault/rtl/kv_fsm.sv:159",
+      "src/keyvault/rtl/kv_fsm.sv:163",
+      "src/keyvault/rtl/kv_fsm.sv:180",
+      "src/sha512/rtl/sha512.sv:229",
+      "src/sha512/rtl/sha512.sv:284",
+      "src/sha512/rtl/sha512.sv:522",
+      "src/integration/rtl/caliptra_reg/caliptra_reg.h:7147",
+      "src/integration/rtl/caliptra_reg/caliptra_reg.h:7156",
+      "src/integration/rtl/caliptra_reg/caliptra_reg.h:7455",
+      "src/integration/rtl/caliptra_reg/caliptra_reg.h:7459",
+      "src/integration/rtl/caliptra_reg/caliptra_reg.h:7469"
+    ]
+  },
+  "detection_method": "LLM-driven CSBC analysis of the audited RTL, confirmed against the file's own reset branch which clears both pointer registers three lines above the zeroize branch that omits them, against the file's own else branch and next-state logic which show those two registers have no other clearing path on a zeroize, against the use the file itself puts them to in driving the PCR read mux and the end-of-walk condition, against the sibling pointer-driven vault FSM in src/keyvault/rtl/kv_fsm.sv whose zeroize branch mirrors its reset branch register for register, and against the parent in src/sha512/rtl/sha512.sv whose own zeroize branch on the identical strobe clears exhaustively, then hardened with a 36-gate structural witness including four computed censuses, a directed VCS simulation of one unmodified pv_gen_hash driven only through its declared ports, and a negative control in which the two omitted assignments are added to a scratch copy and the identical testbench is required to flip its verdict",
+  "security_impact": "A PCR quote can be made to cover a chosen subset of the measurement bank while the engine reports normal completion. A quote is meaningful to a remote verifier only because it covers the whole bank; a digest computed over entries 20 through 31 is a well-formed digest of the wrong thing, and nothing on any output distinguishes it from a complete one. Simulation of one unmodified instance makes the effect concrete: a quote from reset covered all 32 of 32 PCR entries; a second quote was then interrupted by a one-cycle zeroize while the read pointer stood at entry 20, after which gen_hash_ip read 0 so software sees an idle engine ready for a clean start, yet the pointer still read entry 20; a fresh quote started from that state ran to completion and covered only 12 of the 32 entries, entries 20 through 31, with entries 0 through 19 never entering the hash block and no error asserted on any output. Because src/pcrvault/rtl/pv_gen_hash.sv:119 makes the end of the walk a function of the same pointer, the attacker chooses the omission by choosing when to interrupt: stopping the walk at entry N yields a quote over entries N through 31 and silently drops everything below N, including measurements of code the attacker has itself modified. Both the interrupt and the restart are ordinary register writes in one firmware-addressable block: SHA512_CTRL at caliptra_reg.h:7147 carries the ZEROIZE field at bit 4 per lines 7156-7157, SHA512_GEN_PCR_HASH_CTRL at line 7455 carries START at line 7459, and the resulting digest is read back from SHA512_GEN_PCR_HASH_DIGEST_0 at line 7469, so no physical access, debug access or side channel is involved. A verifier that recomputes the expected digest over the full bank will reject the truncated quote, so this is not by itself a forged attestation that passes verification; what it is, is an attestation primitive that can be steered into signing a chosen subset of the bank while reporting success, which removes the completeness property the quote exists to provide. The defect is specific to the surviving pointer rather than to zeroize in general: a zeroize taken while the engine was already idle left the following quote complete at 32 of 32.",
+  "adversary_profile": "Unprivileged software at user-level mode",
+  "proposed_mitigation": [
+    "Add read_entry <= '0; and read_offset <= '0; to the zeroize branch of api_regs at src/pcrvault/rtl/pv_gen_hash.sv:207-211, so that branch clears the same five registers its own reset branch clears at lines 201-205. This is the change the negative control applies, and it restored the post-zeroize quote to all 32 entries with the two control cases still passing.",
+    "Adopt the sibling's convention mechanically rather than by review: src/keyvault/rtl/kv_fsm.sv:163-166 clears exactly what its reset branch at :159-161 clears, so a lint or review rule requiring a zeroize branch to assign no fewer registers than the reset branch of the same always_ff would have caught this omission and would catch the next one.",
+    "Include the read pointer in the module's own start-of-operation initialisation as well, by extending rst_rd_ptr at src/pcrvault/rtl/pv_gen_hash.sv:122 to cover the IDLE-to-BLOCK_0 arc at :130, so a quote begins at entry zero regardless of how the previous operation ended rather than depending on that operation having completed.",
+    "Add a check that a gen-hash reaching GEN_HASH_DONE has read every entry, for example by asserting the read pointer was zero when the walk began, so a shortened walk raises an error instead of producing a digest that is indistinguishable from a complete one."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:H/A:N",
+    "base_score": 5.5,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/031/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/031/proof_result_v1.json",
+    "script": "final_bug_submissions/031/proof/scripts/run_bug_031_proof.sh",
+    "sim_script": "final_bug_submissions/031/proof/scripts/run_bug_031_sim.sh",
+    "testbench": "final_bug_submissions/031/proof/tb/pv_gen_hash_bug_031_tb.sv",
+    "run_log": "final_bug_submissions/031/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/031/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/031/proof/logs/sim.log",
+    "negative_control_log": "final_bug_submissions/031/proof/logs/negative_control.log",
+    "negative_control_script": "final_bug_submissions/031/proof/scripts/run_bug_031_negative_control.sh",
+    "c_validation_status": "final_bug_submissions/031/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Software writes START in SHA512_GEN_PCR_HASH_CTRL at caliptra_reg.h:7455 to begin a PCR quote. The FSM takes the IDLE-to-BLOCK_0 arc at src/pcrvault/rtl/pv_gen_hash.sv:130 and the read pointer walks the bank, driving the PCR read request at lines 196-197.",
+    "Part-way through the bank, at whichever entry the attacker chooses, software writes ZEROIZE in SHA512_CTRL, bit 4 per caliptra_reg.h:7156-7157. src/sha512/rtl/sha512.sv:284 turns that field into zeroize_reg and line 522 passes it into this module's zeroize port.",
+    "The zeroize branch at src/pcrvault/rtl/pv_gen_hash.sv:207-211 forces gen_hash_fsm_ps back to GEN_HASH_IDLE and clears the block and nonce offsets, but assigns neither read_entry nor read_offset. Software therefore sees an idle engine while the read pointer still holds the interrupted walk's position.",
+    "Nothing restores it before the next operation. Lines 217-218 are the only other writes and are ordinary next-state updates; line 110 clears read_entry_nxt only on rst_rd_ptr; line 122 raises rst_rd_ptr only on the two BLOCK-to-NONCE arcs, whose guard at line 119 requires the pointer to have already reached the last entry, which an aborted walk never did; the start arc at line 130 does not reset it.",
+    "Software writes START again. The walk resumes from the stale entry, and because line 119 also derives the end-of-walk condition from the same two registers, it ends at the last entry rather than after covering every entry, so the digest covers only the tail of the bank.",
+    "The truncated digest is read back from SHA512_GEN_PCR_HASH_DIGEST_0 at caliptra_reg.h:7469 as a normally completed quote. No error is raised on any output, so the omission of every entry below the chosen stopping point is invisible to the requester.",
+    "Verified in simulation on one unmodified instance: a quote from reset covered 32 of 32 entries; a zeroize applied while the pointer stood at entry 20 left gen_hash_ip at 0 with the pointer still at entry 20; the following quote covered only 12 of 32, lowest entry 20, with checks=3 fails=1 witness_hits=1 and all three cover counters at 1. A zeroize taken while the engine was idle left the next quote at 32 of 32, confining the defect to the surviving pointer. On a scratch copy whose only change is the two omitted assignments added to the zeroize branch, the same sequence covered all 32 entries, the witness stopped firing and the truncated-walk cover fell to 0, while both control cases still passed."
+  ]
+}

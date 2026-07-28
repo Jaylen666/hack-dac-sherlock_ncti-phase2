@@ -1,0 +1,46 @@
+Command: vcs -full64 -sverilog -timescale=1ns/1ps -assert svaext +lint=none -f filelist.f \
+-top kv_write_rule_check_bug_028_tb -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/028/proof/logs/negative_control_compile.log \
+-o simv
+                         Chronologic VCS (TM)
+       Version W-2024.09-SP1_Full64 -- Tue Jul 28 13:58:16 2026
+
+                    Copyright (c) 1991 - 2024 Synopsys, Inc.
+   This software and the associated documentation are proprietary to Synopsys,
+ Inc. This software may only be used in accordance with the terms and conditions
+ of a written license agreement with Synopsys, Inc. All other use, reproduction,
+   or distribution of this software is strictly prohibited.  Licensed Products
+     communicate with Synopsys servers for the purpose of providing software
+    updates, detecting software piracy and verifying that customers are using
+    Licensed Products in conformity with the applicable License Key for such
+  Licensed Products. Synopsys will use information gathered in connection with
+    this process to deliver software updates and pursue software pirates and
+                                   infringers.
+
+ Inclusivity & Diversity - Visit SolvNetPlus to read the "Synopsys Statement on
+            Inclusivity and Diversity" (Refer to article 000036315 at
+                        https://solvnetplus.synopsys.com)
+
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/src/keyvault/rtl/kv_defines_pkg.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/028/proof/scripts/../scratch/kv_write_rule_check.sv'
+Parsing design file '/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/028/proof/tb/kv_write_rule_check_bug_028_tb.sv'
+Top Level Modules:
+       kv_write_rule_check_bug_028_tb
+TimeScale is 1 ns / 1 ps
+Starting vcs inline pass...
+2 modules and 0 UDP read.
+recompiling package kv_defines_pkg
+recompiling module kv_write_rule_check_bug_028_tb
+Both modules done.
+rm -f _cuarc*.so _csrc*.so pre_vcsobj_*.so share_vcsobj_*.so
+if [ -x ../simv ]; then chmod a-x ../simv; fi
+g++  -o ../simv   -no-pie  -Wl,--no-as-needed    -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu \
+-Wl,--no-as-needed -rdynamic  -Wl,-rpath='$ORIGIN'/simv.daidir -Wl,-rpath=./simv.daidir \
+-Wl,-rpath=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib -L/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib \
+-Wl,-rpath-link=./ -Wl,--no-as-needed   objs/amcQw_d.o   _4070618_archive_1.so   \
+SIM_l.o       rmapats_mop.o rmapats.o rmar.o rmar_nd.o  rmar_llvm_0_1.o rmar_llvm_0_0.o \
+-lnuma -lvirsim -lerrorinf -lsnpsmalloc -lvfs    -lvcsnew -lsimprofile -luclinative \
+/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_tls.o   -Wl,-whole-archive \
+-lvcsucli    -Wl,-no-whole-archive       ./../simv.daidir/vc_hdrs.o    /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_save_restore_new.o \
+-ldl  -lc -lm -lpthread -ldl 
+../simv up to date
+CPU time: .899 seconds to compile + .595 seconds to elab + .348 seconds to link

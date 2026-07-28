@@ -1,0 +1,54 @@
+{
+  "module": "kv_write_rule_check",
+  "bug_id": "028",
+  "bug_name": "keyvault_bug_028",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "No adversary is required. The plan sets out to test whether one exists, and the containment case below is the test that decides it. The party affected is ordinary privileged firmware performing a KeyVault write that the specification permits.",
+    "precondition": "OCP LOCK mode is in progress, so write_metrics.ocp_lock_in_progress is asserted and the KeyVault write rules are evaluated.",
+    "input": "A KeyVault write whose forwarded source is a standard-region slot and whose destination is the top standard slot, slot 15.",
+    "protected_asset": "The separation between the standard KeyVault region and the OCP LOCK region, and the availability of the standard region's top slot as a legitimate write destination.",
+    "security_property": "The standard region is slots 0 through KV_STANDARD_SLOT_HI inclusive, which src/keyvault/rtl/kv_defines_pkg.sv:36 fixes at 15 and src/keyvault/config/keyvault.md:194 states as slots 0-15. A write that both starts and ends inside that region does not cross a boundary and must not be rejected by the std_to_std rule; equally, a write originating in the LOCK region must not be permitted into slot 15.",
+    "implemented_logic": "The destination classifier at src/keyvault/rtl/kv_write_rule_check.sv:87-88 uses the range [KV_STANDARD_SLOT_LOW:KV_STANDARD_SLOT_HI-1], one short of the region, while both source classifiers at :69-74 use the full bound. Slot 15 is therefore classified as outside the standard region for destination purposes only. Because dst_in_std_region is consumed at :116 solely under negation, the narrower set can only make rule_fail.std_to_std assert more often, never less."
+  },
+  "security_feature_bypassed": "None established by this plan. The plan's purpose is to characterize an asymmetry in the OCP LOCK KeyVault region classifiers and to determine whether it weakens region separation or only rejects legitimate writes.",
+  "proof_goal": "Establish two things on one unmodified instance of kv_write_rule_check compiled from the audited checkout: first, that a legal standard-to-standard write into slot 15 is refused; second, whether the same misclassification lets LOCK-region data reach slot 15. The second question determines whether this is a security finding or a functional one, and the plan commits to reporting whichever answer the simulation gives.",
+  "proof_style": "Directed port-driven simulation of one real DUT, paired with a scripted structural audit of the submitted tree and a negative control that restores the bound.",
+  "invariant": "For all stimuli with ocp_lock_in_progress asserted, a write whose source and destination are both within slots 0 through KV_STANDARD_SLOT_HI must not be rejected by rule_fail.std_to_std, and a write whose source is in the LOCK region must not be permitted into a standard slot.",
+  "attacker_model": "Privileged software at supervisor mode, being the privilege level that programs a KeyVault-writing engine and selects its source and destination slots. No physical access, debug access or fault injection is involved.",
+  "minimum_attack_sequence": [
+    "Enter or await OCP LOCK mode so that ocp_lock_in_progress is asserted.",
+    "Program a KeyVault-writing engine with a standard-region forwarded source and destination slot 15.",
+    "Issue the write. rule_fail.std_to_std asserts because the destination is classified outside the standard region, and write_allow is withheld, so a specification-permitted write does not complete."
+  ],
+  "controls": [
+    "control_std_to_std_mid_slot: the same write with destination slot 14 must be allowed, showing the harness can produce a grant and that the rule is not blocking everything.",
+    "control_std_to_std_low_slot: the same write with destination slot 0 must be allowed, pinning the low end of the region.",
+    "containment_lock_src_to_std_top_slot: a LOCK-region source, KV16, targeting slot 15 must be blocked. This is the case that decides the severity of the finding."
+  ],
+  "witness_construction_note": "The testbench instantiates one kv_write_rule_check and drives it only through its ports; there is no force, no deposit and no hierarchical assignment anywhere in the harness, and the DUT source is compiled unmodified from the audited checkout through the project's own src/keyvault/config/kv_defines_pkg.vf. Because write_allow is registered at :146-153, each stimulus is held for three clocks before sampling. The discriminator repeats the violating stimulus with kv_write_entry alone moved from 15 to 14, isolating the destination slot as the single input that flips the verdict. The containment case is deliberately included even though it is expected to pass, because a plan that only looked for the rejection would not have been able to tell an availability defect from a region-separation bypass.",
+  "expected_evidence": [
+    "A simulation line showing write_allow=0 for a standard-to-standard write into slot 15.",
+    "A discriminator line showing write_allow=1 under the same stimulus with only kv_write_entry changed to 14.",
+    "A containment line recording whether a LOCK-region source reaches slot 15.",
+    "Structural gates showing the destination classifier disagrees with both source classifiers in the same file, and that the destination signal is used only under negation.",
+    "A negative control in which the bound is restored, the rejected write is accepted, and the containment result is unchanged."
+  ],
+  "success_criteria": [
+    "checks=4, fails=1 and witness_hits=1 in the directed simulation, with the single failure being the violating case.",
+    "cover_std_mid_allowed=1, cover_std_top_blocked=1 and cover_lock_src_to_std_top_blocked=1.",
+    "All structural gates pass against the submitted tree, including the gate establishing that dst_in_std_region has no un-negated use.",
+    "The negative control exits nonzero with zero witness lines, cover_std_top_blocked=0, the top-slot write accepted, and cover_lock_src_to_std_top_blocked still 1."
+  ],
+  "non_findings": [
+    "No claim is planned that this opens a path for LOCK-region data into the standard region. The containment case tests exactly that, and if it passes then the finding is availability-only and will be reported as such.",
+    "No claim is made about the release-slot rule at :103-107, which is a separate observation tracked as its own case.",
+    "No claim is made about behaviour outside OCP LOCK mode, since every rule in the module is gated on ocp_lock_in_progress."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/028/proof/tb/kv_write_rule_check_bug_028_tb.sv",
+    "script": "final_bug_submissions/028/proof/scripts/run_bug_028_proof.sh",
+    "logs": "final_bug_submissions/028/proof/logs/"
+  }
+}

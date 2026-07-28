@@ -1,0 +1,21 @@
+BUG-031 negative control
+source DUT : /home/smy/hackatdac26-phase-2-caliptra/src/pcrvault/rtl/pv_gen_hash.sv
+patched DUT: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/031/proof/scripts/../scratch/pv_gen_hash.sv
+date=2026-07-28T14:45:41+08:00
+patch applied: read_entry and read_offset cleared in the zeroize branch
+
+sim exit code                     : 1 (nonzero expected)
+BUG_031 witness lines             : 0 (must be 0)
+post-zeroize walk now complete    : 1 (must be 1)
+reset walk still complete         : 1 (must stay 1)
+idle-zeroize walk still complete  : 1 (must stay 1)
+TBFAIL lines total                : 0 (must be 0)
+
+CONCLUSION: On the audited RTL a quote started after a mid-run zeroize
+covers only the tail of the PCR bank, beginning at whichever entry the
+interrupted run had reached. With the two omitted pointer assignments
+added to the zeroize branch in a scratch copy, the same sequence covers
+all thirty-two entries and the witness stops firing, while the run from
+reset and the idle-zeroize run pass both before and after the change.
+The observation is a property of the audited RTL, not of the testbench.
+NEGATIVE CONTROL: PASS

@@ -1,0 +1,46 @@
+{
+  "module": "sha256",
+  "bug_id": "032",
+  "bug_name": "sha256_bug_032",
+  "version": 1,
+  "status": "partial_proof",
+  "blocker": "The RTL defect is proven and its effect is total, but no adversary-reachable security property violation could be established, so this is not submitted as a confirmed security bug. The containment case shows no digest material is left readable after the debug-unlock or scan-mode transition pulse, and the wipe the inverted strobe was meant to perform still happens through the correctly-driven path at src/sha256/rtl/sha256.sv:357, which clears the internal digest_reg. What remains is an unconditional denial of the SHA-256 digest result: it affects every caller equally and grants an attacker nothing it does not also deny to legitimate software. Establishing a confidentiality claim would require showing the released clear latches digest material into the window for at least one software-observable read, and the direct probe shows it does not.",
+  "proof_method_executed": "Sixteen scripted structural gates over the submitted checkout, a directed VCS W-2024.09-SP1 simulation of one real sha256 instance with its own generated register block compiled unmodified from that same checkout via the project's own src/sha256/config/sha256_ctrl.vf filelist, and a negative control that corrects the strobe on a scratch copy and re-runs the identical testbench.",
+  "result_summary": "A real SHA-256 hash of the standard one-block message was run through the module's own register bus. STATUS reported READY=1 and VALID=1, so the block declared the hash complete, but all eight SHA256_DIGEST dwords read 00000000. The digest is therefore never obtainable in the normal operating state. Pulsing debugUnlock_or_scan_mode_switch for one cycle in its real edge-detected shape left the window at zero as well, so no digest material is exposed by the released clear. An explicit CTRL.ZEROIZE also left the window clear, confirming the harness observes real clears. The negative control, which drives the DIGEST hwclr from the strobe the file's other cleanup consumers use, made the digest readable and flipped the harness verdict.",
+  "security_impact_assessment": "The impact is availability and specification compliance, not confidentiality or integrity. The SHA-256 block cannot return any digest to software: the register window that publishes the result is held at zero by a clear strobe that is asserted whenever no cleanup is requested. Because hwclr takes priority over the unconditional hardware write in the generated register block, no sequence of software accesses can read the result out. Every consumer of the SHA-256 acceleration path is denied its output, which in a measurement-oriented device is a functional outage of that path rather than a weakening of a boundary. The security-relevant wipe on debug unlock and scan-mode entry is not lost, because the internal digest_reg is cleared from the correct strobe and the window is already held at zero; the inversion removes a redundant clear rather than the effective one. No adversary gains a capability, so no confidentiality or integrity metric is raised.",
+  "evidence": {
+    "competition_file": "src/sha256/rtl/sha256.sv:403",
+    "line_range": "387-408",
+    "run_log": "final_bug_submissions/032/proof/logs/run.log",
+    "compile_log": "final_bug_submissions/032/proof/logs/compile.log",
+    "sim_log": "final_bug_submissions/032/proof/logs/sim.log",
+    "witness_log": "final_bug_submissions/032/proof/logs/witness.log",
+    "negative_control_log": "final_bug_submissions/032/proof/logs/negative_control_sim.log",
+    "key_observation": "BUG_032_WITNESS_OBSERVED digest window reads all-zero after a completed hash in the normal debug-locked state, with status READY=1 VALID=1; the negative control with DIGEST.hwclr driven from zeroize_reg reports case=quiescent_digest_readable PASS on the identical testbench.",
+    "negative_evidence": "The containment case passed on the audited RTL: after a one-cycle debugUnlock_or_scan_mode_switch pulse the window still read all-zero, so the released clear does not expose digest material to a software read. Structurally this follows from the same file: the internal digest_reg is cleared from zeroize_reg on the very edge at which the window's clear releases, so the value the window would latch has already been zeroed."
+  },
+  "evidence_items": [
+    "src/sha256/rtl/sha256.sv:388-391 forms two cleanup strobes in one concatenation; the second is ~(&{~ZEROIZE, switch}), which reduces to ZEROIZE OR NOT switch.",
+    "src/sha256/rtl/sha256.sv:403 drives the SHA256_DIGEST window's hwclr from that second strobe, and it is that strobe's only consumer in the file.",
+    "src/sha256/rtl/sha256.sv:408 drives the adjacent SHA256_BLOCK window's hwclr from the first strobe, and :357 clears the internal digest_reg from the first strobe, so the DIGEST window is the sole outlier.",
+    "src/sha256/rtl/sha256_reg.sv:719-740 evaluates hwclr before the unconditional hardware write, so while the clear is asserted the window cannot track digest_reg regardless of what the core produces.",
+    "src/integration/rtl/caliptra_top.sv:763-770 builds the switch input from edge-detected transitions, so it is low throughout normal operation and the inverted strobe is asserted continuously.",
+    "src/sha256/rtl/sha256.sv:397 still reports STATUS.VALID from digest_valid_reg, so software is told the result is ready and directed at a window that cannot hold it.",
+    "src/sha256/rtl/sha256_reg.rdl:131-135 declares the DIGEST field software-read-only with a hardware clear, so hardware alone determines its value and software has no way to recover the result.",
+    "Simulation of one unmodified instance: a completed hash of the standard one-block message yields status READY=1 VALID=1 with all eight digest dwords at 00000000."
+  ],
+  "non_findings": [
+    "This is not a digest disclosure. No digest material is readable after the debug-unlock or scan-mode transition, as the containment probe demonstrates directly.",
+    "This is not a loss of the debug-unlock wipe. The internal digest_reg is still cleared from the correct strobe, and the published window is already held at zero.",
+    "No claim is made about src/sha512/rtl/sha512.sv, which carries the identical expression and is the subject of a separate submission; it is noted here only to record that this site was assessed on its own evidence.",
+    "No claim is made about the SHA256_BLOCK window, whose clear strobe is correct, nor about the WNTZ mode paths, which were not exercised."
+  ],
+  "reproduction": {
+    "command": "final_bug_submissions/032/proof/scripts/run_bug_032_proof.sh && final_bug_submissions/032/proof/scripts/run_bug_032_sim.sh && final_bug_submissions/032/proof/scripts/run_bug_032_negative_control.sh",
+    "tools": "VCS W-2024.09-SP1 at /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/bin, bash, python3. CALIPTRA_ROOT, CALIPTRA_PRIM_ROOT and CALIPTRA_PRIM_MODULE_PREFIX are set by the scripts to the audited checkout.",
+    "success_marker": "PROOF_RESULT: PASS from the simulation script, RESULT: PASS from the structural audit, NEGATIVE CONTROL: PASS from the negative control.",
+    "determinism": "Fully deterministic. The stimulus is a fixed directed sequence with no randomization and no seed dependence; the build tree is removed before and after each run.",
+    "note_on_verdict_markers": "The testbench prints result=PASS only on success. Its failure branch prints PROOF_RESULT: FAIL and deliberately emits no result= line, because the negative control is expected to fail and a result=FAIL marker in that log would be indistinguishable from a broken proof run."
+  },
+  "conclusion": "The RTL defect is confirmed and reproducible: the SHA-256 DIGEST window's hardware-clear strobe is driven from the logical complement of the intended cleanup condition, so the clear is asserted whenever no cleanup is requested and released only during the transition it was meant to act on. Because the generated register block gives hwclr priority over the hardware write, the effect is that no SHA-256 digest is ever readable through the register interface while STATUS.VALID reports success. The negative control establishes the harness is not vacuous. The security consequence is confined to availability: the containment probe found no readable digest material after the transition, and the wipe itself survives through the correctly-driven clear of the internal digest_reg. Reported as a proven functional defect with high availability impact, not as a security bypass."
+}

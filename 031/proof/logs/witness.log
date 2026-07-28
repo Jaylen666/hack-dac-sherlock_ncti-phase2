@@ -1,0 +1,122 @@
+===== BUG-031 structural audit (single-tree, audited RTL only) =====
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+
+----- 1. the defect: the zeroize arm skips the PCR read pointer -----
+  PASS: pv_gen_hash.sv:199 opens the single always_ff that holds all of this FSM's state, named api_regs
+  PASS: pv_gen_hash.sv:200 opens the reset arm
+  PASS: pv_gen_hash.sv:204 shows the reset arm clearing read_entry
+  PASS: pv_gen_hash.sv:205 shows the reset arm clearing read_offset, so the reset arm treats both pointer registers as state that must be cleared
+  PASS: pv_gen_hash.sv:207 opens the zeroize arm, three lines below, on the same registers
+  PASS: no line in the zeroize arm (pv_gen_hash.sv:207-211) clears read_entry
+  PASS: no line in the zeroize arm clears read_offset either, so a security zeroize leaves the PCR read pointer wherever the aborted hash left it
+reset_arm_assignments=5
+zeroize_arm_assignments=3
+else_arm_assignments=5
+reset_arm_assignments=5 zeroize_arm_assignments=3 else_arm_assignments=5
+  PASS: the reset arm assigns all 5 registers this always_ff holds
+  PASS: the zeroize arm assigns only 3 of them
+  PASS: the difference is exactly 2 registers, matching the two pointer registers named above, so the omission is complete and not a partial clear
+  PASS: the else arm also assigns all 5, so both omitted registers are ordinary state of this always_ff rather than signals held elsewhere
+
+----- 2. in-file control: the omitted registers have no other clear -----
+  PASS: pv_gen_hash.sv:217 is the only other write to read_entry, and it is the normal next-state update in the else arm
+  PASS: pv_gen_hash.sv:218 is the only other write to read_offset, likewise the normal next-state update
+  PASS: pv_gen_hash.sv:110 shows read_entry_nxt clearing only on rst_rd_ptr, so the pointer's own reset is a functional one, not a security one
+  PASS: pv_gen_hash.sv:122 defines rst_rd_ptr purely from two mid-hash FSM arcs, neither of which involves zeroize, so no functional path clears the pointer on a zeroize
+  PASS: no line in the pointer's next-state logic (pv_gen_hash.sv:105-125) mentions zeroize at all, so the combinational path offers no clear either
+read_entry_references=8
+read_offset_references=9
+read_entry_references=8 read_offset_references=9
+  PASS: read_entry appears 8 times and read_offset 9 times in the file, and the gates above account for every write among them
+
+----- 3. what the stale pointer selects: the PCR read mux -----
+  PASS: pv_gen_hash.sv:196 drives the read-entry field of the PCR read request straight from the uncleared register
+  PASS: pv_gen_hash.sv:197 does the same for the read-offset field
+  PASS: pv.sv:137 opens the PCR read mux, which is what answers that request
+  PASS: pv.sv:145 selects the returned PCR data by matching read_entry against the entry index, so a stale entry pointer returns a different PCR
+  PASS: pv.sv:146 selects the dword within that entry by read_offset, so a stale offset pointer returns a different dword
+  PASS: pv.sv:147 is the PCR data those two indices select, so the pointer decides which measurement leaves the vault
+  PASS: pv_gen_hash.sv:160 feeds whatever the mux returned into the hash block being assembled, in GEN_HASH_BLOCK_0
+  PASS: pv_gen_hash.sv:165 does the same in GEN_HASH_BLOCK_N, so both read states consume the mux output
+  PASS: pv_gen_hash.sv:119 derives the end-of-read condition from the same two registers, so a stale pointer also shortens the walk: the hash ends when the pointer reaches the last entry, not after all entries have been read
+
+----- 4. tree control: the sibling read-pointer FSM mirrors its arms -----
+  PASS: kv_fsm.sv:158 opens the equivalent always_ff in the key vault's read/write FSM, the tree's other pointer-driven vault FSM
+  PASS: kv_fsm.sv:159-161 shows its reset arm clearing the FSM state and its offset pointer
+  PASS: kv_fsm.sv:163-166 shows its zeroize arm clearing the SAME two things, so the sibling's zeroize arm mirrors its reset arm line for line
+  PASS: kv_fsm.sv:180-182 shows a second always_ff whose zeroize arm clears even a pure dword-count bookkeeping register, so the sibling's convention is to mirror the reset arm exhaustively
+kv_fsm_reset_arm_assignments=2
+kv_fsm_zeroize_arm_assignments=2
+kv_fsm_reset_arm_assignments=2 kv_fsm_zeroize_arm_assignments=2
+  PASS: in the sibling the two arms assign the same number of registers (2 each), which is exactly the relation pv_gen_hash breaks
+
+----- 5. tree control: the parent's own zeroize arm is exhaustive too -----
+  PASS: sha512.sv instantiates this module as pv_gen_hash1, so the parent below is the block that owns the zeroize
+  PASS: sha512.sv wires its own zeroize_reg into this module's zeroize port
+  PASS: sha512.sv:284-285 sources that strobe from the software-writable SHA512_CTRL.ZEROIZE field, so an unprivileged write reaches the incomplete arm
+  PASS: sha512.sv:229 opens the parent's own zeroize arm, on the same strobe it passes into this module
+sha512_zeroize_arm_assignments=8
+sha512_zeroize_arm_assignments=8
+  PASS: sha512.sv:230-237 clears 8 registers in that arm, so the parent's convention on the very same zeroize strobe is to clear exhaustively
+
+--- src/pcrvault/rtl/pv_gen_hash.sv:199,220 (the always_ff and its three arms) ---
+always_ff @(posedge clk or negedge rst_b) begin : api_regs
+    if (~rst_b) begin
+      gen_hash_fsm_ps <= GEN_HASH_IDLE;
+      block_offset_i  <= '0;
+      nonce_offset_i  <= '0;
+      read_entry      <= '0;
+      read_offset     <= '0;
+    end
+    else if (zeroize) begin
+      gen_hash_fsm_ps <= GEN_HASH_IDLE;
+      block_offset_i  <= '0;
+      nonce_offset_i  <= '0;
+    end
+    
+    else begin
+      gen_hash_fsm_ps <= gen_hash_fsm_ns;
+      block_offset_i <= block_offset_nxt;
+      nonce_offset_i <= nonce_offset_nxt;
+      read_entry <= read_entry_nxt;
+      read_offset <= read_offset_nxt;
+    end
+  end
+
+--- src/keyvault/rtl/kv_fsm.sv:158,172 (the sibling, whose arms match) ---
+always_ff @(posedge clk or negedge rst_b) begin
+    if (!rst_b) begin
+        kv_fsm_ps <= KV_IDLE;
+        offset <= '0;
+    end
+    else if (zeroize) begin
+        kv_fsm_ps <= KV_IDLE;
+        offset <= '0;
+    end
+    else begin
+        kv_fsm_ps <= kv_fsm_ns;
+        offset <= offset_rst ? '0 :
+                  offset_en ? offset_nxt : offset;
+    end
+end
+
+--- src/pcrvault/rtl/pv.sv:137,152 (what the stale pointer selects) ---
+always_comb begin : keyvault_readmux
+    for (int client = 0; client < PV_NUM_READ; client++) begin
+      pv_rd_resp[client].read_data = '0;
+      pv_rd_resp[client].last      = '0;
+      pv_rd_resp[client].error     = '0;
+
+      for (int entry = 0; entry < PV_NUM_PCR; entry++) begin
+        for (int dword = 0; dword < PV_NUM_DWORDS; dword++) begin
+          pv_rd_resp[client].read_data |= ((pv_read[0].read_entry == entry) &
+                                            (pv_read[0].read_offset == dword)) ?
+                                            pv_reg_hwif_out.PCR_ENTRY[entry][dword].data.value : '0;
+        end
+        pv_rd_resp[client].last  |= (pv_read[0].read_entry == entry) &
+                                     (pv_read[0].read_offset == PV_NUM_DWORDS-1);
+        pv_rd_resp[client].error |= '0;
+      end
+
+structural_gates_passed=36/36
+RESULT: PASS

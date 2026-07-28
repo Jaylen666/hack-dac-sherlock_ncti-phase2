@@ -1,0 +1,49 @@
+{
+  "triage_id": "gen_hash_zeroize_leaves_pcr_read_pointer",
+  "module": "pcrvault",
+  "rtl_file": "src/pcrvault/rtl/pv_gen_hash.sv",
+  "bug_id": "031",
+  "bug_name": "pcrvault_bug_031",
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "proof_method_executed": "Thirty-six scripted structural gates over the submitted checkout, a directed VCS W-2024.09-SP1 simulation of one real pv_gen_hash instance compiled unmodified from that same checkout via the project's own src/pcrvault/config/pcrvault.vf filelist, and a negative control that clears the pointer on a scratch copy and re-runs the identical testbench.",
+  "result_summary": "A gen-hash started from reset covered all 32 PCR entries. A second gen-hash was then interrupted by a one-cycle zeroize while its read pointer stood at entry 20; the engine reported itself idle (gen_hash_ip=0) but the pointer remained at entry 20. A fresh gen-hash started from that state ran to completion and covered only 12 of the 32 entries, entries 20 through 31, with entries 0 through 19 never entering the hash block and no error reported on any output. A zeroize taken while the engine was already idle left the following run complete at 32 of 32, so the defect is specific to the surviving pointer rather than to zeroize itself. The negative control, which adds the two omitted assignments to the zeroize branch, restored the post-zeroize run to 32 of 32 and flipped the harness verdict.",
+  "security_impact_assessment": "The impact is integrity of attestation. A PCR quote is meaningful only if it covers the whole measurement bank; a digest computed over entries 20 through 31 is a well-formed digest of the wrong thing, and the engine signals nothing to distinguish it from a complete one. Privileged software that can write SHA512_CTRL.ZEROIZE mid-walk chooses where the next quote begins, and therefore chooses which measurements the quote omits, including measurements of code it has itself modified. The completeness guarantee is what a remote verifier relies on when it treats a quote as evidence about the whole boot state, so the consequence crosses out of the core to whatever consumes the attestation. A verifier that recomputes the expected digest over the full bank will see a mismatch and reject, so this does not by itself yield a forged attestation that passes verification; what it yields is an attestation primitive that can be made to sign a chosen subset of the bank while reporting success. Integrity is therefore rated high, while confidentiality is not raised because no PCR content is disclosed to a party that could not already request a quote, and availability is unaffected. The scored vector keeps scope unchanged because the observable compromise is confined to the security authority that owns the PCR bank and its quote engine; the downstream verifier is a consumer of the resulting digest rather than a separately-authorised component the defect subverts directly.",
+  "evidence": {
+    "competition_file": "src/pcrvault/rtl/pv_gen_hash.sv:207",
+    "line_range": "199-219",
+    "run_log": "final_bug_submissions/031/proof/logs/run.log",
+    "compile_log": "final_bug_submissions/031/proof/logs/compile.log",
+    "sim_log": "final_bug_submissions/031/proof/logs/sim.log",
+    "witness_log": "final_bug_submissions/031/proof/logs/witness.log",
+    "negative_control_log": "final_bug_submissions/031/proof/logs/negative_control.log",
+    "key_observation": "BUG_031_WITNESS_OBSERVED fresh quote after zeroize covered only 12 of 32 PCR entries, starting at entry 20; the same sequence on the patched copy reports case=violating_walk_after_mid_run_zeroize PASS with all 32 entries covered.",
+    "negative_evidence": "The containment case passed on the audited RTL: a zeroize taken while the engine was idle and the pointer already at zero left the next quote complete, so the defect is the surviving pointer and not the zeroize path in general. The run from reset also passed, establishing that the harness observes a complete walk when one occurs."
+  },
+  "evidence_items": [
+    "src/pcrvault/rtl/pv_gen_hash.sv:199-205 clears five registers in the reset branch, including read_entry and read_offset, establishing that clearing the pointer is the intended behaviour for a full clear.",
+    "src/pcrvault/rtl/pv_gen_hash.sv:207-211 is the zeroize branch three lines below and clears only three of the five, omitting both pointer registers while still forcing gen_hash_fsm_ps to GEN_HASH_IDLE.",
+    "src/pcrvault/rtl/pv_gen_hash.sv:107-112 shows the pointer's next-state logic returning to zero only on rst_rd_ptr; no line in that logic mentions zeroize.",
+    "src/pcrvault/rtl/pv_gen_hash.sv:122 builds rst_rd_ptr from the two BLOCK-to-NONCE arcs only, and :119 shows those arcs require the pointer to have already reached the last entry, so an interrupted walk never takes them.",
+    "src/pcrvault/rtl/pv_gen_hash.sv:130 shows the IDLE-to-BLOCK_0 start arc, which does not reset the pointer, so a fresh quote inherits whatever survived.",
+    "src/pcrvault/rtl/pv_gen_hash.sv:196-197 exports the pointer on pv_read, and src/pcrvault/rtl/pv.sv:145-147 shows the PCR read mux selecting the returned measurement by exactly those two fields.",
+    "src/pcrvault/rtl/pv_gen_hash.sv:119 derives the end-of-walk condition from the same two registers, so a stale pointer shortens the walk rather than wrapping it: the hash ends when the pointer reaches the last entry, not after every entry has been read.",
+    "src/keyvault/rtl/kv_fsm.sv:158-166 is the tree's other pointer-driven vault FSM and its zeroize branch mirrors its reset branch, showing the convention this file departs from.",
+    "src/sha512/rtl/sha512.sv:522 and :527 wire this block's zeroize and start from zeroize_reg and gen_hash_start, both on the software-commanded path.",
+    "Simulation of one unmodified instance: 32 of 32 entries from reset, 12 of 32 after a mid-walk zeroize with the walk beginning at entry 20, 32 of 32 after an idle zeroize."
+  ],
+  "non_findings": [
+    "This is not a disclosure of PCR contents. The defect changes which entries are hashed, not who may read them, and no PCR data reaches a party that could not already request a quote.",
+    "This is not a general failure of zeroize. The containment case shows an idle zeroize leaves the next quote complete, and the FSM state itself is correctly returned to IDLE.",
+    "No claim is made that a truncated quote passes verification against an expected full-bank digest; a verifier recomputing over all 32 entries will reject it. The claim is that the engine will produce and report success on a quote over a chosen subset.",
+    "No claim is made about src/keyvault/rtl/kv_fsm.sv, which is examined only as an in-tree comparison, nor about the nonce and padding phases, which were exercised but are not implicated."
+  ],
+  "reproduction": {
+    "command": "final_bug_submissions/031/proof/scripts/run_bug_031_proof.sh && final_bug_submissions/031/proof/scripts/run_bug_031_sim.sh && final_bug_submissions/031/proof/scripts/run_bug_031_negative_control.sh",
+    "tools": "VCS W-2024.09-SP1 at /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/bin, bash, python3. CALIPTRA_ROOT, CALIPTRA_PRIM_ROOT and CALIPTRA_PRIM_MODULE_PREFIX are set by the scripts to the audited checkout.",
+    "success_marker": "PROOF_RESULT: PASS from the simulation script, RESULT: PASS from the structural audit, NEGATIVE CONTROL: PASS from the negative control.",
+    "determinism": "Fully deterministic. The stimulus is a fixed directed sequence with no randomization and no seed dependence, and the interrupting zeroize is anchored on an observed pointer value rather than a cycle count; the build tree is removed before and after each run.",
+    "note_on_verdict_markers": "The testbench prints result=PASS only on success. Its failure branch prints PROOF_RESULT: FAIL and deliberately emits no result= line, because the negative control is expected to fail and a result=FAIL marker in that log would be indistinguishable from a broken proof run."
+  },
+  "conclusion": "The defect is confirmed and reproducible: the zeroize branch of pv_gen_hash's state register omits the PCR read pointer that its own reset branch clears, and no other path in the module restores it before the next quote begins. A quote started after a mid-walk zeroize therefore covers only the tail of the PCR bank, chosen by where the interrupted walk was stopped, and completes normally with no error indication. The negative control establishes the harness is not vacuous, and the containment case confines the finding to the surviving pointer rather than to zeroize in general. Submitted as a confirmed security bug against the integrity of PCR attestation."
+}

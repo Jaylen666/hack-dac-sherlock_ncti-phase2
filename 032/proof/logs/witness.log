@@ -1,0 +1,75 @@
+===== BUG-032 structural audit (single-tree, audited RTL only) =====
+
+----- 1. the register the tree defines -----
+  PASS: sha256_reg.rdl declares the DIGEST field with a hardware clear, so a clear strobe is expected
+  PASS: the DIGEST window is software-readable only, so its value is produced entirely by hardware
+  PASS: the window is eight dwords wide, the full SHA-256 result
+
+----- 2. the two strobes the module forms -----
+  PASS: the first strobe is ZEROIZE OR switch: asserted only when cleanup is actually requested
+  PASS: the second strobe is NOT(NOT ZEROIZE AND switch), which reduces to ZEROIZE OR NOT switch
+  PASS: zeroize_reg2 appears exactly three times: its declaration, this assignment and a single use
+
+----- 3. where each strobe is consumed -----
+  PASS: the DIGEST window's hardware clear is the sole consumer of the second strobe
+  PASS: the BLOCK window beside it clears from the first strobe, so the two windows disagree
+  PASS: the internal digest_reg is also cleared from the first strobe, so the register file is the outlier
+  PASS: no write-enable suppression guards the DIGEST window, so the clear strobe alone decides its value
+
+----- 4. the direction of the error (this is what sets severity) -----
+  PASS: the generated register block gives hwclr priority over the unconditional hardware write
+  PASS: caliptra_top builds the switch input from edge-detected transitions
+  PASS: those transitions are single-cycle pulses, so the switch is low throughout normal operation
+  PASS: the debug-lock term is likewise a transition, not a level
+
+----- 5. what that means at the register interface -----
+  PASS: STATUS.VALID still reports a completed hash, so software is told to read a window that is held at zero
+  PASS: the window's hardware-write source is the live digest, which the priority clear overrides
+
+----- 6. the audited source, verbatim -----
+
+--- src/sha256/rtl/sha256.sv:387,391 (the two strobes) ---
+    // Form cleanup strobes before publishing the register-interface state.
+    {zeroize_reg, zeroize_reg2} = {
+      hwif_out.SHA256_CTRL.ZEROIZE.value || debugUnlock_or_scan_mode_switch,
+      ~(&{~hwif_out.SHA256_CTRL.ZEROIZE.value, debugUnlock_or_scan_mode_switch})
+    };
+
+--- src/sha256/rtl/sha256.sv:400,409 (the two consumers) ---
+    for (int dword =0; dword < 8; dword++) begin
+//      hwif_in.SHA256_DIGEST[dword].DIGEST.next = digest_reg[7-dword];
+      hwif_in.SHA256_DIGEST[dword].DIGEST.next = digest_reg[dword];
+      hwif_in.SHA256_DIGEST[dword].DIGEST.hwclr = zeroize_reg2;
+    end
+
+    for (int dword=0; dword< BLOCK_NO; dword++) begin
+      block_reg[dword] = hwif_out.SHA256_BLOCK[dword].BLOCK.value;
+      hwif_in.SHA256_BLOCK[dword].BLOCK.hwclr = zeroize_reg;
+    end
+
+--- src/sha256/rtl/sha256_reg.sv:719,740 (hwclr priority) ---
+    for(genvar i0=0; i0<8; i0++) begin
+        // Field: sha256_reg.SHA256_DIGEST[].DIGEST
+        always_comb begin
+            automatic logic [31:0] next_c;
+            automatic logic load_next_c;
+            next_c = field_storage.SHA256_DIGEST[i0].DIGEST.value;
+            load_next_c = '0;
+            if(hwif_in.SHA256_DIGEST[i0].DIGEST.hwclr) begin // HW Clear
+                next_c = '0;
+                load_next_c = '1;
+            end else begin // HW Write
+                next_c = hwif_in.SHA256_DIGEST[i0].DIGEST.next;
+                load_next_c = '1;
+            end
+            field_combo.SHA256_DIGEST[i0].DIGEST.next = next_c;
+            field_combo.SHA256_DIGEST[i0].DIGEST.load_next = load_next_c;
+        end
+        always_ff @(posedge clk or negedge hwif_in.reset_b) begin
+            if(~hwif_in.reset_b) begin
+                field_storage.SHA256_DIGEST[i0].DIGEST.value <= 32'h0;
+            end else if(field_combo.SHA256_DIGEST[i0].DIGEST.load_next) begin
+                field_storage.SHA256_DIGEST[i0].DIGEST.value <= field_combo.SHA256_DIGEST[i0].DIGEST.next;
+
+structural_gates_passed=16/16
+RESULT: PASS

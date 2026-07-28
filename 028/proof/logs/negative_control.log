@@ -1,0 +1,22 @@
+BUG-028 negative control
+source DUT : /home/smy/hackatdac26-phase-2-caliptra/src/keyvault/rtl/kv_write_rule_check.sv
+patched DUT: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/028/proof/scripts/../scratch/kv_write_rule_check.sv
+date=2026-07-28T13:58:16+08:00
+patch applied: standard destination upper bound restored to KV_STANDARD_SLOT_HI
+
+sim exit code                     : 1 (nonzero expected)
+BUG_028 witness lines             : 0 (must be 0)
+cover_std_top_blocked             : 0 (must be 0)
+cover_std_mid_allowed             : 1 (must stay 1)
+cover_lock_src_to_std_top_blocked : 1 (must stay 1)
+top-slot write now accepted       : 1 (must be 1)
+TBFAIL lines total                : 0 (must be 0)
+
+CONCLUSION: On the audited RTL a legal standard-to-standard write into the
+top standard slot is rejected. With the destination bound restored to
+KV_STANDARD_SLOT_HI in a scratch copy, the same write is accepted and the
+witness stops firing, while a LOCK-region source targeting that same slot
+remains blocked both before and after the change. The observation is a
+property of the audited RTL, not of the testbench, and the bound is not
+load-bearing for cross-region containment.
+NEGATIVE CONTROL: PASS

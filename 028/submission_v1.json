@@ -1,0 +1,62 @@
+{
+  "module": "keyvault",
+  "bug_id": "028",
+  "bug_name": "keyvault_bug_028",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_functional_defect",
+  "security_feature_bypassed": "None. This is submitted as a proven functional defect in the OCP LOCK KeyVault region classifiers, not as a security bypass. The evidence gathered specifically rules out a cross-region path, and that negative result is reported below rather than omitted.",
+  "finding": "The standard-region destination classifier is short by one slot. src/keyvault/rtl/kv_write_rule_check.sv:87-88 classifies the write destination using [KV_STANDARD_SLOT_LOW:KV_STANDARD_SLOT_HI-1], while the two forwarded-source classifiers immediately above it at :69-74 use the full KV_STANDARD_SLOT_HI. Slot 15 is therefore treated as outside the standard region for destination purposes only, so during OCP LOCK a write whose source and destination are both standard slots trips rule_fail.std_to_std when the destination is slot 15, and write_allow is withheld from a write the specification permits. Because dst_in_std_region is consumed only under negation at :116, the narrower set can only add rejections; it cannot grant a write that would otherwise be refused, and the LOCK-region classifiers are untouched.",
+  "location_or_code_reference": {
+    "competition_file": "src/keyvault/rtl/kv_write_rule_check.sv:88",
+    "line_range": "83-88",
+    "supporting_references": [
+      "src/keyvault/rtl/kv_write_rule_check.sv:61",
+      "src/keyvault/rtl/kv_write_rule_check.sv:71",
+      "src/keyvault/rtl/kv_write_rule_check.sv:74",
+      "src/keyvault/rtl/kv_write_rule_check.sv:91",
+      "src/keyvault/rtl/kv_write_rule_check.sv:114",
+      "src/keyvault/rtl/kv_write_rule_check.sv:116",
+      "src/keyvault/rtl/kv_write_rule_check.sv:123",
+      "src/keyvault/rtl/kv_write_rule_check.sv:151",
+      "src/keyvault/rtl/kv_defines_pkg.sv:35",
+      "src/keyvault/rtl/kv_defines_pkg.sv:36",
+      "src/keyvault/rtl/kv_defines_pkg.sv:37",
+      "src/keyvault/config/keyvault.md:194"
+    ]
+  },
+  "detection_method": "The file classifies three slot ranges within a twenty-line span, and comparing them against each other showed the destination range ending one slot lower than the two source ranges beside it, with no comment or parameter in the file explaining the difference. The package parameters and the in-tree specification both define the region inclusively through slot 15, which identified the destination range as the outlier. Severity was then determined rather than assumed: the polarity of the signal's single use was checked to establish the direction of the error, and a containment case was simulated to test directly whether LOCK-region data could reach the boundary slot. It could not, so the finding is reported as functional.",
+  "security_impact": "Availability and specification compliance only. During OCP LOCK, standard slot 15 becomes unusable as a write destination, removing one of the sixteen standard slots from firmware's use, and the write fails without any rule-level indication that the destination classification was the cause. No confidentiality or integrity impact was demonstrated and none is claimed. Region separation is intact: slot 15 lies below KV_OCP_LOCK_SLOT_LOW, so rule (c) lock_to_lock continues to reject a LOCK-sourced write targeting it, which the accompanying simulation confirms both before and after the fix is applied. An attacker gains nothing here, since the only outcome the defect produces is a KeyVault write not completing, which any party able to trigger it could achieve by not issuing the write at all.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "Restore the destination classifier's upper bound to KV_STANDARD_SLOT_HI at src/keyvault/rtl/kv_write_rule_check.sv:87-88, matching the two source classifiers and the region definition in src/keyvault/rtl/kv_defines_pkg.sv:35-36.",
+    "Derive all three classifiers from one shared helper or a single inclusive range expression, so a bound can no longer drift between the source and destination sides of the same region.",
+    "Add a directed check that a standard-to-standard write is permitted for every destination slot from KV_STANDARD_SLOT_LOW through KV_STANDARD_SLOT_HI inclusive, which would fail today only on the top slot."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:H/UI:N/S:U/C:N/I:N/A:L",
+    "base_score": 2.3,
+    "severity": "Low"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/028/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/028/proof_result_v1.json",
+    "script": "final_bug_submissions/028/proof/scripts/run_bug_028_proof.sh",
+    "sim_script": "final_bug_submissions/028/proof/scripts/run_bug_028_sim.sh",
+    "negative_control_script": "final_bug_submissions/028/proof/scripts/run_bug_028_negative_control.sh",
+    "testbench": "final_bug_submissions/028/proof/tb/kv_write_rule_check_bug_028_tb.sv",
+    "run_log": "final_bug_submissions/028/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/028/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/028/proof/logs/sim.log",
+    "compile_log": "final_bug_submissions/028/proof/logs/compile.log",
+    "negative_control_log": "final_bug_submissions/028/proof/logs/negative_control.log",
+    "c_validation_status": "final_bug_submissions/028/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "OCP LOCK mode is in progress, so ocp_lock_in_progress is asserted and the KeyVault write rules are evaluated.",
+    "Privileged firmware programs a KeyVault-writing engine with a forwarded standard-region source, for example KV5, and destination slot 15.",
+    "The destination classifier reports slot 15 as outside the standard region, because its upper bound is KV_STANDARD_SLOT_HI-1.",
+    "rule_fail.std_to_std asserts, since a standard source is present and the destination appears to leave the region.",
+    "write_allow is withheld one cycle later and the specification-permitted write does not complete. No data crosses a region boundary at any point in this sequence, which is why the flow terminates in a denied write rather than in an unauthorized one."
+  ]
+}
