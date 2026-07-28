@@ -1,0 +1,17 @@
+COV baseline_gen_ready=1
+CHECK_PASS control_quiescent_pcr_hash_status_ready
+COV gen_ready_after_bare_zeroize=1
+CHECK_PASS control_zeroize_alone_leaves_block_ready
+COV gen_ready_during_extend=0
+CHECK_PASS witness_setup_extend_took_effect
+COV gen_ready_after_zeroize=0 core_ready_after_zeroize=1
+CHECK_FAIL witness_zeroize_clears_extend_routing_state
+WITNESS extend_routing_state_survives_zeroize gen_ready=0
+CHECK_PASS discriminator_core_status_ready_after_zeroize
+WITNESS core_reports_ready_so_stall_is_routing_state core_ready=1
+COV gen_ready_after_idle=0
+CHECK_PASS containment_residual_state_does_not_self_retire
+CHECK_PASS containment_no_bus_error
+SUMMARY checks=7 fails=1 witness_hits=2
+COV extend_set=1 ip_survives=1 core_ready=1 no_extend_no_stall=1
+PROOF_RESULT: PASS

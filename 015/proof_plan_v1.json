@@ -1,0 +1,59 @@
+{
+  "triage_id": "hmac_core_zeroize_leaves_digest_valid_set",
+  "module": "hmac",
+  "rtl_file": "src/hmac/rtl/hmac_core.sv",
+  "bug_id": "015",
+  "bug_name": "hmac_bug_015",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Software that can write the HMAC control register, which is the level at which the zeroize strobe is issued. HMAC512_CTRL is an ordinary MMIO register in the block's own address range, so no physical, debug or supervisor-only access is required.",
+    "precondition": "An HMAC operation has completed, so the block legitimately reports a valid tag. No other state is required.",
+    "input": "A write to HMAC512_CTRL.ZEROIZE while the tag-valid flag is asserted.",
+    "protected_asset": "The truthfulness of the block's completion signalling across a security zeroize: the guarantee that after a zeroize the block reports no valid tag and presents no tag data, so a consumer cannot mistake post-zeroize output for a real result.",
+    "security_property": "A security zeroize is a cleanup operation, so no state that changes the meaning of the block's outputs may survive it. src/hmac/rtl/hmac_core.sv:111-112 make both the 512-bit tag output and the tag_valid output functions of the single register digest_valid_reg, and the file's own reset arm at :185 clears that register, so the file itself treats it as state a full clear must zero.",
+    "implemented_logic": "src/hmac/rtl/hmac_core.sv:181-209 holds three registers in one always_ff named reg_update. The reset arm at :184-187 clears all three, including digest_valid_reg at :185. The zeroize arm at :190-196 clears only two, omitting digest_valid_reg while still forcing the FSM to CTRL_IDLE, and carries a comment at :192-193 claiming the normal update path refreshes that register on a later cycle. The normal update path at :202-203 writes it only when digest_valid_we is raised; the FSM defaults that enable to zero at :329 and the CTRL_IDLE arm at :336-351 raises it only in its next_cmd branch, so an engine sitting idle after a zeroize never performs the refresh the comment promises."
+  },
+  "security_feature_bypassed": "Truthful completion signalling across a security zeroize. The plan sets out to determine whether the block still reports a valid tag after a zeroize, whether the refresh its own comment promises ever occurs, and whether the stale flag reaches the parent block's tag-capture logic.",
+  "proof_goal": "Establish on one unmodified hmac_core compiled from the audited checkout that a completed zeroize leaves tag_valid asserted, that the claimed later refresh does not occur across a long idle window, and that the parent's own tag-capture edge expression re-asserts as a result, while a real reset still clears the flag.",
+  "proof_style": "Directed port-driven simulation of one real DUT with the parent's capture-enable expression reproduced from the parent's own source, paired with a scripted structural audit of the submitted tree and a negative control that adds the omitted assignment.",
+  "invariant": "For every cycle after a zeroize has been taken and before a new command is issued, hmac_core must report tag_valid = 0.",
+  "attacker_model": "Unprivileged software at user-level mode, being sufficient to write the block's own HMAC512_CTRL.ZEROIZE field. No physical access and no debug access is needed.",
+  "minimum_attack_sequence": [
+    "Run an HMAC operation to completion so the block reports a valid tag.",
+    "Write HMAC512_CTRL.ZEROIZE, which returns the FSM to idle but leaves the tag-validity flag asserted.",
+    "Observe that the block continues to claim a valid tag, and that the parent's tag-capture enable re-asserts because the parent's own copy of the flag was cleared by the same zeroize."
+  ],
+  "controls": [
+    "control_reset_clears_tag_valid: after reset the block must report no valid tag, showing the harness can observe the cleared state.",
+    "control_normal_run_sets_tag_valid: a completed operation must report a valid tag, showing the harness reaches the state under test.",
+    "containment_reset_still_clears: a real reset applied after the zeroize must clear the flag, separating this defect from any claim that the flag is unclearable.",
+    "The parent capture-edge model opens its tracking window only after the modelled parent register has settled to 1, so the legitimate completion edge cannot be counted as the spurious one."
+  ],
+  "witness_construction_note": "The testbench instantiates one hmac_core and drives it only through its declared ports. There is no force, no deposit and no hierarchical assignment anywhere in the harness. The parent's tag-capture enable is not asserted but recomputed from the parent's own expression at src/hmac/rtl/hmac.sv:163, with the parent's tag_valid_reg modelled exactly as hmac.sv:196-231 writes it, so the reported consequence follows from the parent's own formula.",
+  "expected_evidence": [
+    "A line showing tag_valid asserted after a completed operation.",
+    "A line showing tag_valid still asserted several cycles after a completed zeroize, with the FSM reporting ready.",
+    "A line showing tag_valid still asserted after a long idle window, contradicting the comment in the zeroize arm.",
+    "A line showing the parent's capture enable re-asserting after the zeroize.",
+    "A containment line showing a real reset still clears the flag.",
+    "Structural gates over the audited tree covering the arm asymmetry, the FSM path the in-RTL comment relies on, the use the flag is put to, and how the child and parent modules write their own zeroize arms."
+  ],
+  "success_criteria": [
+    "checks=6, fails=3 and witness_hits=1 in the directed simulation, with the three failures being the post-zeroize checks.",
+    "cov_reset_clears_tag_valid=1, cov_tag_valid_after_normal_run=1, cov_tag_valid_survives_zeroize=1 and cov_spurious_parent_capture_edge=1.",
+    "All structural gates passing with RESULT: PASS.",
+    "The negative control flips the identical testbench once the omitted assignment is added: fails=0, the two anti-vacuity covers at 0, and both harness controls plus the containment case still passing."
+  ],
+  "non_findings": [
+    "No claim is planned that the stale flag discloses digest material. The child masked cores clear their own digests on the same zeroize, so the tag data presented after a zeroize is expected to be zero; the claim is about false completion signalling, not confidentiality.",
+    "No claim is planned that zeroize fails generally. The FSM is returned to idle correctly and the containment case tests that reset still works.",
+    "No claim is planned about the masking-entropy chain in the same file, which is a separate matter and is not relied on here.",
+    "No claim is planned about the LFSR seed width. The seed path is 384 bits consistently across src/hmac/rtl/hmac.sv:81, src/hmac/rtl/hmac_core.sv:39, the twelve 32-bit seed registers, src/hmac_drbg/rtl/hmac_drbg.sv:55 and src/ecc/rtl/ecc_hmac_drbg_interface.sv:48, matching the 384-bit figure in docs/CaliptraHardwareSpecification.md:1199, so no width inconsistency exists to report."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/015/proof/tb/hmac_core_bug_015_tb.sv",
+    "script": "final_bug_submissions/015/proof/scripts/run_bug_015_proof.sh",
+    "logs": "final_bug_submissions/015/proof/logs/"
+  }
+}

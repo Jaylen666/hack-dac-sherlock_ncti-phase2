@@ -1,0 +1,56 @@
+recompiling package csrng_pkg
+recompiling package edn_pkg
+recompiling module caliptra_prim_lfsr
+recompiling package kv_defines_pkg
+recompiling package kv_reg_pkg
+recompiling package pv_defines_pkg
+recompiling package pv_reg_pkg
+recompiling package sha512_reg_pkg
+recompiling package sha512_params_pkg
+recompiling package sha512_masked_defines_pkg
+recompiling module sha512_masked_core
+recompiling package hmac_param_pkg
+recompiling package hmac_reg_pkg
+recompiling module hmac_core_bug_015_tb
+All of 38 modules done
+rm -f _cuarc*.so _csrc*.so pre_vcsobj_*.so share_vcsobj_*.so
+if [ -x ../simv ]; then chmod a-x ../simv; fi
+g++  -o ../simv   -no-pie  -Wl,--no-as-needed    -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu -Wl,--no-as-needed -rdynamic  -Wl,-rpath='$ORIGIN'/simv.daidir -Wl,-rpath=./simv.daidir -Wl,-rpath=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib -L/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib  -Wl,-rpath-link=./ -Wl,--no-as-needed   objs/amcQw_d.o   _3066334_archive_1.so   SIM_l.o       rmapats_mop.o rmapats.o rmar.o rmar_nd.o  rmar_llvm_0_1.o rmar_llvm_0_0.o            -lnuma -lvirsim -lerrorinf -lsnpsmalloc -lvfs    -lvcsnew -lsimprofile -luclinative /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_tls.o   -Wl,-whole-archive  -lvcsucli    -Wl,-no-whole-archive       ./../simv.daidir/vc_hdrs.o    /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_save_restore_new.o -ldl  -lc -lm -lpthread -ldl 
+../simv up to date
+CPU time: 1.342 seconds to compile + .584 seconds to elab + .349 seconds to link
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid re-execution or '-suppress=ASLR_DETECTED_INFO' to suppress this message.
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 16:10 2026
+===== BUG-015 directed witness: hmac_core tag validity across zeroize =====
+  case=control_reset_clears_tag_valid PASS after reset the block must not claim a valid tag
+      operation completed, tag_valid=1 tag[63:0]=6c2c68f7fb784420
+  case=control_normal_run_sets_tag_valid PASS a completed operation must report a valid tag, showing the harness reaches the state under test
+--- violating_tag_valid_survives_zeroize ---
+      before zeroize: tag_valid=1 ready=1
+      tracking opens with tag_valid=1 parent_tag_valid_reg=1
+      after zeroize:  tag_valid=0 ready=1 tag[63:0]=0000000000000000
+  case=violating_tag_valid_survives_zeroize PASS a zeroize must leave the block reporting no valid tag
+      200 idle cycles later: tag_valid=0 (the in-RTL comment claims a later refresh)
+  case=violating_idle_refresh_never_happens PASS the claimed later refresh by the normal update path must actually clear the flag while idle
+      parent capture edge seen after zeroize: 0 (hmac.sv:163 formula)
+  case=violating_no_spurious_parent_capture PASS the parent's tag-capture enable must not re-assert after a zeroize
+--- containment_reset_still_clears ---
+      after reset: tag_valid=0
+  case=containment_reset_still_clears PASS a real reset must still clear the flag, confining the defect to the zeroize arm
+
+cov_reset_clears_tag_valid=1
+cov_tag_valid_after_normal_run=1
+cov_tag_valid_survives_zeroize=0
+cov_spurious_parent_capture_edge=0
+witness_hits=0
+checks=6 fails=0
+PROOF_RESULT: FAIL
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/015/proof/tb/hmac_core_bug_015_tb.sv", line 252.
+$finish at simulation time              5075000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 5075000 ps
+CPU Time:      0.350 seconds;       Data structure size:   0.1Mb
+Tue Jul 28 16:10:52 2026
+SIM RESULT: FAIL (no PASS verdict)

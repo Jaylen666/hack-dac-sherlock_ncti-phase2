@@ -1,0 +1,34 @@
+== negative control: patched DUT ==
+scratch copy: /tmp/bugn002_nc.NGUAx4/sha512.sv
+zeroize branch as patched:
+224:      pcr_hash_extend_ip   <= '0;
+225:      hash_extend_entry    <= '0;
+238:      pcr_hash_extend_ip   <= '0;
+239:      hash_extend_entry    <= '0;
+DUT_SHA512=/tmp/bugn002_nc.NGUAx4/sha512.sv
+COV baseline_gen_ready=1
+CHECK_PASS control_quiescent_pcr_hash_status_ready
+COV gen_ready_after_bare_zeroize=1
+CHECK_PASS control_zeroize_alone_leaves_block_ready
+COV gen_ready_during_extend=0
+CHECK_PASS witness_setup_extend_took_effect
+COV gen_ready_after_zeroize=1 core_ready_after_zeroize=1
+CHECK_PASS witness_zeroize_clears_extend_routing_state
+CHECK_PASS discriminator_core_status_ready_after_zeroize
+WITNESS core_reports_ready_so_stall_is_routing_state core_ready=1
+COV gen_ready_after_idle=1
+CHECK_FAIL containment_residual_state_does_not_self_retire
+CHECK_PASS containment_no_bus_error
+SUMMARY checks=7 fails=1 witness_hits=1
+COV extend_set=1 ip_survives=0 core_ready=1 no_extend_no_stall=1
+PROOF_RESULT: FAIL
+BUG-N-002 witness: FAIL (sim rc=0)
+== negative control assertions ==
+nc_ok   witness testbench no longer passes (1)
+nc_ok   residual-state witness no longer reproduces (0)
+nc_ok   zeroize now clears the extend routing state (1)
+nc_ok   the extend still took effect before zeroize (1)
+nc_ok   quiescent baseline unchanged (1)
+nc_ok   still no bus error (1)
+nc_ok   no simulation timeout (0)
+NEGATIVE_CONTROL: PASS

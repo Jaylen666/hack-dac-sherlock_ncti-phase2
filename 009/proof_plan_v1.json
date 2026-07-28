@@ -1,0 +1,54 @@
+{
+  "module": "csrng_state_db",
+  "bug_id": "009",
+  "bug_name": "csrng_state_db_bug_009",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Software holding write access to the CSRNG register block, at the privilege level able to program INT_STATE_READ_ENABLE and CTRL.READ_INT_STATE. The parties affected are the other CSRNG applications, including the hardware EDN instances whose DRBG state that software is not authorized to see.",
+    "precondition": "The CSRNG is enabled, at least two applications have been instantiated so their internal states hold distinct key material, and the internal-state read path is open (CTRL.READ_INT_STATE set, otp_en_csrng_sw_app_read enabling, INT_STATE_READ_ENABLE_REGWEN still permitting writes to the enable mask).",
+    "input": "Program INT_STATE_READ_ENABLE with bit 0 set and the target application's bit clear, then select the target application through INT_STATE_READ_ID and read INT_STATE_VAL repeatedly to walk the 32-bit dump window.",
+    "protected_asset": "The internal DRBG state of each CSRNG application: the AES key and the V counter block, from which that application's future random output can be predicted.",
+    "security_property": "src/csrng/data/csrng.rdl:220-228 describes INT_STATE_READ_ENABLE as a per-instance enable and states that each bit defines whether the internal state of the corresponding instance is readable, and src/csrng/data/csrng.hjson:306 states that the bit of the selected instance must be set for a read to work. So the dump of application N must be permitted exactly when bit N is set.",
+    "implemented_logic": "src/csrng/rtl/csrng_state_db.sv:115 forms the dump qualification as int_st_dump_sel & {NApps{int_state_read_enable_i[0]}}, replicating bit 0 across every application lane. The assignment sits outside the per-application generate loop that opens on the next line, so it has no index available; the two sibling selects inside that loop are both indexed by rd. Application 0's authorization bit therefore decides whether any application's internal state may be dumped, in both directions."
+  },
+  "security_feature_bypassed": "Per-application authorization of CSRNG internal-state reads (INT_STATE_READ_ENABLE), the control that keeps one application's DRBG key and V from being read out through another application's authorization.",
+  "proof_goal": "Establish that the dump window serves an application whose own authorization bit is clear, and withholds an application whose own bit is set, so that bit 0 is the effective gate for all applications; and that the exposed word is key material rather than the separately-exported reseed counter.",
+  "proof_style": "Directed port-driven simulation of one real csrng_state_db, paired with a scripted structural audit of the submitted tree and a negative control that indexes the qualification per application.",
+  "invariant": "A read of application N's internal state through the register dump window must return that application's state when int_state_read_enable_i[N] is set, and must return zero when int_state_read_enable_i[N] is clear, independent of the value of any other bit of the vector.",
+  "attacker_model": "Privileged software at supervisor mode, being the level that programs the CSRNG enable mask and the internal-state read controls. No physical access and no debug access is needed.",
+  "minimum_attack_sequence": [
+    "Ensure two applications hold distinct internal state (each has been instantiated).",
+    "Write INT_STATE_READ_ENABLE so that bit 0 is set and the target application's own bit is clear.",
+    "Write INT_STATE_READ_ID with the target application's id, which latches the dump target and rewinds the read pointer.",
+    "Read INT_STATE_VAL repeatedly to advance the pointer into the key field and collect the target application's DRBG key words."
+  ],
+  "controls": [
+    "control_app0_authorized_reads_app0: application 0 authorized by its own bit must be readable, showing the harness can produce a successful key dump at all.",
+    "violating_app1_denied_but_readable: with only bit 0 set, application 1's key must dump as zeros. This is the over-privileged read.",
+    "violating_app1_authorized_but_denied: with only bit 1 set, application 1's key must be served. This is the mirror case, and it is what proves bit 0 is the effective gate rather than merely an additional condition.",
+    "containment_all_bits_clear_denies_all: with the whole vector clear no application may be dumped, separating a mis-indexed gate from an absent one."
+  ],
+  "witness_construction_note": "Every probe reads a word of the DRBG key, not word 0 of the window. src/csrng/rtl/csrng_state_db.sv:180 exports the reseed counter unconditionally through reseed_counter_o, and the tree documents the counter as always readable, so a counter word would be a weak witness. The concatenation at :135-137 orders the state as {fips, inst_st, key, v, res_ctr}, placing the key at window words 5 through 12. Each application is loaded with a distinct marker key so any word read back identifies which application it came from. The harness drives only declared ports: states are loaded through the write handshake and read through the status interface, exactly as csrng_core drives them. There is no force, no deposit and no hierarchical assignment.",
+  "expected_evidence": [
+    "A key word belonging to application 1 read out of the window while INT_STATE_READ_ENABLE leaves bit 1 clear.",
+    "Zero read out for application 1 while bit 1 is set, in the same run.",
+    "Both violations disappearing once the qualification is indexed per application."
+  ],
+  "success_criteria": [
+    "checks=4 and fails=2 in the directed simulation, the two failures being the two violating cases.",
+    "cov_denied_app_readable_via_app0=1, cov_authorized_app_denied_by_app0=1, cov_own_bit_grants=1, witness_hits=2.",
+    "structural_gates_passed=22/22 with RESULT: PASS.",
+    "The negative control fails the identical testbench once the qualification is indexed, reporting both violating cases as PASS and no witness lines."
+  ],
+  "non_findings": [
+    "No claim that the reseed counter is improperly exposed: the tree exports it unconditionally by design.",
+    "No claim about the hardware read path (state_db_rd_* ), which is correctly indexed at :118 and is not software-visible.",
+    "No claim that the outer gates (CTRL.READ_INT_STATE, otp_en_csrng_sw_app_read, the regwen) are themselves bypassed; the defect is inside the per-application layer beneath them."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/009/proof/tb/csrng_state_db_bug_009_tb.sv",
+    "script": "final_bug_submissions/009/proof/scripts/run_bug_009_proof.sh",
+    "logs": "final_bug_submissions/009/proof/logs/"
+  }
+}

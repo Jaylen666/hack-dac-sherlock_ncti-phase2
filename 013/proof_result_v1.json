@@ -1,0 +1,88 @@
+{
+  "schema_version": "caliptra_bug_proof_result_v1",
+  "bug_id": "013",
+  "bug_name": "entropy_src_bug_013",
+  "module": "entropy_src",
+  "status": "confirmed_security_bug",
+  "executed_method": "single-DUT directed Verilator simulation",
+  "dut": "entropy_src_repcnts_ht",
+  "tool_versions": {
+    "verilator": "Verilator 5.024 2024-04-05 rev v5.024",
+    "cxx": "g++-10"
+  },
+  "source_locations": [
+    {
+      "path": "src/entropy_src/rtl/entropy_src_repcnts_ht.sv",
+      "line": 86,
+      "excerpt": "assign threshold_met   = (rep_cntr >= thresh_i);"
+    },
+    {
+      "path": "src/entropy_src/rtl/entropy_src_repcnts_ht.sv",
+      "line": 87,
+      "excerpt": "assign threshold_equal = (rep_cntr == thresh_i);"
+    },
+    {
+      "path": "src/entropy_src/rtl/entropy_src_repcnts_ht.sv",
+      "line": 88,
+      "excerpt": "assign rep_cnt_fail    = threshold_met && !threshold_equal;"
+    },
+    {
+      "path": "src/entropy_src/rtl/entropy_src_repcnts_ht.sv",
+      "line": 123,
+      "excerpt": "assign fail_sampled       = fail_sample_mask_q && (rng_bit_en_i ? rng_bit_cnt_fail :"
+    },
+    {
+      "path": "src/entropy_src/rtl/entropy_src_repcnts_ht.sv",
+      "line": 126,
+      "excerpt": "assign test_fail_pulse_o = active_i & fail_sampled;"
+    },
+    {
+      "path": "src/entropy_src/config/entropy_src.md",
+      "line": 364,
+      "excerpt": "### Repetition count threshold"
+    },
+    {
+      "path": "src/entropy_src/config/entropy_src.md",
+      "line": 380,
+      "excerpt": "`CPTRA_iTRNG_ENTROPY_CONFIG1.repetition_count` = `RcThresh` = 81"
+    }
+  ],
+  "claim_validated": "The REPCNTS health test treats the configured repetition-count threshold as exclusive rather than inclusive.",
+  "observations": [
+    {
+      "name": "alternating control",
+      "log_excerpt": "PASS control_alternating_symbols_no_fail",
+      "result": "Alternating symbols reset the repetition counter and do not produce a failure pulse."
+    },
+    {
+      "name": "subthreshold control",
+      "log_excerpt": "PASS control_below_threshold_no_fail cnt=2",
+      "result": "A repeated symbol count below threshold does not produce a failure pulse."
+    },
+    {
+      "name": "boundary witness",
+      "log_excerpt": "OBSERVE boundary_count=3 threshold=3 boundary_fail=0",
+      "result": "At the configured threshold, the DUT does not assert test_fail_pulse_o."
+    },
+    {
+      "name": "late failure witness",
+      "log_excerpt": "OBSERVE next_count=4 threshold=3 next_fail=1",
+      "result": "The next repeated symbol finally asserts test_fail_pulse_o, proving the implemented boundary is threshold plus one."
+    }
+  ],
+  "controls_passed": true,
+  "witness_passed": true,
+  "determinism_check": {
+    "runs": 2,
+    "result": "Both executions completed with PASS BUG013_REPCNTS_OFF_BY_ONE_WITNESS."
+  },
+  "security_impact": "A repeated or stuck entropy symbol can remain accepted for one configured-threshold boundary sample longer than the configured repetition-count threshold allows. This weakens entropy health-test integrity for the symbol-level REPCNTS path.",
+  "artifacts": {
+    "proof_plan": "proof_plan_v1.json",
+    "harness": "proof/tb/entropy_src_bug_013_repcnts_harness.cpp",
+    "script": "proof/scripts/run_bug_013_repcnts_witness.sh",
+    "compile_log": "proof/logs/compile.log",
+    "run_log": "proof/logs/run.log"
+  },
+  "success_marker": "PASS BUG013_REPCNTS_OFF_BY_ONE_WITNESS"
+}

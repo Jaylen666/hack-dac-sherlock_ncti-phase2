@@ -1,0 +1,59 @@
+{
+  "module": "sha512",
+  "bug_id": "N-002",
+  "bug_name": "sha512_bug_n002",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Software able to write the SHA-512 register block, which is privileged. The same privilege level that can start a PCR hash extend can also assert ZEROIZE, and the defect lives in the interaction between those two writes.",
+    "precondition": "A released reset with the SHA-512 block reachable over its MMIO interface at 0x10020000. A PCR hash extend started through SHA512_VAULT_RD_CTRL, so pcr_hash_extend_ip is set. Then a ZEROIZE write through SHA512_CTRL bit 4 that lands before the extend has retired, that is, before kv_dest_done raises pcr_hash_extend_reset at sha512.sv:372.",
+    "input": "Write SHA512_VAULT_RD_CTRL with read_en and pcr_hash_extend set and a chosen read_entry, so sha512.sv:371 raises pcr_hash_extend_set and sha512.sv:255-257 latches both the in-progress bit and the destination entry. Then write SHA512_CTRL.ZEROIZE while the extend is still in flight. Then read SHA512_GEN_PCR_HASH_STATUS.",
+    "protected_asset": "The security-erase guarantee of the block: a zeroize is meant to leave no operation-specific state behind. Two registers carry that state here. pcr_hash_extend_ip decides, at sha512.sv:459-462 and sha512.sv:470, whether vault writes are emitted at all and whether the vault write enable is forced to 1, and hash_extend_entry supplies the destination entry at sha512.sv:471. sha512.sv:335 additionally gates the block's own PCR hash readiness on the bit being clear.",
+    "security_property": "The zeroize branch of the reg_update block is the module's declared erase path, and it must leave the block in the same state the asynchronous reset branch would. That reset branch, at sha512.sv:224-225, does clear pcr_hash_extend_ip and hash_extend_entry, which establishes both as state the module itself considers reset-worthy rather than as constants.",
+    "implemented_logic": "The zeroize branch at sha512.sv:229-238 performs exactly eight assignments: ready_reg, digest_reg, digest_valid_reg, kv_reg, pcr_sign_reg, kv_read_data_present, digest_we and block_reg_lock. pcr_hash_extend_ip and hash_extend_entry are not among them. Their only other assignment sites are sha512.sv:255-257, inside the else branch that zeroize does not take, so a zeroize that arrives mid-extend neither clears them nor lets the normal-operation update run. The bit therefore survives the erase, and because its only non-reset clear at sha512.sv:372 is pcr_hash_extend_ip & kv_dest_done, the residue is self-perpetuating: the vault transaction that would retire it was itself cancelled by the same zeroize."
+  },
+  "security_feature_bypassed": "To be determined by simulation. The candidate is the block-level security erase: ZEROIZE is expected to return the SHA-512 block to a clean state, and two registers that steer key-vault and PCR traffic are outside its reach. Whether that produces an unauthorised write or only a stall has to be measured, because the vault interfaces are separate ports rather than internal logic.",
+  "proof_goal": "Establish on one unmodified sha512 instance, compiled from the audited checkout through the project's own sha512_ctrl filelist and driven only over its register bus, that a ZEROIZE issued during a PCR hash extend leaves the extend routing state set, and that this is observable to software as a permanent loss of SHA512_GEN_PCR_HASH_STATUS.READY. Then bound the claim by showing the block's ordinary SHA512_STATUS.READY recovers in the same run, so the stall is attributable to the residual routing bit rather than to the erase stalling the block as a whole.",
+  "proof_style": "Directed register-bus simulation of one real DUT, paired with a scripted structural audit of the surrounding tree and a negative control that applies the proposed mitigation to a scratch copy.",
+  "invariant": "After a ZEROIZE write completes and the block reports itself ready again, SHA512_GEN_PCR_HASH_STATUS.READY must read back as set, because a security erase must not leave the PCR hash extend engine claiming an operation is still in progress.",
+  "attacker_model": "Privileged software at supervisor mode, being the privilege level that can write SHA512_VAULT_RD_CTRL and SHA512_CTRL and therefore both start the extend and assert the erase while it is in flight.",
+  "minimum_attack_sequence": [
+    "Write SHA512_VAULT_RD_CTRL with read_en, pcr_hash_extend and a read_entry, starting a PCR hash extend.",
+    "Confirm the extend is in flight by reading SHA512_GEN_PCR_HASH_STATUS.READY as clear.",
+    "Write SHA512_CTRL.ZEROIZE while the extend has not yet retired.",
+    "Read SHA512_GEN_PCR_HASH_STATUS.READY and observe it is still clear, and read SHA512_STATUS.READY to see the block itself is otherwise ready."
+  ],
+  "controls": [
+    "control_quiescent_baseline_ready: read SHA512_GEN_PCR_HASH_STATUS.READY out of reset with no extend and no zeroize, to establish that the register reads as ready in the clean state and the witness is measuring a change rather than a constant.",
+    "control_bare_zeroize_leaves_ready: write ZEROIZE with no extend in progress and confirm the PCR hash status still reads ready. This separates 'zeroize stalls the PCR path' from 'the residual routing bit stalls it', which the witness alone cannot distinguish.",
+    "discriminator_core_ready_after_zeroize: in the witness case, read SHA512_STATUS.READY after the zeroize. sha512.sv:335 ANDs ~pcr_hash_extend_ip with ready_reg, so without this read a low PCR status could be blamed on ready_reg rather than on the residual bit.",
+    "containment_no_self_retire: hold the vault interfaces quiescent for 200 further idle cycles after the zeroize and re-read the PCR hash status, establishing that the residue does not clear itself and bounding the claim as permanent rather than transient.",
+    "containment_no_bus_error: confirm no register-bus error was raised across the whole run, so no measurement is an artefact of a rejected access."
+  ],
+  "witness_construction_note": "The testbench instantiates one sha512 and drives it only through its declared ports: the register bus, clock and reset. No force, no deposit, no hierarchical assignment into the DUT, and no second checkout. pcr_hash_extend_ip is module-local and is never read directly; it is observed through SHA512_GEN_PCR_HASH_STATUS.READY, which sha512.sv:335 gates on it. The PCR vault response ports are held quiescent for the whole run so kv_dest_done never arrives, which is what the attack sequence produces in any case: the zeroize cancels the vault transaction that would have retired the bit. Register offsets are taken from the generated header rather than assumed.",
+  "expected_evidence": [
+    "A simulation line showing the PCR hash status reads ready in the quiescent baseline.",
+    "A line showing it still reads ready after a bare zeroize with no extend in progress.",
+    "A line showing it reads not-ready after the extend is started, confirming the bit was actually set.",
+    "A line showing it still reads not-ready after the zeroize, with the block's own SHA512_STATUS.READY high in the same window.",
+    "A line showing it is still not-ready after 200 further idle cycles, and no bus error anywhere in the run."
+  ],
+  "success_criteria": [
+    "checks=7 and fails=1 in the directed simulation, with the single failure being the invariant check on the PCR hash status after zeroize.",
+    "cov_extend_set=1, cov_ip_survives=1, cov_core_ready=1 and cov_no_extend_no_stall=1 in the same run, so the witness and both separating controls are measured on one DUT.",
+    "structural_gates_passed=32/32 in the audit.",
+    "The negative control fails the witness testbench once the two missing clears are added, with the post-zeroize PCR hash status returning to ready and the baseline and containment checks unchanged."
+  ],
+  "non_findings": [
+    "No claim is planned that a key vault or PCR write was observed. The vault response ports are intentionally unmodelled, so the forced write enable at sha512.sv:470 and the overridden destination entry at sha512.sv:471 are reported as structural consequences of the residue, not as a demonstrated write.",
+    "No claim is planned about SHA512_DIGEST. That register is cleared from zeroize_reg2 at sha512.sv:300, whose own construction is the subject of a separate finding, so it is excluded from this case entirely.",
+    "No claim is planned that the asynchronous reset path is defective. sha512.sv:224-225 clears both registers correctly, and that correctness is what makes the omission in the zeroize branch legible as an omission."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/N-002/proof/tb/sha512_bug_n002_tb.sv",
+    "script": "final_bug_submissions/N-002/proof/scripts/run_bug_n002_proof.sh",
+    "sim_script": "final_bug_submissions/N-002/proof/scripts/run_bug_n002_sim.sh",
+    "negative_control": "final_bug_submissions/N-002/proof/scripts/run_bug_n002_negative_control.sh",
+    "logs": "final_bug_submissions/N-002/proof/logs/"
+  }
+}

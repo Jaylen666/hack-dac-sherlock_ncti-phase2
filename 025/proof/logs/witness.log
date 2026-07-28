@@ -1,0 +1,12 @@
+=== kv_bug_025 measured decisions ===
+release_slot=23 dma_dest_idx=8 hmac_key_dest_idx=0 kv_num_read=9
+CONTROL_A dest=HMAC_KEY_onehot(0x1) read_allow=0
+ok:   CONTROL_A non-DMA release-slot read is denied read_allow=0 as expected
+CONTROL_B dest=DMA_DATA_onehot(0x100) read_allow=1
+ok:   CONTROL_B DMA release-slot read is granted read_allow=1 as expected
+PROBE     dest=DMA_DATA|HMAC_KEY(0x101) read_allow=1
+probe_multihot_classified_as_dma=1
+PROBE     dest=all_zero(0x0) read_allow=0
+ok:   PROBE zero-destination release-slot read is denied read_allow=0 as expected
+checks_run=3 checks_failed=0
+result=PASS

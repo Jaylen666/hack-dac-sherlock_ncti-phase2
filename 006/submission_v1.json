@@ -1,0 +1,48 @@
+{
+  "schema_version": "caliptra_bug_submission_v1",
+  "module": "aes",
+  "bug_id": "006",
+  "bug_name": "aes_prng_masking_force_masks_gate",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_security_bug",
+  "security_feature_bypassed": "Compile-time gating of the AES masking PRNG force-mask override, which should keep force_masks_i inactive when SecAllowForcingMasks is disabled.",
+  "finding": "The AES masking PRNG is parameterized with SecAllowForcingMasks to disable use of force_masks_i. However, src/aes/rtl/aes_prng_masking.sv:87 assigns bivium_allow_lockup directly from force_masks_i, and line 104 forwards that value to the Bivium primitive allow_lockup_i port. A directed witness with SecAllowForcingMasks=0 observes force_masks_i=1 producing observed_primitive_allow=1, even though the local AES register description states that FORCE_MASKS is only applicable when SecAllowForcingMasks is enabled.",
+  "location_or_code_reference": {
+    "competition_file": "src/aes/rtl/aes_prng_masking.sv:87",
+    "line_range": "87-105",
+    "supporting_references": [
+      "src/aes/rtl/aes_prng_masking.sv:17-18",
+      "src/aes/rtl/aes_prng_masking.sv:92-105",
+      "src/aes/data/aes.rdl:169-177"
+    ],
+    "attachment_note": "The detection code and reproduction scripts used for this submission are included in the attachment linked with this submission."
+  },
+  "detection_method": "CSBC identified the candidate using LLM-driven RTL security analysis, and the issue was independently validated by directed single-DUT Verilator simulation.",
+  "security_impact": "A side-channel test feature can assert a masking PRNG security-control input even when the compile-time policy says the feature is disabled. This weakens the intended boundary around forced constant masks and leaves a sensitive primitive override controlled by an input that should be inactive.",
+  "adversary_profile": "Physical attacker",
+  "proposed_mitigation": [
+    "Gate bivium_allow_lockup with SecAllowForcingMasks so the primitive lockup override can only be asserted when the feature is intentionally enabled.",
+    "Add a directed regression with SecAllowForcingMasks=0 and force_masks_i=1 that checks allow_lockup_i remains 0.",
+    "Add an assertion or lint check that the force-mask control has no effect when the feature gate is disabled."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+    "base_score": 2.4,
+    "severity": "Low"
+  },
+  "test_submitted": {
+    "proof_plan": "proof_plan_v1.json",
+    "proof_result": "proof_result_v1.json",
+    "script": "proof/scripts/run_bug_006_aes_prng_masking_witness.sh",
+    "testbench": "proof/tb/BUG-006_aes_prng_masking_real_dut_tb.sv",
+    "compile_log": "proof/logs/compile.log",
+    "run_log": "proof/logs/run.log",
+    "success_marker": "BUG006_WITNESS_PASS"
+  },
+  "exploit_or_attack_flow": [
+    "The attacker or test environment drives the AES force-masks control high.",
+    "The aes_prng_masking wrapper forwards the signal to bivium_allow_lockup without applying SecAllowForcingMasks.",
+    "The Bivium primitive sees allow_lockup_i=1 despite the disabled feature gate."
+  ]
+}

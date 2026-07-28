@@ -1,0 +1,16 @@
+COV cold_start_latency=1
+CHECK_PASS control_cold_start_reaches_init
+CHECK_PASS witness_setup_flow_is_in_progress
+CHECK_PASS witness_flow_no_longer_in_progress
+COV latency_after_pulse=1 cold=1
+CHECK_FAIL witness_next_cmd_delayed_by_extended_hold
+WITNESS pulse_hold_released_early after=1 cold=1
+COV latency_after_level=2 cold=1
+CHECK_PASS discriminator_level_zeroize_delays_next_cmd
+WITNESS level_hold_still_effective after=2 cold=1
+CHECK_PASS containment_no_kv_write_after_zeroize
+CHECK_PASS containment_no_src_write_after_zeroize
+CHECK_PASS containment_no_error_flagged
+SUMMARY checks=8 fails=1 witness_hits=2
+COV cold=1 pulse_hold_absent=1 level_hold_present=1 abort=1
+PROOF_RESULT: PASS

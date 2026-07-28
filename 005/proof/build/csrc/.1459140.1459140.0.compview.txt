@@ -1,9 +1,0 @@
-{"vcs1":{"timestamp_begin":1785207209.774534052, "rt":4.25, "ut":0.86, "st":0.31}}
-{"vcselab":{"timestamp_begin":1785207214.101826743, "rt":3.77, "ut":0.64, "st":0.25}}
-{"link":{"timestamp_begin":1785207217.928787988, "rt":0.17, "ut":0.12, "st":0.06}}
-{"SNPS_VCS_INTERNAL_ROOT_START_TIME": 1785207209.449382592}
-{"VCS_COMP_START_TIME": 1785207209.449382592}
-{"VCS_COMP_END_TIME": 1785207218.166867393}
-{"VCS_USER_OPTIONS": "-full64 -sverilog -timescale=1ns/1ps -assert svaext -f filelist.f -top aes_reg_bug_005_tb -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/005/proof/logs/compile.log -o simv"}
-{"vcs1": {"peak_mem": 486016}}
-{"vcselab": {"peak_mem": 233180}}

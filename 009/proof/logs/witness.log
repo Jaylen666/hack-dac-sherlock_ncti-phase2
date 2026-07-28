@@ -1,0 +1,78 @@
+===== BUG-009 structural audit (single-tree, audited RTL only) =====
+
+----- 1. the rule the tree states for itself -----
+  PASS: csrng.rdl describes INT_STATE_READ_ENABLE as a PER-INSTANCE enable
+  PASS: the rdl binds each bit to the internal state of the CORRESPONDING instance
+  PASS: csrng.hjson states the bit of the SELECTED instance is what must be set
+  PASS: the field is a three-bit vector, one bit per instance, not a single global enable
+
+----- 2. the port the module declares -----
+  PASS: csrng_state_db declares the authorization input one bit per application
+  PASS: NApps is the application count, so the vector is indexed by application
+  PASS: the select, dump-select and qualified vectors are all one bit per application
+
+----- 3. how the vector is actually consumed -----
+  PASS: line 115 replicates bit 0 of the authorization vector across all NApps lanes
+  PASS: line 115 carries no per-application index at all
+  PASS: a per-application generate loop providing the index rd begins on the NEXT line
+  PASS: int_state_read_enable_i is referenced exactly twice: its declaration and line 115
+  PASS: the authorization vector is never indexed by the application being read
+
+----- 4. the sibling lane in the same loop indexes correctly -----
+  PASS: the dump SELECT in the same loop is indexed per application, so rd is in scope there
+  PASS: the hardware read select is likewise per application, establishing the intended idiom
+  PASS: the qualified vector is consumed per application, so lane rd carries application rd's state
+
+----- 5. the qualified value reaches software -----
+  PASS: the dumped state becomes internal_state_diag
+  PASS: internal_state_diag is windowed into the 32-bit register read output
+  PASS: the same internal-state layout carries the DRBG key and V, so the window exposes key material
+  PASS: the reseed counter is separately and unconditionally exported, so it is NOT the sensitive part of the window
+
+----- 6. software reachability of the authorization vector -----
+  PASS: the vector is driven straight from a software-writable register field
+  PASS: csrng_core wires that register field into the state database
+  PASS: the field is written from the register bus, so the mask is under software control
+
+----- evidence excerpts -----
+
+--- src/csrng/rtl/csrng_state_db.sv:112,123 (the mis-indexed qualification and the loop) ---
+  //--------------------------------------------
+  // internal state read logic
+  //--------------------------------------------
+  assign int_st_dump_qualified = int_st_dump_sel & {NApps{int_state_read_enable_i[0]}};
+
+  for (genvar rd = 0; rd < NApps; rd = rd+1) begin : gen_state_rd
+    assign int_st_out_sel[rd] = (state_db_rd_inst_id_i == rd);
+    assign int_st_dump_sel[rd] = (int_st_dump_id_q == rd);
+    assign internal_states_out[rd] = int_st_out_sel[rd] ? internal_states_q[rd] : '0;
+    assign internal_states_dump[rd] = int_st_dump_qualified[rd] ? internal_states_q[rd] : '0;
+  end
+
+
+--- src/csrng/rtl/csrng_state_db.sv:135,145 (the path from dump to the software window) ---
+  assign {state_db_rd_fips_o,state_db_rd_inst_st_o,
+          state_db_rd_key_o,state_db_rd_v_o,
+          state_db_rd_res_ctr_o} = internal_state_pl;
+
+
+  assign internal_state_diag = {30'b0,internal_state_pl_dump};
+
+
+  // Register access of internal state
+  assign state_db_reg_rd_val_o =
+         (reg_rd_ptr_q == 4'h0) ? internal_state_diag[RegW-1:0] :
+
+--- src/csrng/data/csrng.rdl:220,228 (the per-instance rule the tree states) ---
+    reg {
+        field {
+            desc = "Per-instance internal state read enable.
+            Defines whether the internal state of the corresponding instance is readable via !!INT_STATE_VAL.
+            Note that for !!INT_STATE_VAL to provide read access to the internal state, also !!CTRL.READ_INT_STATE needs to be set to `kMultiBitBool4True`.
+            In addition, the otp_en_csrng_sw_app_read input needs to be set to `kMultiBitBool8True`.";
+            sw = rw;
+        } INT_STATE_READ_ENABLE[2:0] = 0x7;
+    } INT_STATE_READ_ENABLE @ 0x38;
+
+structural_gates_passed=22/22
+RESULT: PASS

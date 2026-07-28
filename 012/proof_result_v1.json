@@ -1,0 +1,51 @@
+{
+  "schema_version": "caliptra_bug_proof_result_v1",
+  "bug_id": "012",
+  "bug_name": "doe_uds_write_dest_valid_expansion",
+  "status": "confirmed_security_bug",
+  "method": "directed_single_dut_verilator_witness",
+  "dut": {
+    "top": "doe_fsm",
+    "parameters": {
+      "SRC_WIDTH": "128",
+      "DEST_WIDTH": "128"
+    }
+  },
+  "source_locations": [
+    {
+      "path": "src/doe/rtl/doe_fsm.sv",
+      "line": 268,
+      "excerpt": "always_comb kv_write.write_dest_valid = running_hek ? OCP_LOCK_HEK_SEED_DEST_VALID : (running_uds ? 9'h023 : 'd3);"
+    },
+    {
+      "path": "src/keyvault/rtl/kv_defines_pkg.sv",
+      "line": 57,
+      "excerpt": "localparam KV_DEST_IDX_AES_KEY    = 5;"
+    }
+  ],
+  "observations": [
+    {
+      "case": "control_fe",
+      "input": "doe_cmd_reg.cmd=DOE_FE",
+      "observed": "kv_write.write_dest_valid=0x003",
+      "result": "pass"
+    },
+    {
+      "case": "witness_uds",
+      "input": "doe_cmd_reg.cmd=DOE_UDS",
+      "observed": "kv_write.write_dest_valid=0x023 and expanded_bit5=1",
+      "expected": "UDS write destination mask remains 0x003 and does not set the AES-key bit",
+      "result": "bug_observed"
+    }
+  ],
+  "root_cause": "The DOE FSM's UDS branch hard-codes write_dest_valid to 9'h023. Since KeyVault destination index 5 is AES_KEY, this value expands the destination-valid mask beyond the intended HMAC destinations.",
+  "trigger_condition": "Select DOE_UDS in doe_cmd_reg.cmd while doe_fsm drives the KeyVault write interface.",
+  "security_impact": "UDS-derived material can be tagged as valid for AES-key use through KeyVault metadata. This weakens destination isolation between DOE provisioning data and downstream cryptographic consumers.",
+  "artifacts": {
+    "harness": "proof/tb/BUG-012_doe_fsm_real_dut_tb.sv",
+    "script": "proof/scripts/run_bug_012_doe_fsm_witness.sh",
+    "compile_log": "proof/logs/compile.log",
+    "run_log": "proof/logs/run.log"
+  },
+  "success_marker": "BUG012_WITNESS_PASS"
+}

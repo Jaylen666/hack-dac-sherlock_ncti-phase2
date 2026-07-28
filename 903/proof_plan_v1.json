@@ -1,0 +1,52 @@
+{
+  "schema_version": "caliptra_bug_proof_plan_v1",
+  "bug_id": "N-003",
+  "bug_name": "ecc_hmac_drbg_zeroize_residue",
+  "title": "ECC HMAC-DRBG interface zeroize leaves SCA entropy seed registers live",
+  "claim": "When ECC zeroize is asserted, the HMAC-DRBG interface clears several output registers but leaves the internal lfsr_seed_reg and sca_entropy_reg values unchanged. Those retained values feed the entropy path used by subsequent LFSR, lambda, scalar-randomization, and masking-randomization states.",
+  "source_locations": [
+    {
+      "path": "src/ecc/rtl/ecc_hmac_drbg_interface.sv",
+      "lines": "171-180",
+      "excerpt": "The LFSR, lambda, scalar-randomization, and masking-randomization states use sca_entropy_reg as hmac_drbg_entropy."
+    },
+    {
+      "path": "src/ecc/rtl/ecc_hmac_drbg_interface.sv",
+      "lines": "223-238",
+      "excerpt": "The zeroize branch clears lambda_reg, scalar_rnd_reg, masking_rnd_reg, and drbg_reg, but not lfsr_seed_reg."
+    },
+    {
+      "path": "src/ecc/rtl/ecc_hmac_drbg_interface.sv",
+      "lines": "297-307",
+      "excerpt": "counter_nonce_reg and sca_entropy_reg are reset and loaded on en while idle, but have no zeroize branch."
+    },
+    {
+      "path": "src/ecc/rtl/ecc_hmac_drbg_interface.sv",
+      "line": 310,
+      "excerpt": "sca_entropy is computed from IV, lfsr_seed_reg, and counter_nonce."
+    }
+  ],
+  "security_invariant": "ECC zeroize must erase internal entropy and masking-seed residue before any later ECC HMAC-DRBG operation can reuse it.",
+  "attacker_model": {
+    "adversary_profile": "Physical attacker",
+    "capability": "Can observe side-channel effects around ECC operations and can cause or wait for a zeroize followed by a later ECC HMAC-DRBG operation.",
+    "preconditions": [
+      "The ECC HMAC-DRBG interface has completed enough work for lfsr_seed_reg and sca_entropy_reg to hold nonzero SCA entropy-derived values.",
+      "The zeroize input is asserted before the next operation."
+    ]
+  },
+  "proof_style": "residue_effect_test with directed single-DUT Verilator simulation",
+  "proof_boundary": "Compile the real ecc_hmac_drbg_interface module with deterministic child models that only provide handshake and nonzero DRBG values. The target property is the interface-local zeroize behavior, not cryptographic HMAC correctness.",
+  "controls": [
+    "After reset, lfsr_seed_reg and sca_entropy_reg are zero.",
+    "After zeroize, lambda, scalar_rnd, masking_rnd, and drbg clear to zero."
+  ],
+  "witness": [
+    "After a reachable signing-mode sequence makes all observed registers nonzero, zeroize leaves lfsr_seed_reg and sca_entropy_reg nonzero.",
+    "After zeroize, a restart observes hmac_drbg_entropy sourced from the retained sca_entropy_reg value."
+  ],
+  "expected_evidence": [
+    "proof/logs/compile.log records a single-DUT Verilator build of ecc_hmac_drbg_interface with deterministic child models.",
+    "proof/logs/run.log records N003_CONTROL_RESET, N003_SETUP_NONZERO, N003_WITNESS_AFTER_ZEROIZE, N003_RESTART_INPUT_RESIDUE, and N003_ZEROIZE_RESIDUE_WITNESS_PASS."
+  ]
+}

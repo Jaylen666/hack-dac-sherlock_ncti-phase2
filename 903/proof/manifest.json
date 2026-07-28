@@ -1,0 +1,19 @@
+{
+  "schema_version": "caliptra_bug_proof_manifest_v1",
+  "bug_id": "N-003",
+  "bug_name": "ecc_hmac_drbg_zeroize_residue",
+  "package_type": "directed_single_dut_residue_witness",
+  "files": [
+    "README.md",
+    "manifest.json",
+    "tb/N003_ecc_hmac_drbg_zeroize_residue_tb.sv",
+    "tb/ecc_hmac_drbg_child_models.sv",
+    "scripts/run_n003_ecc_hmac_drbg_zeroize_residue.sh",
+    "logs/compile.log",
+    "logs/run.log"
+  ],
+  "reproduction_command": "CALIPTRA_ROOT=/path/to/caliptra ./scripts/run_n003_ecc_hmac_drbg_zeroize_residue.sh",
+  "success_marker": "N003_ZEROIZE_RESIDUE_WITNESS_PASS",
+  "evidence_statement": "The witness proves that ECC HMAC-DRBG interface SCA entropy seed registers retain nonzero values after zeroize and can feed a later entropy path.",
+  "missing_artifacts": []
+}

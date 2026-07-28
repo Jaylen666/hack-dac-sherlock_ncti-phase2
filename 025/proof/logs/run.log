@@ -1,0 +1,48 @@
+=== kv_bug_025 proof run ===
+dut=src/keyvault/rtl/kv_read_rule_check.sv
+tb=proof/tb/kv_read_rule_check_release_slot_tb.sv
+dut_instances_compiled=1
+=== kv_bug_025 structural audit of kv_read_dest producers ===
+tree_root_relative=.
+
+--- gate 1: assignments to kv_read_dest ---
+src/aes/rtl/aes_clp_wrapper.sv:420:    kv_key_read_metrics.kv_read_dest         = KV_NUM_READ'(1<<KV_DEST_IDX_AES_KEY);
+src/hmac/rtl/hmac.sv:437:    kv_key_read_metrics.kv_read_dest         = KV_NUM_READ'(1<<KV_DEST_IDX_HMAC_KEY);
+src/hmac/rtl/hmac.sv:473:    kv_block_read_metrics.kv_read_dest         = KV_NUM_READ'(1<<KV_DEST_IDX_HMAC_BLOCK);
+src/axi/rtl/axi_dma_ctrl.sv:1350:        kv_read_metrics.kv_read_dest         = KV_NUM_READ'(1<<KV_DEST_IDX_DMA_DATA);
+src/ecc/rtl/ecc_dsa_ctrl.sv:892:        kv_privkey_read_metrics.kv_read_dest         = KV_NUM_READ'(1<<KV_DEST_IDX_ECC_PKEY);
+src/ecc/rtl/ecc_dsa_ctrl.sv:928:        kv_seed_read_metrics.kv_read_dest         = KV_NUM_READ'(1<<KV_DEST_IDX_ECC_SEED);
+kv_read_dest_producer_sites=6
+
+--- gate 2: producers that are NOT a single one-hot shift literal ---
+none: every kv_read_dest assignment is a single hardcoded one-hot shift literal
+multihot_capable_producers=0
+
+--- gate 3: destination fields in the KeyVault read control structure ---
+kv_read_ctrl_reg_t members:
+      logic [KV_READ_CTRL_RSVD_MSB:0] rsvd;
+      logic [KV_ENTRY_ADDR_W-1:0] read_entry;
+      logic pcr_hash_extend;
+      logic read_en;
+  } kv_read_ctrl_reg_t;kv_read_ctrl_reg_t_dest_members=0
+software_reachable_dest_field=no
+
+--- gate 4: read clients driving ocp_lock_in_progress into the rule ---
+  src/aes/rtl/aes_clp_wrapper.sv:419:    kv_key_read_metrics.ocp_lock_in_progress = ocp_lock_in_progress;
+  src/hmac/rtl/hmac.sv:436:    kv_key_read_metrics.ocp_lock_in_progress = ocp_lock_in_progress;
+  src/hmac/rtl/hmac.sv:472:    kv_block_read_metrics.ocp_lock_in_progress = ocp_lock_in_progress;
+  src/keyvault/rtl/kv_read_rule_check.sv:69:    assign release_slot_access_active = read_metrics.ocp_lock_in_progress &&
+  src/axi/rtl/axi_dma_ctrl.sv:1349:        kv_read_metrics.ocp_lock_in_progress = ocp_lock_in_progress;
+  src/ecc/rtl/ecc_dsa_ctrl.sv:891:        kv_privkey_read_metrics.ocp_lock_in_progress = ocp_lock_in_progress;
+  src/ecc/rtl/ecc_dsa_ctrl.sv:927:        kv_seed_read_metrics.ocp_lock_in_progress = ocp_lock_in_progress;
+  submodules/adams-bridge/src/abr_top/rtl/abr_ctrl.sv:294:    kv_mldsa_seed_read_metrics.ocp_lock_in_progress = ocp_lock_in_progress;
+  submodules/adams-bridge/src/abr_top/rtl/abr_ctrl.sv:298:    kv_mlkem_seed_read_metrics.ocp_lock_in_progress = ocp_lock_in_progress;
+  submodules/adams-bridge/src/abr_top/rtl/abr_ctrl.sv:302:    kv_mlkem_msg_read_metrics.ocp_lock_in_progress  = ocp_lock_in_progress;
+
+--- gate 5: rule module instantiation sites ---
+  src/keyvault/rtl/kv_read_client.sv:64:kv_read_rule_check kv_read_rules
+
+audit_complete=1
+result=PASS
+=== proof run complete ===
+result=PASS

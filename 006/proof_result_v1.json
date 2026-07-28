@@ -1,0 +1,59 @@
+{
+  "schema_version": "caliptra_bug_proof_result_v1",
+  "bug_id": "006",
+  "bug_name": "aes_prng_masking_force_masks_gate",
+  "status": "confirmed_security_bug",
+  "method": "directed_single_dut_verilator_witness",
+  "dut": {
+    "top": "aes_prng_masking",
+    "parameters": {
+      "SecAllowForcingMasks": "1'b0",
+      "SecSkipPRNGReseeding": "1'b0"
+    }
+  },
+  "source_locations": [
+    {
+      "path": "src/aes/rtl/aes_prng_masking.sv",
+      "line": 87,
+      "excerpt": "assign bivium_allow_lockup = force_masks_i;"
+    },
+    {
+      "path": "src/aes/rtl/aes_prng_masking.sv",
+      "line": 104,
+      "excerpt": ".allow_lockup_i      (bivium_allow_lockup),"
+    },
+    {
+      "path": "src/aes/data/aes.rdl",
+      "line": 176,
+      "excerpt": "Only applicable if both the Masking parameter and the SecAllowForcingMasks parameter are set to one."
+    }
+  ],
+  "observations": [
+    {
+      "case": "control",
+      "input": "force_masks_i=0, SecAllowForcingMasks=0",
+      "observed": "observed_allow_lockup=0 and observed_primitive_allow=0",
+      "result": "pass"
+    },
+    {
+      "case": "witness",
+      "input": "force_masks_i=1, SecAllowForcingMasks=0",
+      "observed": "observed_allow_lockup=1 and observed_primitive_allow=1",
+      "expected": "lockup override remains 0 when force-mask support is disabled",
+      "result": "bug_observed"
+    }
+  ],
+  "root_cause": "The feature gate is not included in the lockup-override assignment. The code treats force_masks_i as unused when SecAllowForcingMasks is 0, but the same signal is still wired to bivium_allow_lockup and then to the primitive allow_lockup_i port.",
+  "trigger_condition": "Instantiate aes_prng_masking with SecAllowForcingMasks=0 and drive force_masks_i high.",
+  "security_impact": "A security-sensitive masking PRNG override can be asserted contrary to the compile-time policy that disables forced masks. This weakens the enforcement boundary for a side-channel evaluation feature that should not be active in this configuration.",
+  "limitations": [
+    "The witness proves the incorrect control-path assertion at the PRNG primitive input. It does not claim that this specific run forces a persistent all-zero output stream."
+  ],
+  "artifacts": {
+    "harness": "proof/tb/BUG-006_aes_prng_masking_real_dut_tb.sv",
+    "script": "proof/scripts/run_bug_006_aes_prng_masking_witness.sh",
+    "compile_log": "proof/logs/compile.log",
+    "run_log": "proof/logs/run.log"
+  },
+  "success_marker": "BUG006_WITNESS_PASS"
+}

@@ -1,0 +1,58 @@
+{
+  "module": "keyvault",
+  "bug_id": "kv_bug_025",
+  "bug_name": "kv_read_rule_check_release_slot_mask_compare",
+  "triage_id": "KV-TRIAGE-025",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "Privileged software at supervisor mode, able to program any KeyVault read client's control register (for example SHA512_VAULT_RD_CTRL, HMAC_KEY_RD_CTRL, ECC_PRIVKEY_RD_CTRL, AES_KEY_RD_CTRL) with an arbitrary read_entry value.",
+    "precondition": "OCP Lock provisioning is active, so ocp_lock_in_progress is asserted, and the release slot KV23 (OCP_LOCK_KEY_RELEASE_KV_SLOT) holds live key material.",
+    "input": "A KeyVault read request whose kv_key_entry equals 23 and whose kv_read_dest asserts the DMA data bit together with at least one non-DMA consumer bit, i.e. a multi-hot destination vector.",
+    "protected_asset": "The OCP Lock release slot KV23 key material.",
+    "security_property": "While OCP Lock provisioning is in progress, only the DMA data destination path may read the release slot; every other crypto consumer must be denied (rule no_read_key_release).",
+    "implemented_logic": "src/keyvault/rtl/kv_read_rule_check.sv:64 classifies the destination with a reduction-OR over a bitwise AND against the DMA one-hot mask, assign dest_selects_dma = |(read_metrics.kv_read_dest & DMA_DEST_ONEHOT), rather than requiring the destination vector to equal the DMA one-hot encoding. A destination vector that sets the DMA bit and a non-DMA consumer bit simultaneously therefore classifies as DMA, clears rule_fail.no_read_key_release, and is granted read_allow at src/keyvault/rtl/kv_read_rule_check.sv:104."
+  },
+  "security_feature_bypassed": "OCP Lock release-slot read isolation: during OCP Lock provisioning the release slot KV23 is readable only by the DMA data path, so that released key material cannot be diverted into a crypto engine whose result is software-observable.",
+  "proof_goal": "Establish whether a KeyVault read request that targets the release slot with a multi-hot destination vector containing the DMA bit is granted read_allow, and whether such a destination vector can be produced by any read client in the submitted tree.",
+  "proof_style": {
+    "primary": "directed_sim",
+    "secondary": [
+      "structural_audit"
+    ]
+  },
+  "minimum_attack_sequence": [
+    "During OCP Lock provisioning, with ocp_lock_in_progress asserted, program a KeyVault read client control register so that read_entry selects the release slot KV23.",
+    "Cause the destination vector kv_read_dest presented to kv_read_rule_check to assert the DMA data bit alongside the attacker's own consumer bit.",
+    "Issue the read; observe read_allow assert instead of the expected denial, so KV23 content is streamed into the non-DMA consumer.",
+    "Read the consumer's software-visible result register to recover release-slot-derived material."
+  ],
+  "expected_evidence": [
+    "A single-DUT simulation of kv_read_rule_check in which a release-slot read with kv_read_dest = HMAC-key one-hot is denied (read_allow=0), a release-slot read with kv_read_dest = DMA one-hot is granted (read_allow=1), and a release-slot read with the multi-hot vector DMA|HMAC-key is granted (read_allow=1) rather than denied.",
+    "A structural audit over the submitted tree that enumerates every producer of kv_read_dest and every driver of read_metrics.ocp_lock_in_progress, establishing whether a multi-hot destination vector is producible by any instantiated read client, and whether software has any register field that reaches kv_read_dest."
+  ],
+  "success_criteria": [
+    "The claim is upheld only if BOTH the simulation shows the multi-hot vector is granted AND the structural audit shows some instantiated read client, or some software-writable register field, can present a multi-hot kv_read_dest to kv_read_rule_check while ocp_lock_in_progress is asserted.",
+    "If the destination-vector expression is confirmed permissive in simulation but the structural audit shows every producer of kv_read_dest in the submitted tree emits a hardcoded one-hot literal and no software-writable field reaches kv_read_dest, then the exploitable-bypass claim is withdrawn and the case is recorded as false_alarm on reachability grounds, not as a confirmed bug.",
+    "Pre-committed withdrawal: this plan does not claim, and will not assert without separate evidence, that the reduction-OR classification differs from an equality comparison for an all-zero destination vector, nor that any software register field named in the KeyVault read control layout carries a destination selector."
+  ],
+  "non_findings_intent": [
+    "Suspected but unproven at plan time: that some read client merges two destination bits when two consumers share a read port. To be checked by enumerating kv_read_dest producers and the read-port fan-in at the integration level; to be withdrawn if every producer is a single hardcoded one-hot literal.",
+    "Suspected but unproven at plan time: that a software-writable field reaches kv_read_dest. To be checked against the KeyVault read control register structure definition; to be withdrawn if that structure carries no destination field."
+  ],
+  "artifacts": {
+    "scripts": [
+      "proof/scripts/run_kv_bug_025_proof.sh",
+      "proof/scripts/audit_kv_read_dest_producers.sh"
+    ],
+    "tb": [
+      "proof/tb/kv_read_rule_check_release_slot_tb.sv"
+    ],
+    "logs": [
+      "proof/logs/compile.log",
+      "proof/logs/sim.log",
+      "proof/logs/witness.log",
+      "proof/logs/run.log"
+    ]
+  }
+}

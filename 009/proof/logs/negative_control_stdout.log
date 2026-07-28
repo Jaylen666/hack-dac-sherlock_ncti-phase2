@@ -1,0 +1,56 @@
+recompiling package entropy_src_main_sm_pkg
+recompiling package entropy_src_ack_sm_pkg
+recompiling package entropy_src_reg_pkg
+recompiling package entropy_src_pkg
+recompiling package csrng_reg_pkg
+recompiling package csrng_pkg
+recompiling package edn_pkg
+recompiling package aes_reg_pkg
+recompiling package aes_pkg
+recompiling package aes_sbox_canright_pkg
+recompiling package aes_clp_reg_pkg
+recompiling package kv_defines_pkg
+recompiling package caliptra_tlul_pkg
+recompiling module csrng_state_db_bug_009_tb
+All of 33 modules done
+rm -f _cuarc*.so _csrc*.so pre_vcsobj_*.so share_vcsobj_*.so
+if [ -x ../simv ]; then chmod a-x ../simv; fi
+g++  -o ../simv   -no-pie  -Wl,--no-as-needed    -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu -Wl,--no-as-needed -rdynamic  -Wl,-rpath='$ORIGIN'/simv.daidir -Wl,-rpath=./simv.daidir -Wl,-rpath=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib -L/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib  -Wl,-rpath-link=./ -Wl,--no-as-needed   objs/amcQw_d.o   _248371_archive_1.so   SIM_l.o       rmapats_mop.o rmapats.o rmar.o rmar_nd.o  rmar_llvm_0_1.o rmar_llvm_0_0.o            -lnuma -lvirsim -lerrorinf -lsnpsmalloc -lvfs    -lvcsnew -lsimprofile -luclinative /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_tls.o   -Wl,-whole-archive  -lvcsucli    -Wl,-no-whole-archive       ./../simv.daidir/vc_hdrs.o    /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_save_restore_new.o -ldl  -lc -lm -lpthread -ldl 
+../simv up to date
+CPU time: 1.410 seconds to compile + .546 seconds to elab + .344 seconds to link
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid re-execution or '-suppress=ASLR_DETECTED_INFO' to suppress this message.
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 15:13 2026
+===== BUG-009 directed witness: per-application int-state read authorization =====
+      loaded states for 4 applications
+--- control_app0_authorized_reads_app0 ---
+      app0 key word=6be00000 (expected 6be00000)
+  case=control_app0_authorized_reads_app0 PASS an application authorized by its own bit must be readable
+--- violating_app1_denied_but_readable ---
+      app1 key word=00000000 (its own enable bit is 0, expected 00000000)
+  case=violating_app1_denied_but_readable PASS an application whose own enable bit is clear must dump zeros
+--- violating_app1_authorized_but_denied ---
+      app1 key word=6be00001 (its own enable bit is 1, expected 6be00001)
+  case=violating_app1_authorized_but_denied PASS an application authorized by its own bit must not be refused
+--- containment_all_bits_clear_denies_all ---
+      app0 key word=00000000
+      app1 key word=00000000
+      app2 key word=00000000
+      app3 key word=00000000
+  case=containment_all_bits_clear_denies_all PASS with no application authorized, no internal state may be dumped
+
+cov_own_bit_grants=1
+cov_denied_app_readable_via_app0=0
+cov_authorized_app_denied_by_app0=0
+witness_hits=0
+checks=4 fails=0
+PROOF_RESULT: FAIL
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/009/proof/tb/csrng_state_db_bug_009_tb.sv", line 279.
+$finish at simulation time              1175000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 1175000 ps
+CPU Time:      0.340 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 15:13:34 2026
+SIM RESULT: FAIL (no PASS verdict)

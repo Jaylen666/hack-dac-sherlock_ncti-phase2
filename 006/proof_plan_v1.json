@@ -1,0 +1,49 @@
+{
+  "schema_version": "caliptra_bug_proof_plan_v1",
+  "bug_id": "006",
+  "bug_name": "aes_prng_masking_force_masks_gate",
+  "title": "AES masking PRNG forwards force_masks_i to the lockup override when mask forcing is disabled",
+  "claim": "When SecAllowForcingMasks is 0, the AES masking PRNG should not let force_masks_i assert the Bivium primitive lockup override. The RTL assigns the override directly from force_masks_i, so an external force request reaches a security-sensitive primitive control even though the compile-time feature gate disables mask forcing.",
+  "source_locations": [
+    {
+      "path": "src/aes/rtl/aes_prng_masking.sv",
+      "lines": "17-18",
+      "excerpt": "SecAllowForcingMasks controls whether force_masks_i may force constant masks."
+    },
+    {
+      "path": "src/aes/rtl/aes_prng_masking.sv",
+      "lines": "71-87",
+      "excerpt": "force_masks_i is marked unused when SecAllowForcingMasks is 0, but bivium_allow_lockup is assigned directly from force_masks_i."
+    },
+    {
+      "path": "src/aes/rtl/aes_prng_masking.sv",
+      "lines": "92-105",
+      "excerpt": "bivium_allow_lockup drives allow_lockup_i on the masking PRNG primitive."
+    },
+    {
+      "path": "src/aes/data/aes.rdl",
+      "lines": "169-177",
+      "excerpt": "FORCE_MASKS is only applicable if both Masking and SecAllowForcingMasks are set."
+    }
+  ],
+  "security_invariant": "With SecAllowForcingMasks disabled, a FORCE_MASKS request must not assert the masking PRNG lockup-override path.",
+  "attacker_model": {
+    "adversary_profile": "Physical attacker",
+    "capability": "Can exercise the AES auxiliary force-masks control during a side-channel evaluation or fault-oriented test configuration.",
+    "preconditions": [
+      "AES masking PRNG is compiled with SecAllowForcingMasks=0.",
+      "The force_masks_i control is driven high while the PRNG is instantiated."
+    ]
+  },
+  "proof_style": "Directed single-DUT Verilator witness at the aes_prng_masking boundary.",
+  "controls": [
+    "With force_masks_i=0 and SecAllowForcingMasks=0, the wrapper and primitive lockup-override input both remain 0."
+  ],
+  "witness": [
+    "With force_masks_i=1 and SecAllowForcingMasks=0, the wrapper's bivium_allow_lockup and the primitive allow_lockup_i are both observed as 1 even though the secure expectation is 0."
+  ],
+  "expected_evidence": [
+    "proof/logs/compile.log records a single-DUT Verilator build of aes_prng_masking with the directed testbench.",
+    "proof/logs/run.log records BUG006_CONTROL, BUG006_WITNESS_GATE, and BUG006_WITNESS_PASS."
+  ]
+}

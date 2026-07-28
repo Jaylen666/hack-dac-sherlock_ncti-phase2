@@ -1,0 +1,58 @@
+{
+  "module": "doe_fsm",
+  "bug_id": "011",
+  "bug_name": "doe_fsm_bug_011",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_functional_defect",
+  "security_feature_bypassed": "None demonstrated. This is submitted as a proven functional defect in the DOE de-obfuscation FSM's post-zeroize cleanup hold. The hold is a self-declared protection whose stated duration no longer holds, but its only consumer is the FSM state flop, and the actual flush of the obfuscation key, the IV and the core state is driven from zeroize directly, so no secret exposure follows.",
+  "finding": "doe_fsm extends the single-cycle zeroize pulse into a level, zeroize_reg, so the FSM stays parked in DOE_IDLE after a cleanup event until the next DOE command is issued. The release condition at src/doe/rtl/doe_fsm.sv:126 is ((running_uds || running_fe || running_hek) || (init_done && (kv_doe_fsm_ps != DOE_IDLE))). The first group is the flow-specific release the module's own comment describes. The second disjunct is not flow-specific: init_done is an input wired to core_ready at src/doe/rtl/doe_cbc.sv:256 and is high whenever the core is up, so the moment the hold has forced the FSM out of DOE_IDLE its own release condition is already met. The level therefore collapses to roughly one cycle instead of spanning the wait for the next command, and the cleanup window the module documents at src/doe/rtl/doe_fsm.sv:115-118 is not delivered.",
+  "location_or_code_reference": {
+    "competition_file": "src/doe/rtl/doe_fsm.sv:126",
+    "line_range": "115-129",
+    "supporting_references": [
+      "src/doe/rtl/doe_fsm.sv:286",
+      "src/doe/rtl/doe_fsm.sv:234",
+      "src/doe/rtl/doe_fsm.sv:147",
+      "src/doe/rtl/doe_cbc.sv:256",
+      "src/doe/rtl/doe_cbc.sv:213",
+      "src/doe/rtl/doe_cbc.sv:203",
+      "src/doe/rtl/doe_cbc.sv:227",
+      "docs/CaliptraHardwareSpecification.md:2592"
+    ]
+  },
+  "detection_method": "The module states its own intent in a comment directly above the flop: zeroize arrives as a single pulse, the FSM should remain in IDLE until the next DOE_CMD is issued, the pulse is extended to a level for that purpose, and the extended signal is reset when the next command is issued. Reading the release condition against that sentence shows a second disjunct the sentence does not account for, and tracing init_done to its driver shows it is core readiness rather than a flow indicator. Twenty-seven read-only structural gates pin each step. The behaviour was then measured on one unmodified doe_fsm driven through its ports: the command-to-doe_init latency after a single-cycle zeroize pulse equals the cold-start latency measured out of reset with no zeroize at all, so the hold bought nothing, while the same measurement with zeroize held as a level exceeds the reference, isolating the release condition as the defect rather than the mechanism.",
+  "security_impact": "Specification compliance and defence-in-depth. The cleanup guarantee the module documents is weakened: the FSM is released from its parked state after roughly one cycle rather than being held until software issues the next command. What that hold covers is the state flop, including dest_addr, which selects the key vault entry a de-obfuscation flow writes to and which src/doe/rtl/doe_fsm.sv:234 captures only on the IDLE->INIT arc the hold suppresses. On the audited RTL a fresh command is still required to take that arc, so no unauthorised key vault write was demonstrated, and the abort itself still happens: a zeroize pulse still forces DOE_IDLE and still clears the offsets. No confidentiality or integrity loss is claimed.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "Restrict the release to the flow-specific terms, so src/doe/rtl/doe_fsm.sv:126 reads else if (running_uds || running_fe || running_hek) begin. That is what the comment above the flop describes and it restores the hold across the interval where no command is pending.",
+    "If an escape from a stuck state is also wanted, express it as its own condition with its own comment rather than folding it into the cleanup release, because init_done is core readiness and cannot distinguish a stuck flow from a normal parked FSM.",
+    "Add a directed check that after a zeroize event the next DOE command is delayed by at least one cycle relative to a cold start, which is the assertion this defect fails and which no existing check covers."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:H/PR:H/UI:N/S:U/C:N/I:L/A:N",
+    "base_score": 1.9,
+    "severity": "Low"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/011/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/011/proof_result_v1.json",
+    "script": "final_bug_submissions/011/proof/scripts/run_bug_011_proof.sh",
+    "sim_script": "final_bug_submissions/011/proof/scripts/run_bug_011_sim.sh",
+    "negative_control_script": "final_bug_submissions/011/proof/scripts/run_bug_011_negative_control.sh",
+    "testbench": "final_bug_submissions/011/proof/tb/doe_fsm_bug_011_tb.sv",
+    "run_log": "final_bug_submissions/011/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/011/proof/logs/witness.log",
+    "compile_log": "final_bug_submissions/011/proof/logs/compile.log",
+    "structural_audit_log": "final_bug_submissions/011/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/011/proof/logs/negative_control.log",
+    "c_validation_status": "final_bug_submissions/011/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Privileged software writes the DOE CMD register with a de-obfuscation command, and the FSM leaves DOE_IDLE.",
+    "While the flow is in progress, the same software writes DOE_CLEAR, which raises zeroize for a cycle and clears the command register to NOP.",
+    "The extended hold is set on the next edge and forces the FSM to DOE_IDLE, clearing dest_write_offset, block_offset and dest_addr.",
+    "Because init_done is high and the FSM is momentarily still outside DOE_IDLE, the release condition is already satisfied, so the hold clears on the following edge instead of persisting.",
+    "For the rest of the quiet window the FSM is no longer being held: it is merely idle. The next command then advances to DOE_INIT with cold-start latency, which is the measured deviation from the documented behaviour."
+  ]
+}

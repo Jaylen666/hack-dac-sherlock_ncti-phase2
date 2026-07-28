@@ -1,0 +1,36 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/015/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/015/proof/logs/sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 15:54 2026
+===== BUG-015 directed witness: hmac_core tag validity across zeroize =====
+  case=control_reset_clears_tag_valid PASS after reset the block must not claim a valid tag
+      operation completed, tag_valid=1 tag[63:0]=6c2c68f7fb784420
+  case=control_normal_run_sets_tag_valid PASS a completed operation must report a valid tag, showing the harness reaches the state under test
+--- violating_tag_valid_survives_zeroize ---
+      before zeroize: tag_valid=1 ready=1
+      tracking opens with tag_valid=1 parent_tag_valid_reg=1
+      after zeroize:  tag_valid=1 ready=1 tag[63:0]=0000000000000000
+      OBSERVED: BUG_015_WITNESS_OBSERVED hmac_core still reports tag_valid=1 six cycles after a completed zeroize
+  TBFAIL case=violating_tag_valid_survives_zeroize a zeroize must leave the block reporting no valid tag
+      200 idle cycles later: tag_valid=1 (the in-RTL comment claims a later refresh)
+  TBFAIL case=violating_idle_refresh_never_happens the claimed later refresh by the normal update path must actually clear the flag while idle
+      parent capture edge seen after zeroize: 1 (hmac.sv:163 formula)
+  TBFAIL case=violating_no_spurious_parent_capture the parent's tag-capture enable must not re-assert after a zeroize
+--- containment_reset_still_clears ---
+      after reset: tag_valid=0
+  case=containment_reset_still_clears PASS a real reset must still clear the flag, confining the defect to the zeroize arm
+
+cov_reset_clears_tag_valid=1
+cov_tag_valid_after_normal_run=1
+cov_tag_valid_survives_zeroize=1
+cov_spurious_parent_capture_edge=1
+witness_hits=1
+checks=6 fails=3
+result=PASS
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/015/proof/tb/hmac_core_bug_015_tb.sv", line 252.
+$finish at simulation time              5075000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 5075000 ps
+CPU Time:      0.340 seconds;       Data structure size:   0.1Mb
+Tue Jul 28 15:54:40 2026

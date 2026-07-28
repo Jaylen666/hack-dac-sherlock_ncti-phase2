@@ -1,0 +1,27 @@
+===== BUG-N-004 negative control =====
+patch=fuse_hek_seed given the sibling HW Clear branch, and Fuse_w32 given an hwclr member
+scratch_reg_code_lines_added=4 scratch_reg_code_lines_removed=1
+scratch_pkg_code_lines_added=1 scratch_pkg_code_lines_removed=0
+sim_script_rc=1
+witness_hits=0
+cov_hek_survives_scrub=0
+cov_reset_clear=1
+cov_write_takes_effect=1
+cov_siblings_scrubbed=1
+tb_fails=0
+--- gates ---
+  ok   the register patch adds exactly the four lines of the clear branch
+  ok   and rewrites only the one line the branch chains onto
+  ok   the package patch adds exactly one line, the hwclr member
+  ok   and removes none, so nothing else moved
+  ok   the witness no longer fires on the patched copy
+  ok   cov_hek_survives_scrub drops to 0 (anti-vacuity)
+  ok   no TB check fails once the HEK family has a clear
+  ok   the scrub check now passes
+  ok   the held-strobe check now passes
+  ok   the bus-readback check now passes
+  ok   harness control intact: reset still leaves every secret clear
+  ok   harness control intact: fuse programming still takes effect
+  ok   harness control intact: the sibling secrets still scrub
+  ok   containment case still passes
+NEGATIVE CONTROL: PASS

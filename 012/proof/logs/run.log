@@ -1,0 +1,7 @@
+BUG012_CONTROL_FE cmd=DOE_FE observed_write_dest_valid=0x003 expected=0x003
+BUG012_WITNESS cmd=DOE_UDS observed_write_dest_valid=0x023 secure_expected=0x003 expanded_bit5=1
+BUG012_WITNESS_PASS
+- ./tb/BUG-012_doe_fsm_real_dut_tb.sv:81: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.024 2024-04-05
+- Verilator: $finish at 11ps; walltime 0.003 s; speed 0.000 s/s
+- Verilator: cpu 0.000 s on 1 threads; alloced 761 MB

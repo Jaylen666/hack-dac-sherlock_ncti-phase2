@@ -1,0 +1,49 @@
+BUG-015 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T15:32:04+08:00
+gate_ok: hmac_core.sv:181 opens the always_ff that holds this FSM's control and validity state, named reg_update
+gate_ok: hmac_core.sv:183 opens the reset arm
+gate_ok: hmac_core.sv:185 shows the reset arm clearing digest_valid_reg, so the file treats it as state a full clear must zero
+gate_ok: hmac_core.sv:190 opens the zeroize arm, five lines below, on the same registers
+gate_ok: no CODE line in the zeroize arm (hmac_core.sv:190-196) clears digest_valid_reg; the register is named there only inside the comment that justifies the omission, so a security zeroize leaves the tag-validity flag asserted
+reset_arm_assignments=3
+zeroize_arm_assignments=2
+gate_ok: the reset arm assigns all 3 registers this always_ff holds
+gate_ok: the zeroize arm assigns only 2 of them
+gate_ok: the difference is exactly 1 register, matching the digest_valid_reg named above, so the omission is complete and not a partial clear
+gate_ok: hmac_core.sv:192-193 carries a comment justifying the omission, claiming the normal update path refreshes digest_valid_reg on a later cycle
+gate_ok: hmac_core.sv:202-203 is that normal update path, and it writes digest_valid_reg only when digest_valid_we is raised, so the comment's claim depends entirely on that enable
+gate_ok: hmac_core.sv:329 defaults digest_valid_we to zero at the top of the FSM always_comb
+gate_ok: hmac_core.sv:336 opens the CTRL_IDLE arm, which is the state the zeroize arm forces the FSM into
+gate_ok: the init_cmd branch of CTRL_IDLE (hmac_core.sv:339-343) sets digest_valid_new but never raises digest_valid_we, so even starting a new operation does not perform the refresh the comment promises
+gate_ok: hmac_core.sv:337 shows CTRL_IDLE reporting ready, so the engine advertises itself as idle and available while the stale validity flag is still set
+ctrl_idle_write_enable_assertions=1
+default_arm_write_enable_clears=1
+gate_ok: CTRL_IDLE raises digest_valid_we exactly once, in the next_cmd branch only, so an idle engine that receives no command never refreshes the flag
+gate_ok: the FSM default arm explicitly clears digest_valid_we, confirming no unlisted path performs the refresh either
+gate_ok: hmac_core.sv:111 makes the entire 512-bit tag output conditional on digest_valid_reg, so this single uncleared bit decides whether the tag is presented or forced to zero
+gate_ok: hmac_core.sv:112 exports the same register as the module's tag_valid output, so the stale flag is visible to the parent as a completion claim
+gate_ok: hmac.sv:185 receives that output as core_tag_valid
+gate_ok: hmac.sv:163 derives the tag capture enable from a RISING EDGE of core_tag_valid against the parent's own tag_valid_reg, so the pair of flags must agree for the parent to behave correctly
+gate_ok: hmac.sv:214 shows the parent's zeroize arm clearing tag_valid_reg, so after a zeroize the parent believes no tag is valid while the child still asserts one, which is exactly the disagreement core_tag_we is built to detect as a new completion
+gate_ok: hmac.sv:227 is what that enable gates: the write of the child's tag into the software-readable tag register
+gate_ok: hmac.sv:267 clears the software-visible TAG register on zeroize, showing the design's intent is that no tag survives a zeroize
+gate_ok: sha512_masked_core.sv:269 opens the state-holding always block of the child core that hmac_core instantiates twice
+gate_ok: sha512_masked_core.sv:271 opens that child's reset arm
+gate_ok: sha512_masked_core.sv:290 shows that reset arm clearing its own digest_valid_reg
+gate_ok: sha512_masked_core.sv:297 opens its zeroize arm, on the same zeroize signal hmac_core passes down
+gate_ok: sha512_masked_core.sv:316 shows the child's zeroize arm clearing digest_valid_reg too, so the child does on zeroize exactly what its parent omits
+masked_core_reset_arm_assignments=22
+masked_core_zeroize_arm_assignments=22
+gate_ok: in the child the two arms assign the same number of registers (22 each), which is exactly the relation hmac_core breaks
+gate_ok: hmac_core.sv:120 passes its own zeroize straight into the first child instance, so parent and child act on the identical strobe
+gate_ok: hmac_core.sv:139 does the same for the second child instance
+gate_ok: hmac.sv:171 wires the parent's zeroize_reg into hmac_core's zeroize port, so the parent below is the block that owns the strobe
+gate_ok: hmac.sv:259 sources that strobe from the software-writable HMAC512_CTRL.ZEROIZE field, so a software write reaches the incomplete arm
+gate_ok: hmac.sv:210 opens the parent's own zeroize arm, on the same strobe it passes down
+hmac_reset_arm_assignments=7
+hmac_zeroize_arm_assignments=7
+gate_ok: the parent's two arms assign the same number of registers (7 each), so the convention on this very strobe is to mirror the reset arm exhaustively
+structural_gates_passed=35/35
+RESULT: PASS - all structural gates confirm BUG-015
+result=PASS

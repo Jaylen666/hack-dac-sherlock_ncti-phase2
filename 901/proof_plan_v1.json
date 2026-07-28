@@ -1,0 +1,60 @@
+{
+  "triage_id": "soc_ifc_ss_debug_intent_write_qualifier_polarity_inverted",
+  "module": "soc_ifc",
+  "rtl_file": "src/soc_ifc/rtl/soc_ifc_top.sv",
+  "bug_id": "N-001",
+  "bug_name": "soc_ifc_ss_debug_intent_dmi_write_qualifier_inverted",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "A physical attacker with access to the JTAG pins. The uncore DMI port that drives this write qualifier is a JTAG-side interface (src/integration/rtl/caliptra_top.sv:632-633), not an MMIO register, so the actor is whoever can drive JTAG. Critically the attacker does not need debug authorisation: the property is tested on a part that is debug-locked and in production lifecycle, the state in which the register's own policy grants no TAP write access at all.",
+    "precondition": "Subsystem mode, which src/soc_ifc/rtl/soc_ifc_top.sv:888-889 identifies as the configuration in which this register is populated, and any time after the strap capture window has closed, which happens one cycle after noncore reset release because src/soc_ifc/rtl/soc_ifc_top.sv:786-793 holds strap_we high for a single cycle.",
+    "input": "Presenting DMI_REG_SS_DEBUG_INTENT (7'h63) on cptra_uncore_dmi_reg_addr with cptra_uncore_dmi_reg_wdata[0] set, while deliberately NOT asserting cptra_uncore_dmi_reg_wr_en.",
+    "protected_asset": "The SS_DEBUG_INTENT policy flag, which decides whether the part is in a debug-intent boot. src/soc_ifc/rtl/soc_ifc_subsystem_reg.rdl:139-143 makes it software read-only and grants TAP write access only in debug or manufacturing mode, so on a debug-locked production part no agent is meant to be able to set it.",
+    "security_property": "The flag may only change as the result of a DMI write that is actually asserted and permitted by the lifecycle gate. Concretely, the write qualifier must be a function that is true only when cptra_uncore_dmi_unlocked_reg_wr_en is high, which is the form every sibling register on the same DMI port uses.",
+    "implemented_logic": "src/soc_ifc/rtl/soc_ifc_top.sv:828-830 writes the qualifier as strap_we_pre_fuse_done | ~(|{cptra_uncore_dmi_unlocked_reg_wr_en, (cptra_uncore_dmi_reg_addr != DMI_REG_SS_DEBUG_INTENT)}). By De Morgan the negated reduction-OR equals ~cptra_uncore_dmi_unlocked_reg_wr_en & (cptra_uncore_dmi_reg_addr == DMI_REG_SS_DEBUG_INTENT), so the write enable term is inverted: the register is written precisely when no DMI write is asserted, and is not written when one is. Because the lifecycle restriction reaches this expression only through that same inverted term (src/soc_ifc/rtl/soc_ifc_top.sv:774-776 feeding :780), the access policy is inverted along with it: the write lands exactly in the debug-locked production state where the policy forbids it, and is refused in the manufacturing state where the policy permits it."
+  },
+  "security_feature_bypassed": "The lifecycle-gated TAP write restriction on SS_DEBUG_INTENT. The plan sets out to determine whether the flag can be set with no DMI write asserted on a debug-locked production part, whether a permitted DMI write is conversely ignored, and what the resulting flag gates.",
+  "proof_goal": "Establish on one unmodified soc_ifc_top compiled from the audited checkout that presenting the debug-intent address with data but no write enable sets the block's cptra_ss_debug_intent output in debug-locked production, that a legitimate DMI write in manufacturing lifecycle does not set it, and that a pwrgood reset still clears it.",
+  "proof_style": "Directed port-driven simulation of one real soc_ifc_top, paired with a scripted structural audit of the submitted tree that includes an exhaustive truth table over the transcribed expression, and a negative control that restores the sibling form of the qualifier.",
+  "invariant": "cptra_ss_debug_intent may transition from 0 to 1 only on a cycle where cptra_uncore_dmi_unlocked_reg_wr_en is high and the DMI address equals DMI_REG_SS_DEBUG_INTENT.",
+  "attacker_model": "Physical attacker. JTAG pin access is required; no software execution on the core, no debug authorisation, and no privileged software state are needed.",
+  "minimum_attack_sequence": [
+    "Bring the part up in subsystem mode and let the one-cycle strap capture window close.",
+    "Drive the uncore DMI address to 7'h63 and wdata[0] to 1, leaving the DMI write enable deasserted.",
+    "Observe cptra_ss_debug_intent assert even though the part is debug-locked and in production lifecycle."
+  ],
+  "controls": [
+    "control_reset_leaves_debug_intent_clear: after cold reset with the DMI idle the flag must read 0, showing the harness can observe the cleared state.",
+    "control_addr_mismatch_no_write: performing the identical attacker action on a neighbouring address (7'h62) must not set the flag. Without this the address decode could be doing nothing and the witness would be vacuous.",
+    "containment_pwrgood_reset_clears: a pwrgood reset applied after the spurious set must clear the flag, separating this defect from a claim that the register is stuck.",
+    "A second presentation of the same address with wdata[0]=0 is used to show the stored value tracks attacker-supplied data rather than being a fixed 1."
+  ],
+  "witness_construction_note": "The testbench instantiates one soc_ifc_top and drives it only through its declared ports. There is no force, no deposit and no hierarchical assignment to any DUT signal; the observation is taken from the DUT's own cptra_ss_debug_intent output. The legitimate-write task applies address, data and write enable on the same clock edge and retires them together, so no cycle exists in which the address is presented with the write enable low. Without that care the defect itself would set the flag during the legitimate write and mask the second half of the inversion.",
+  "expected_evidence": [
+    "A line showing the flag clear after cold reset with the DMI idle.",
+    "A line showing a neighbouring address with the same data and no write enable leaving the flag clear.",
+    "A line showing the debug-intent address with the same data and no write enable setting the flag, in debug-locked production.",
+    "A line showing the same address with wdata[0]=0 leaving the flag clear, establishing data control.",
+    "A line showing a permitted DMI write in manufacturing lifecycle failing to set the flag.",
+    "A containment line showing a pwrgood reset still clears the flag.",
+    "Structural gates covering the boolean reduction, the sibling idiom census, the register's documented access policy, the in-RTL comment the behaviour contradicts, and the downstream consumers of the flag."
+  ],
+  "success_criteria": [
+    "checks=5, fails=2 and witness_hits=1 in the directed simulation, the two failures being the two halves of the polarity inversion.",
+    "cov_reset_clear=1, cov_addr_mismatch_no_write=1, cov_no_write_sets_intent=1 and cov_legit_write_ignored=1.",
+    "All structural gates passing with RESULT: PASS, including the exhaustive truth table gate.",
+    "The negative control flips the identical testbench once the sibling form is restored: fails=0, both defect covers at 0, witness_hits=0, and both anti-vacuity controls plus the containment case still passing."
+  ],
+  "non_findings": [
+    "No claim is planned that software can trigger this defect. The register is software read-only per src/soc_ifc/rtl/soc_ifc_subsystem_reg.rdl:143 and the write path is JTAG-side, so the actor is a physical attacker.",
+    "No claim is planned that a debug unlock is completed. Setting the flag opens the request and level registers to software writes, but the unlock handshake involves authenticated payload checks outside this block and is not exercised.",
+    "No claim is planned about the strap capture path. strap_we_pre_fuse_done is a legitimate term of the same qualifier and is left intact by the proposed fix and by the negative control.",
+    "No claim is planned about the sibling strap registers on the same DMI port; they are examined only as the in-tree idiom, and all of them use the correct positive form."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/N-001/proof/tb/soc_ifc_top_bug_N001_tb.sv",
+    "script": "final_bug_submissions/N-001/proof/scripts/run_bug_N001_proof.sh",
+    "logs": "final_bug_submissions/N-001/proof/logs/"
+  }
+}

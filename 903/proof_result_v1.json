@@ -1,0 +1,71 @@
+{
+  "schema_version": "caliptra_bug_proof_result_v1",
+  "bug_id": "N-003",
+  "bug_name": "ecc_hmac_drbg_zeroize_residue",
+  "status": "confirmed_security_bug",
+  "method": "directed_single_dut_residue_effect_test",
+  "dut": {
+    "top": "ecc_hmac_drbg_interface",
+    "parameters": {
+      "REG_SIZE": "384"
+    },
+    "support_models": [
+      "proof/tb/ecc_hmac_drbg_child_models.sv"
+    ]
+  },
+  "source_locations": [
+    {
+      "path": "src/ecc/rtl/ecc_hmac_drbg_interface.sv",
+      "line": 237,
+      "excerpt": "The zeroize branch does not clear lfsr_seed_reg."
+    },
+    {
+      "path": "src/ecc/rtl/ecc_hmac_drbg_interface.sv",
+      "lines": "297-305",
+      "excerpt": "sca_entropy_reg is reset and loaded from sca_entropy on en while idle, with no zeroize assignment."
+    },
+    {
+      "path": "src/ecc/rtl/ecc_hmac_drbg_interface.sv",
+      "line": 310,
+      "excerpt": "sca_entropy combines IV, lfsr_seed_reg, and counter_nonce."
+    }
+  ],
+  "observations": [
+    {
+      "case": "reset_control",
+      "observed": "N003_CONTROL_RESET lfsr_seed_zero=1 sca_entropy_zero=1",
+      "result": "pass"
+    },
+    {
+      "case": "nonzero_setup",
+      "observed": "N003_SETUP_NONZERO lfsr_seed_reg_nonzero=1 sca_entropy_reg_nonzero=1 lambda_nonzero=1 scalar_nonzero=1 masking_nonzero=1 drbg_nonzero=1",
+      "result": "pass"
+    },
+    {
+      "case": "zeroize_witness",
+      "observed": "N003_WITNESS_AFTER_ZEROIZE lfsr_seed_reg_nonzero=1 sca_entropy_reg_nonzero=1 lambda_zero=1 scalar_zero=1 masking_zero=1 drbg_zero=1",
+      "expected": "zeroize clears all internal SCA entropy and masking-seed residue",
+      "result": "bug_observed"
+    },
+    {
+      "case": "restart_residue",
+      "observed": "N003_RESTART_INPUT_RESIDUE ready=1 hmac_entropy_uses_retained=1 retained_sca_entropy_nonzero=1",
+      "expected": "a post-zeroize restart must not source HMAC-DRBG entropy from retained pre-zeroize residue",
+      "result": "bug_observed"
+    }
+  ],
+  "root_cause": "The zeroize handling is split across register update blocks. The block that clears lambda_reg, scalar_rnd_reg, masking_rnd_reg, and drbg_reg omits lfsr_seed_reg in its zeroize branch. The block that holds counter_nonce_reg and sca_entropy_reg has reset and load behavior but no zeroize branch.",
+  "trigger_condition": "Run the ECC HMAC-DRBG interface until lfsr_seed_reg and sca_entropy_reg hold nonzero values, assert zeroize, then start or inspect a later HMAC-DRBG interface operation.",
+  "security_impact": "Sensitive SCA entropy and seed residue can survive an ECC zeroize event and influence the next ECC HMAC-DRBG entropy path. This weakens the wipe boundary intended to remove per-operation masking and randomization state.",
+  "limitations": [
+    "The proof uses deterministic child models for handshake and nonzero DRBG output, because the tested property is local zeroize retention inside ecc_hmac_drbg_interface."
+  ],
+  "artifacts": {
+    "testbench": "proof/tb/N003_ecc_hmac_drbg_zeroize_residue_tb.sv",
+    "support_models": "proof/tb/ecc_hmac_drbg_child_models.sv",
+    "script": "proof/scripts/run_n003_ecc_hmac_drbg_zeroize_residue.sh",
+    "compile_log": "proof/logs/compile.log",
+    "run_log": "proof/logs/run.log"
+  },
+  "success_marker": "N003_ZEROIZE_RESIDUE_WITNESS_PASS"
+}

@@ -1,0 +1,61 @@
+{
+  "triage_id": "soc_ifc_ocp_lock_hek_seed_outside_secret_scrub_chain",
+  "module": "soc_ifc",
+  "rtl_file": "src/soc_ifc/rtl/soc_ifc_fuse_reg.rdl",
+  "bug_id": "N-004",
+  "bug_name": "soc_ifc_hek_seed_fuse_has_no_hardware_clear",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "A party that gains debug or scan visibility of the part. src/integration/rtl/caliptra_top.sv:997 raises cptra_in_debug_scan_mode when the part becomes debug-unlocked, enters scan mode, or debug intent is set, and :772 folds that into the secret-scrubbing strobe. The scrubbing chain exists precisely so that a party arriving at that moment finds no DOE key material resident. The HEK seed is the one DOE secret input that does not honour it, so the actor who benefits is whoever inspects the part after that transition. Note the actor is NOT firmware on the core: the HEK fuse is already Caliptra Access: RO (src/soc_ifc/rtl/soc_ifc_fuse_reg.rdl:145), so firmware could read it before the strobe as well and gains nothing by raising one.",
+    "precondition": "The HEK seed fuse has been programmed, which src/soc_ifc/rtl/soc_ifc_fuse_reg.rdl:146 records as SOC Access: RWL-S, and the OCP LOCK feature is in use so the seed holds real key material. No debug authorisation, no lifecycle state and no privileged bus master are needed beyond the ability to write one error register.",
+    "input": "Programming the eight dwords of fuse_hek_seed at offset 0x3C0, then asserting the secret-scrubbing strobe, then reading fuse_hek_seed back over the same bus.",
+    "protected_asset": "The 256-bit obfuscated Hard Epoch Key seed, sized at src/keyvault/rtl/kv_defines_pkg.sv:43, which src/doe/rtl/doe_fsm.sv:276 selects as the source block for the DOE's HEK derivation flow. It is one of the four DOE secret inputs and is documented at src/soc_ifc/rtl/soc_ifc_fuse_reg.rdl:143-144 as tied to device ownership transfers in OCP LOCK.",
+    "security_property": "Every DOE secret input must be cleared when the secret-scrubbing strobe asserts, so that entering debug or scan mode, or taking a fatal error, does not leave key material resident in a register that survives the event. Concretely the register field must carry a hardware clear driven from that strobe, which is the form all three of its siblings use.",
+    "implemented_logic": "src/soc_ifc/rtl/soc_ifc_fuse_reg.rdl:147 declares fuse_hek_seed's field with the Fuse type defined at :21, which carries sw/hw access, swwel and a cptra_pwrgood reset but no hwclr. Its two sibling DOE secret fuses at :28 and :35 use the secret type at :19, which does carry hwclr. That choice propagates: the generated input struct for the Fuse type has one member where the secret type's has four (src/soc_ifc/rtl/soc_ifc_reg_pkg.sv), so soc_ifc_top has no clear to drive even in principle, and its HEK loop at src/soc_ifc/rtl/soc_ifc_top.sv:557-559 only reads the value out while the three loops immediately above it at :538, :542 and :550 each assign hwclr = clear_obf_secrets. The generated field logic at src/soc_ifc/rtl/soc_ifc_reg.sv:4066-4088 accordingly has no HW Clear branch and only a pwrgood reset arm, while the stored value remains readable on the software readback path at :7450."
+  },
+  "security_feature_bypassed": "Completeness of the secret-scrubbing chain that clears DOE secret inputs on debug entry, scan entry or fatal error. The plan sets out to determine whether the HEK seed survives that strobe while its siblings are cleared, whether the survivor is readable over the bus, and what independent protection it is also outside of.",
+  "proof_goal": "Establish on one unmodified soc_ifc_reg compiled from the audited checkout that after programming the HEK seed and the two sibling DOE secret fuses, asserting the secret-scrubbing strobe clears both siblings and leaves the HEK seed resident and bus-readable, and that only a pwrgood reset clears it.",
+  "proof_style": "Directed port-driven simulation of one real soc_ifc_reg, paired with a scripted structural audit of the submitted tree that counts the scrubbing chain and the field-type populations without naming the audited signal, and a negative control that gives the HEK family the sibling hardware clear.",
+  "invariant": "On any cycle where the secret-scrubbing strobe is asserted, every DOE secret input register, including fuse_hek_seed, must read zero on the following cycle.",
+  "attacker_model": "Authorized debug access. The actor obtains debug or scan visibility of a part whose HEK fuse was programmed, and finds the seed still resident where the scrubbing chain was supposed to have removed it. No software execution on the core is required, and no bypass of the debug authorisation itself is claimed.",
+  "minimum_attack_sequence": [
+    "A part whose HEK seed fuse has been programmed transitions into debug-unlocked or scan-visible state, which asserts the secret-scrubbing strobe.",
+    "Observe that the obf key, the UDS seed and the field entropy have been cleared while fuse_hek_seed still holds its programmed value.",
+    "Read fuse_hek_seed back at offset 0x3C0 and recover the 256-bit seed the scrub was meant to remove."
+  ],
+  "controls": [
+    "control_reset_leaves_all_secrets_clear: after cold reset with the strobe idle all three families must read 0, showing the harness can observe the cleared state.",
+    "control_fuse_programming_takes_effect: all three families must read non-zero after programming. Without this the run would be vacuous, because a secret that was never loaded is trivially clear after the scrub.",
+    "control_sibling_secrets_are_scrubbed: the two families that carry hwclr must reach 0 on the strobe. Without this the strobe could have reached nothing and the HEK observation would prove nothing.",
+    "containment_pwrgood_reset_clears_hek: a pwrgood reset must clear the seed, separating this defect from a claim that the register is stuck.",
+    "The strobe is held for 50 further cycles to separate a missing clear from a slow one."
+  ],
+  "witness_construction_note": "The testbench instantiates one soc_ifc_reg and drives it only through its declared ports: the s_cpuif_* bus, the hwif_in structure and cptra_pwrgood inside it. There is no force, no deposit and no hierarchical assignment to any DUT signal. The scrubbing strobe is fanned into exactly the hwif_in.hwclr members that soc_ifc_top.sv:542 and :550 drive from it, and the audited omission for the HEK family is reproduced by the only means available, since the generated input struct for that family has no hwclr member to connect. The negative control's added member is compiled behind a define that is absent on the audited run, so that code cannot mask the defect.",
+  "expected_evidence": [
+    "A line showing all three families clear after cold reset.",
+    "A line showing all three families non-zero after fuse programming.",
+    "A line showing the two sibling families cleared by the strobe while the HEK seed still holds its value.",
+    "A line showing the surviving HEK seed returned by a bus read.",
+    "A line showing the residue still present after 50 further cycles with the strobe held.",
+    "A containment line showing a pwrgood reset clears the seed.",
+    "Structural gates covering the two field types, the three-against-one scrubbing census, the generated block's missing clear branch, the second independent debug-mode substitution the seed is also outside of, and the asset's documented access policy."
+  ],
+  "success_criteria": [
+    "checks=7, fails=3 and witness_hits=1 in the directed simulation, the three failures being the missing scrub, its persistence and its bus readability.",
+    "cov_reset_clear=1, cov_write_takes_effect=1, cov_siblings_scrubbed=1, cov_hek_survives_scrub=1 and cov_pwrgood_clears_hek=1.",
+    "All structural gates passing with RESULT: PASS.",
+    "The negative control flips the identical testbench once the HEK family has the sibling clear: fails=0, the defect cover at 0, witness_hits=0, and all three harness controls plus the containment case still passing."
+  ],
+  "non_findings": [
+    "No claim is planned that the DOE's HEK derivation itself is wrong. The seed reaches the DOE correctly; the finding is that it is not scrubbed.",
+    "No claim is planned about the sibling fuses or the obf key. They are examined only as the in-tree idiom, and all three are correctly wired to the strobe.",
+    "No claim is planned that the residue survives a power cycle. The pwrgood reset does clear it, and the containment case establishes that.",
+    "No claim is planned that firmware can program the HEK fuse. Its documented Caliptra-side access is read-only; the programming step in the harness models the SOC-side write that the RDL permits."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/N-004/proof/tb/soc_ifc_reg_bug_N004_tb.sv",
+    "script": "final_bug_submissions/N-004/proof/scripts/run_bug_N004_proof.sh",
+    "logs": "final_bug_submissions/N-004/proof/logs/"
+  }
+}

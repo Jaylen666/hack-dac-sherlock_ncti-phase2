@@ -1,0 +1,68 @@
+{
+  "module": "csrng_state_db",
+  "bug_id": "009",
+  "bug_name": "csrng_state_db_bug_009",
+  "team_name": null,
+  "version": 1,
+  "status": "confirmed_security_bug",
+  "security_feature_bypassed": "Per-application authorization of CSRNG internal-state reads (INT_STATE_READ_ENABLE), the control that prevents one CSRNG application's DRBG key and V from being read out under a different application's authorization.",
+  "finding": "The CSRNG internal-state dump is qualified by application 0's read-enable bit for every application. src/csrng/rtl/csrng_state_db.sv:115 forms the qualification as int_st_dump_sel & {NApps{int_state_read_enable_i[0]}}, replicating bit 0 across all NApps lanes. That assignment sits immediately above the per-application generate loop at :117, so no per-application index is in scope where it is written, while the two sibling selects inside that loop at :118 and :119 are both indexed by rd. The qualified vector is then consumed per lane at :121, so lane rd gates application rd's internal state with application 0's bit, and int_state_read_enable_i appears nowhere else in the file. The tree states the intended rule for itself: src/csrng/data/csrng.rdl:221 describes the field as a per-instance enable whose bits govern the corresponding instance, and src/csrng/data/csrng.hjson:306 states the bit of the selected instance is what must be set. The dumped state reaches software: :140 packs it into internal_state_diag and :144 windows it into state_db_reg_rd_val_o, and the layout at :135-137 places the DRBG key and V inside that window. The reseed counter at :180 is exported unconditionally by design and is not the sensitive part.",
+  "location_or_code_reference": {
+    "competition_file": "src/csrng/rtl/csrng_state_db.sv:115",
+    "line_range": "112-122",
+    "supporting_references": [
+      "src/csrng/rtl/csrng_state_db.sv:50",
+      "src/csrng/rtl/csrng_state_db.sv:70",
+      "src/csrng/rtl/csrng_state_db.sv:71",
+      "src/csrng/rtl/csrng_state_db.sv:72",
+      "src/csrng/rtl/csrng_state_db.sv:117",
+      "src/csrng/rtl/csrng_state_db.sv:118",
+      "src/csrng/rtl/csrng_state_db.sv:119",
+      "src/csrng/rtl/csrng_state_db.sv:121",
+      "src/csrng/rtl/csrng_state_db.sv:135",
+      "src/csrng/rtl/csrng_state_db.sv:140",
+      "src/csrng/rtl/csrng_state_db.sv:144",
+      "src/csrng/rtl/csrng_state_db.sv:180",
+      "src/csrng/rtl/csrng_core.sv:1247",
+      "src/csrng/rtl/csrng_core.sv:1285",
+      "src/csrng/rtl/csrng_reg_top.sv:2317",
+      "src/csrng/data/csrng.rdl:221",
+      "src/csrng/data/csrng.rdl:227",
+      "src/csrng/data/csrng.hjson:306"
+    ]
+  },
+  "detection_method": "The module declares its authorization input as a vector one bit per application and provides a per-application generate loop, so every consumer of that vector was expected to carry an index. Reading the internal-state read block showed the qualification written one line above the loop, with a replication operator over bit 0 in place of an index, while the two selects inside the loop were both indexed. A tree-wide search established that the vector is referenced only twice in the file, ruling out any later logic recovering the per-application intent. The register description in the same tree was then read to confirm the intended rule is per instance rather than global, and the dump path was traced forward to the software-readable register window to establish that the exposed field is key material rather than the separately-exported reseed counter. The conclusion was confirmed by loading distinct marker keys into four applications on one unmodified instance and reading the window back under three authorization masks.",
+  "security_impact": "Software authorized to read one CSRNG application's internal state can read every other application's internal state, including that of the hardware EDN instances. The window carries the AES key and the V counter block, which together determine that application's future random output, so the disclosure undermines the unpredictability of entropy delivered to other consumers. The mirror direction denies reads to applications whose own bit is set whenever bit 0 is clear, an availability defect on a diagnostic path. Both directions were observed on the unmodified RTL in one run. The defect lies beneath the outer controls on this path (CTRL.READ_INT_STATE, otp_en_csrng_sw_app_read, INT_STATE_READ_ENABLE_REGWEN), so it is reachable once those are open; what it removes is the per-application separation inside them.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "Delete the out-of-loop qualification at src/csrng/rtl/csrng_state_db.sv:115, which replicates bit 0 across every application lane.",
+    "Add the qualification inside the existing per-application generate loop alongside the other per-application assignments at :118-121, as assign int_st_dump_qualified[rd] = int_st_dump_sel[rd] & int_state_read_enable_i[rd]; so each lane is gated by its own authorization bit. This matches the idiom the two sibling selects already use, and is exactly the change the negative control validates.",
+    "Optionally add an assertion that int_st_dump_qualified is zero in every lane whose int_state_read_enable_i bit is clear, alongside the existing one-hot assertion IntStOutSelOneHot_A at :229, so a future re-introduction is caught at the unit level."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:H/UI:N/S:C/C:H/I:N/A:L",
+    "base_score": 6.7,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "final_bug_submissions/009/proof_plan_v1.json",
+    "proof_result": "final_bug_submissions/009/proof_result_v1.json",
+    "script": "final_bug_submissions/009/proof/scripts/run_bug_009_proof.sh",
+    "sim_script": "final_bug_submissions/009/proof/scripts/run_bug_009_sim.sh",
+    "negative_control_script": "final_bug_submissions/009/proof/scripts/run_bug_009_negative_control.sh",
+    "testbench": "final_bug_submissions/009/proof/tb/csrng_state_db_bug_009_tb.sv",
+    "run_log": "final_bug_submissions/009/proof/logs/run.log",
+    "witness_log": "final_bug_submissions/009/proof/logs/witness.log",
+    "sim_log": "final_bug_submissions/009/proof/logs/sim.log",
+    "compile_log": "final_bug_submissions/009/proof/logs/compile.log",
+    "negative_control_log": "final_bug_submissions/009/proof/logs/negative_control.log",
+    "c_validation_status": "final_bug_submissions/009/c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Two or more CSRNG applications have been instantiated, so their internal states hold distinct key material. The internal-state read path is open: CTRL.READ_INT_STATE is set and otp_en_csrng_sw_app_read enables software reads.",
+    "Write INT_STATE_READ_ENABLE with bit 0 set and the target application's own bit clear, expressing the intent that the target must not be readable.",
+    "Write INT_STATE_READ_ID with the target application's id. This latches the dump target at src/csrng/rtl/csrng_state_db.sv:175 and rewinds the read pointer at :168.",
+    "Read INT_STATE_VAL repeatedly. Each read advances the pointer at :169, walking the 32-bit windows of the target application's internal state.",
+    "Words 5 through 12 of that walk return the target application's AES key and the preceding words its V block, despite the target's own authorization bit being clear."
+  ]
+}

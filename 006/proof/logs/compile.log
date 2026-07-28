@@ -1,0 +1,8 @@
+INFO verilator=Verilator 5.024 2024-04-05 rev v5.024
+INFO cxx=g++-10
+make: Entering directory './build/aes_prng_masking_witness'
+make: Nothing to be done for 'default'.
+make: Leaving directory './build/aes_prng_masking_witness'
+- V e r i l a t i o n   R e p o r t: Verilator 5.024 2024-04-05 rev v5.024
+- Verilator: Built from 0.000 MB sources in 0 modules, into 0.000 MB in 0 C++ files needing 0.000 MB
+- Verilator: Walltime 0.019 s (elab=0.000, cvt=0.000, bld=0.017); cpu 0.000 s on 1 threads; alloced 20.293 MB

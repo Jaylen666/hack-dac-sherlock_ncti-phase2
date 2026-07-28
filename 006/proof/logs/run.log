@@ -1,0 +1,7 @@
+BUG006_CONTROL force_masks_i=0 sec_allow_forcing_masks=0 observed_allow_lockup=0 observed_primitive_allow=0
+BUG006_WITNESS_GATE force_masks_i=1 sec_allow_forcing_masks=0 observed_allow_lockup=1 observed_primitive_allow=1 secure_expected=0
+BUG006_WITNESS_PASS
+- ./tb/BUG-006_aes_prng_masking_real_dut_tb.sv:56: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.024 2024-04-05
+- Verilator: $finish at 11ps; walltime 0.007 s; speed 0.000 s/s
+- Verilator: cpu 0.000 s on 1 threads; alloced 761 MB

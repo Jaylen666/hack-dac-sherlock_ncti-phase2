@@ -1,0 +1,33 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/N-004/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/N-004/proof/scripts/../negative_control_run/negative_control_sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 17:40 2026
+    after cold reset -> hek_all_zero=1 uds_all_zero=1 fe_all_zero=1
+case=control_reset_leaves_all_secrets_clear PASS
+    after fuse programming -> hek[0]=dec00000 uds[0]=0d500000 fe[0]=0fe00000
+case=control_fuse_programming_takes_effect PASS
+    with clear_obf_secrets asserted -> uds_all_zero=1 fe_all_zero=1 hek[0]=00000000
+case=control_sibling_secrets_are_scrubbed PASS
+case=violating_hek_seed_survives_secret_scrub PASS
+    after 50 further cycles with the strobe still high -> hek[0]=00000000
+case=violating_hek_residue_persists_while_strobe_held PASS
+    bus readback of fuse_hek_seed[0] after the strobe -> 00000000
+case=violating_surviving_hek_seed_is_readable_over_the_bus PASS
+    after pwrgood cold reset -> hek_all_zero=1
+case=containment_pwrgood_reset_clears_hek PASS
+cov_reset_clear=1
+cov_write_takes_effect=1
+cov_siblings_scrubbed=1
+cov_hek_survives_scrub=0
+cov_pwrgood_clears_hek=1
+witness_hits=0
+checks=7 fails=0
+result=NOT_THE_AUDITED_SIGNATURE
+PROOF_RESULT: SIGNATURE_MISMATCH
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/N-004/proof/tb/soc_ifc_reg_bug_N004_tb.sv", line 311.
+$finish at simulation time              1400000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 1400000 ps
+CPU Time:      0.310 seconds;       Data structure size:   0.1Mb
+Tue Jul 28 17:40:27 2026
+SIM RESULT: FAIL (no PASS verdict)

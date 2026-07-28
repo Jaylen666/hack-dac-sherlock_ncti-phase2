@@ -1,0 +1,52 @@
+{
+  "module": "keyvault",
+  "bug_id": "kv_bug_025",
+  "bug_name": "kv_read_rule_check_release_slot_mask_compare",
+  "triage_id": "KV-TRIAGE-025",
+  "version": 1,
+  "status": "false_alarm",
+  "proof_method_executed": "Directed single-DUT simulation of src/keyvault/rtl/kv_read_rule_check.sv (4 measured release-slot read decisions, 3 asserted controls passed, 0 failures) plus a 5-gate structural audit over the submitted tree enumerating every kv_read_dest producer, the KeyVault read control structure members, every driver of read_metrics.ocp_lock_in_progress, and the rule module's instantiation sites. Gates evaluated: 5 of 5. Assertion failures: 0. The audit gate that decides the case, gate 2, returned multihot_capable_producers=0.",
+  "result_summary": "The destination classification at src/keyvault/rtl/kv_read_rule_check.sv:64 is permissive as alleged, but the input it is permissive about cannot be produced anywhere in the submitted tree, so no reachable bypass exists.\n\nThe classification reads assign dest_selects_dma = |(read_metrics.kv_read_dest & DMA_DEST_ONEHOT), a reduction-OR over a bitwise AND rather than an equality comparison against the DMA one-hot encoding. Simulation confirms the consequence directly at the module boundary: with ocp_lock_in_progress asserted and kv_key_entry = 23, a destination vector of 0x101 (DMA data bit 8 together with HMAC-key bit 0) is granted read_allow=1, whereas the HMAC-key one-hot 0x001 alone is denied read_allow=0. An equality comparison would have denied 0x101. The two behaviors are therefore genuinely distinguishable, and only for destination vectors that set the DMA bit alongside at least one other bit.\n\nThe structural audit then establishes that no such vector can arise. All 6 assignments to read_metrics.kv_read_dest in the tree are single hardcoded one-hot shift literals of the form KV_NUM_READ'(1<<KV_DEST_IDX_<consumer>): src/aes/rtl/aes_clp_wrapper.sv:420, src/hmac/rtl/hmac.sv:437 and :473, src/axi/rtl/axi_dma_ctrl.sv:1350, src/ecc/rtl/ecc_dsa_ctrl.sv:892 and :928. Each read client owns a distinct KV_DEST_IDX constant and writes exactly one bit. Nothing merges two clients' destination bits: src/keyvault/rtl/kv_read_client.sv:64 is the single instantiation site of the rule module and passes read_metrics through unmodified, with no cross-client fan-in.\n\nSoftware has no path to the field either. kv_read_ctrl_reg_t, the structure each read client's control register decodes into, carries only rsvd, read_entry, pcr_hash_extend and read_en; the audit reports kv_read_ctrl_reg_t_dest_members=0. A destination selector exists only on the write side (write_dest_vld in kv_write_ctrl_reg_t), which does not reach the read-side rule. An attacker who controls a read client's control register can therefore choose read_entry, including the release slot 23, but cannot influence kv_read_dest at all.\n\nBecause every reachable destination vector is either a single one-hot bit or all-zero, the reduction-OR and an equality comparison produce identical rule_fail.no_read_key_release results for every input the design can present. The release-slot isolation rule is intact in behavior: a non-DMA consumer targeting slot 23 during OCP Lock provisioning is denied, which CONTROL_A measures directly.",
+  "security_impact_assessment": {
+    "impact": [
+      "No reachable security impact. For every destination vector producible by the 6 read clients in the submitted tree, the implemented classification yields the same grant or deny decision as an exact one-hot comparison, so the OCP Lock release-slot read isolation is enforced as specified.",
+      "Residual robustness concern, not a vulnerability in this tree: the classification's correctness depends on an invariant it does not itself enforce, namely that kv_read_dest is always at most one-hot. A future read client that legitimately drives two destination bits, or any change that routes a software-writable field into kv_read_dest, would silently convert this expression into a release-slot bypass. The rule module does not check one-hotness and no assertion in the module constrains it."
+    ],
+    "bypassed_feature": "None. The OCP Lock release-slot read isolation rule (no_read_key_release) holds for all reachable inputs.",
+    "attacker_model": [
+      "Privileged software at supervisor mode that can program any KeyVault read client's control register was assumed. Such an attacker can select read_entry = 23 but has no register field reaching kv_read_dest, so it cannot construct the multi-hot vector the permissive expression would admit."
+    ],
+    "confidence": "high"
+  },
+  "evidence": {
+    "competition_file": "src/keyvault/rtl/kv_read_rule_check.sv:64",
+    "line_range": "52-107",
+    "supporting_references": [
+      "src/keyvault/rtl/kv_read_rule_check.sv:78",
+      "src/keyvault/rtl/kv_read_rule_check.sv:104",
+      "src/keyvault/rtl/kv_read_client.sv:64",
+      "src/keyvault/rtl/kv_defines_pkg.sv:52",
+      "src/keyvault/rtl/kv_defines_pkg.sv:60",
+      "src/aes/rtl/aes_clp_wrapper.sv:420",
+      "src/hmac/rtl/hmac.sv:437",
+      "src/hmac/rtl/hmac.sv:473",
+      "src/axi/rtl/axi_dma_ctrl.sv:1350",
+      "src/ecc/rtl/ecc_dsa_ctrl.sv:892",
+      "src/ecc/rtl/ecc_dsa_ctrl.sv:928"
+    ],
+    "sim_log": "proof/logs/sim.log",
+    "witness_log": "proof/logs/witness.log",
+    "run_log": "proof/logs/run.log",
+    "compile_log": "proof/logs/compile.log",
+    "key_observation": "Measured at the kv_read_rule_check port boundary with ocp_lock_in_progress=1 and kv_key_entry=23 (OCP_LOCK_KEY_RELEASE_KV_SLOT): dest=0x001 (HMAC-key one-hot) gives read_allow=0; dest=0x100 (DMA-data one-hot) gives read_allow=1; dest=0x101 (DMA|HMAC-key, multi-hot) gives read_allow=1 with probe_multihot_classified_as_dma=1; dest=0x000 gives read_allow=0. checks_run=3 checks_failed=0. Structural audit: kv_read_dest_producer_sites=6, multihot_capable_producers=0, kv_read_ctrl_reg_t_dest_members=0, software_reachable_dest_field=no, rule module instantiation sites=1 (src/keyvault/rtl/kv_read_client.sv:64). The 0x101 grant is real but 0x101 has no producer, so the reachable input set is {0x001, 0x002, 0x008, 0x010, 0x020, 0x100, 0x000} on which the implemented expression and an exact comparison agree.",
+    "reachable_dest_vectors": "0x001 HMAC_KEY, 0x002 HMAC_BLOCK, 0x008 ECC_PKEY, 0x010 ECC_SEED, 0x020 AES_KEY, 0x100 DMA_DATA, plus 0x000 when no client drives the bus. MLDSA and MLKEM read clients (KV_DEST_IDX 2, 6, 7) reach the KeyVault through submodules/adams-bridge/src/abr_top/rtl/abr_ctrl.sv:294-302, which likewise assigns a single destination per client."
+  },
+  "non_findings": [
+    "Multi-hot destination bypass as an exploitable finding: withdrawn. The grant at dest=0x101 is measured and real, but gate 2 of the structural audit shows all 6 kv_read_dest assignments are single hardcoded one-hot shift literals, and gate 3 shows kv_read_ctrl_reg_t has no destination member (kv_read_ctrl_reg_t_dest_members=0). No instantiated client and no software register write can present a multi-hot vector.",
+    "Cross-client destination merging: withdrawn. src/keyvault/rtl/kv_read_client.sv:64 is the only instantiation of kv_read_rule_check and forwards read_metrics unmodified; each client instantiates its own read client with its own metrics struct, so no OR-reduction across clients occurs.",
+    "Zero-destination divergence: withdrawn by measurement, as pre-committed in the plan. dest=0x000 with a release-slot target yields read_allow=0, the same denial an equality comparison gives, because |(0 & mask) is 0 and 0 does not equal the DMA one-hot.",
+    "SHA-512 as a release-slot reader: withdrawn. The kv_read_client instance in src/sha512/rtl/sha512.sv:430 has its vault side connected to the PCR vault, src/sha512/rtl/sha512.sv:424-426 assigning pv_read and taking pv_rd_resp, and sha512_ctrl is instantiated at src/integration/rtl/caliptra_top.sv:923 with no KeyVault read port. The all-zero kv_read_metrics at src/sha512/rtl/sha512.sv:483-486 therefore does not disable a live KeyVault filter; SHA-512 cannot address the release slot at all. The shared kv_ prefixed type names describe the vault client protocol, not the vault instance.",
+    "Stale-grant behavior of the registered read_allow across the read_done window at src/keyvault/rtl/kv_read_rule_check.sv:95-107 was observed while reading the module but is a separate question from the destination classification and is not assessed here; the testbench closes the grant window between requests so it cannot influence these measurements."
+  ],
+  "conclusion": "False alarm on reachability grounds. The destination classification at src/keyvault/rtl/kv_read_rule_check.sv:64 is genuinely permissive for multi-hot destination vectors, and simulation demonstrates a release-slot read is granted when the DMA bit is set alongside a non-DMA consumer bit. However every one of the 6 kv_read_dest producers in the submitted tree emits a single hardcoded one-hot literal, no cross-client merging exists, and the read control structure exposes no destination field to software, so the multi-hot input is unreachable. The release-slot isolation rule is enforced correctly for all inputs the design can present, and the alleged bypass is withdrawn. What remains is a hardening observation worth recording: the expression relies on a one-hot invariant it does not enforce, so an added assertion or an exact comparison would keep the rule safe under future changes to the destination encoding."
+}

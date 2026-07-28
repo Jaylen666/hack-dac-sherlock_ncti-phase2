@@ -1,0 +1,44 @@
+{
+  "schema_version": "caliptra_bug_proof_plan_v1",
+  "bug_id": "012",
+  "bug_name": "doe_uds_write_dest_valid_expansion",
+  "title": "DOE UDS flow grants AES-key destination validity while writing deobfuscated material to KeyVault",
+  "claim": "The DOE FSM hard-codes the UDS write_dest_valid mask to 9'h023. That mask includes bit 5, the AES-key consumer bit, so UDS-derived material is marked valid for AES consumption in addition to the intended HMAC destinations.",
+  "source_locations": [
+    {
+      "path": "src/doe/rtl/doe_fsm.sv",
+      "lines": "131-133",
+      "excerpt": "running_uds, running_fe, and running_hek are decoded from doe_cmd_reg.cmd."
+    },
+    {
+      "path": "src/doe/rtl/doe_fsm.sv",
+      "line": 268,
+      "excerpt": "The UDS branch drives kv_write.write_dest_valid as 9'h023."
+    },
+    {
+      "path": "src/keyvault/rtl/kv_defines_pkg.sv",
+      "lines": "52-60",
+      "excerpt": "KeyVault destination bit 5 is KV_DEST_IDX_AES_KEY."
+    }
+  ],
+  "security_invariant": "A DOE UDS flow must not mark the resulting KeyVault entry as valid for AES-key use unless that destination is explicitly intended.",
+  "attacker_model": {
+    "adversary_profile": "Privileged software at supervisor mode",
+    "capability": "Can initiate or influence a DOE command sequence and then rely on downstream KeyVault destination-valid metadata.",
+    "preconditions": [
+      "DOE command decode selects DOE_UDS.",
+      "The DOE FSM drives its KeyVault write interface."
+    ]
+  },
+  "proof_style": "Directed single-DUT Verilator witness at the doe_fsm boundary.",
+  "controls": [
+    "DOE_FE produces write_dest_valid=0x003, demonstrating that the harness observes the expected HMAC destination mask on a non-UDS command."
+  ],
+  "witness": [
+    "DOE_UDS produces write_dest_valid=0x023, proving that destination bit 5 is asserted."
+  ],
+  "expected_evidence": [
+    "proof/logs/compile.log records a single-DUT Verilator build of doe_fsm with a directed testbench.",
+    "proof/logs/run.log records BUG012_CONTROL_FE, BUG012_WITNESS, and BUG012_WITNESS_PASS."
+  ]
+}

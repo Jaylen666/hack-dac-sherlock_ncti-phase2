@@ -37,6 +37,8 @@ root  = os.environ["CALIPTRA_ROOT"]
 proot = os.environ["CALIPTRA_PRIM_ROOT"]
 pfx   = os.environ["CALIPTRA_PRIM_MODULE_PREFIX"]
 canonical_dut = os.path.join(root, "src/csrng/rtl/csrng_state_db.sv")
+
+incdirs, pkgs, rest = [], [], []
 for line in open(vf):
     line = line.strip()
     if not line or line.startswith("//"):
@@ -47,8 +49,27 @@ for line in open(vf):
     # Swap the DUT for the copy under test (identity when not patched).
     if os.path.normpath(line) == os.path.normpath(canonical_dut):
         line = dut
+    if line.startswith("+"):
+        incdirs.append(line)
+    elif line.endswith("_pkg.sv"):
+        pkgs.append(line)
+    else:
+        rest.append(line)
+
+# Compile-order only: csrng.vf lists ${CALIPTRA_PRIM_ROOT}/rtl/..._ram_1p.sv (line 27)
+# ahead of caliptra_prim/rtl/caliptra_prim_ram_1p_pkg.sv (line 43), and VCS requires a
+# package to be compiled before the module that scope-resolves into it. Package files
+# are hoisted ahead of module files here; relative order within each group, the file
+# set, and the file contents are all unchanged from the project's own filelist.
+for line in incdirs + pkgs + rest:
     print(line)
 PY
+
+# csrng.vf lists src/aes/rtl/aes_clp_wrapper.sv, which includes
+# caliptra_reg_field_defines.svh, but the filelist ships no +incdir for the generated
+# register headers. Other filelists in the tree (e.g. src/axi/config/axi_dma.vf) add
+# this directory; supply it here so the project's own closure compiles unchanged.
+echo "+incdir+$CMP/src/integration/rtl/caliptra_reg" >> filelist.f
 
 echo "$TB/csrng_state_db_bug_009_tb.sv" >> filelist.f
 

@@ -1,0 +1,157 @@
+===== BUG-015 structural audit (single-tree, audited RTL only) =====
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+
+----- 1. the defect: the zeroize arm keeps digest_valid_reg set -----
+  PASS: hmac_core.sv:181 opens the always_ff that holds this FSM's control and validity state, named reg_update
+  PASS: hmac_core.sv:183 opens the reset arm
+  PASS: hmac_core.sv:185 shows the reset arm clearing digest_valid_reg, so the file treats it as state a full clear must zero
+  PASS: hmac_core.sv:190 opens the zeroize arm, five lines below, on the same registers
+  PASS: no CODE line in the zeroize arm (hmac_core.sv:190-196) clears digest_valid_reg; the register is named there only inside the comment that justifies the omission, so a security zeroize leaves the tag-validity flag asserted
+reset_arm_assignments=3
+zeroize_arm_assignments=2
+reset_arm_assignments=3 zeroize_arm_assignments=2
+  PASS: the reset arm assigns all 3 registers this always_ff holds
+  PASS: the zeroize arm assigns only 2 of them
+  PASS: the difference is exactly 1 register, matching the digest_valid_reg named above, so the omission is complete and not a partial clear
+
+----- 2. the file's own comment claims a refresh the file does not provide -----
+  PASS: hmac_core.sv:192-193 carries a comment justifying the omission, claiming the normal update path refreshes digest_valid_reg on a later cycle
+  PASS: hmac_core.sv:202-203 is that normal update path, and it writes digest_valid_reg only when digest_valid_we is raised, so the comment's claim depends entirely on that enable
+  PASS: hmac_core.sv:329 defaults digest_valid_we to zero at the top of the FSM always_comb
+  PASS: hmac_core.sv:336 opens the CTRL_IDLE arm, which is the state the zeroize arm forces the FSM into
+  PASS: the init_cmd branch of CTRL_IDLE (hmac_core.sv:339-343) sets digest_valid_new but never raises digest_valid_we, so even starting a new operation does not perform the refresh the comment promises
+  PASS: hmac_core.sv:337 shows CTRL_IDLE reporting ready, so the engine advertises itself as idle and available while the stale validity flag is still set
+ctrl_idle_write_enable_assertions=1
+default_arm_write_enable_clears=1
+ctrl_idle_write_enable_assertions=1 default_arm_write_enable_clears=1
+  PASS: CTRL_IDLE raises digest_valid_we exactly once, in the next_cmd branch only, so an idle engine that receives no command never refreshes the flag
+  PASS: the FSM default arm explicitly clears digest_valid_we, confirming no unlisted path performs the refresh either
+
+----- 3. what the stale flag gates: the whole tag output -----
+  PASS: hmac_core.sv:111 makes the entire 512-bit tag output conditional on digest_valid_reg, so this single uncleared bit decides whether the tag is presented or forced to zero
+  PASS: hmac_core.sv:112 exports the same register as the module's tag_valid output, so the stale flag is visible to the parent as a completion claim
+  PASS: hmac.sv:185 receives that output as core_tag_valid
+  PASS: hmac.sv:163 derives the tag capture enable from a RISING EDGE of core_tag_valid against the parent's own tag_valid_reg, so the pair of flags must agree for the parent to behave correctly
+  PASS: hmac.sv:214 shows the parent's zeroize arm clearing tag_valid_reg, so after a zeroize the parent believes no tag is valid while the child still asserts one, which is exactly the disagreement core_tag_we is built to detect as a new completion
+  PASS: hmac.sv:227 is what that enable gates: the write of the child's tag into the software-readable tag register
+  PASS: hmac.sv:267 clears the software-visible TAG register on zeroize, showing the design's intent is that no tag survives a zeroize
+
+----- 4. tree control: the child masked core mirrors its arms -----
+  PASS: sha512_masked_core.sv:269 opens the state-holding always block of the child core that hmac_core instantiates twice
+  PASS: sha512_masked_core.sv:271 opens that child's reset arm
+  PASS: sha512_masked_core.sv:290 shows that reset arm clearing its own digest_valid_reg
+  PASS: sha512_masked_core.sv:297 opens its zeroize arm, on the same zeroize signal hmac_core passes down
+  PASS: sha512_masked_core.sv:316 shows the child's zeroize arm clearing digest_valid_reg too, so the child does on zeroize exactly what its parent omits
+masked_core_reset_arm_assignments=22
+masked_core_zeroize_arm_assignments=22
+masked_core_reset_arm_assignments=22 masked_core_zeroize_arm_assignments=22
+  PASS: in the child the two arms assign the same number of registers (22 each), which is exactly the relation hmac_core breaks
+  PASS: hmac_core.sv:120 passes its own zeroize straight into the first child instance, so parent and child act on the identical strobe
+  PASS: hmac_core.sv:139 does the same for the second child instance
+
+----- 5. tree control: the parent's own zeroize arm is exhaustive too -----
+  PASS: hmac.sv:171 wires the parent's zeroize_reg into hmac_core's zeroize port, so the parent below is the block that owns the strobe
+  PASS: hmac.sv:259 sources that strobe from the software-writable HMAC512_CTRL.ZEROIZE field, so a software write reaches the incomplete arm
+  PASS: hmac.sv:210 opens the parent's own zeroize arm, on the same strobe it passes down
+hmac_reset_arm_assignments=7
+hmac_zeroize_arm_assignments=7
+hmac_reset_arm_assignments=7 hmac_zeroize_arm_assignments=7
+  PASS: the parent's two arms assign the same number of registers (7 each), so the convention on this very strobe is to mirror the reset arm exhaustively
+
+--- src/hmac/rtl/hmac_core.sv:181,209 (the always_ff and its three arms) ---
+  always_ff @(posedge clk or negedge reset_n) begin : reg_update
+    unique case (1'b1)
+      !reset_n: begin
+        // Async power-on/core reset: force every status/control reg to idle
+        digest_valid_reg <= 1'b0;
+        hmac_ctrl_reg    <= CTRL_IDLE;
+        hmac_ctrl_last   <= CTRL_IDLE;
+      end
+
+      zeroize: begin
+        // Security zeroize request: collapse control FSM back to idle.
+        // digest_valid_reg is refreshed by the normal update path below
+        // on a later cycle, so it does not need to be touched here.
+        hmac_ctrl_reg  <= CTRL_IDLE;
+        hmac_ctrl_last <= CTRL_IDLE;
+      end
+
+      default: begin
+        // Normal operating path: latch previous ctrl state, apply pending updates
+        hmac_ctrl_last <= hmac_ctrl_reg;
+
+        if (digest_valid_we)
+          digest_valid_reg <= digest_valid_new;
+
+        if (hmac_ctrl_we)
+          hmac_ctrl_reg <= hmac_ctrl_new;
+      end
+    endcase
+  end : reg_update
+
+--- src/sha512_masked/rtl/sha512_masked_core.sv:288,321 (the child, whose arms match) ---
+          H7_reg              <= 64'h0;
+          ready_reg           <= 1'b1;
+          digest_valid_reg    <= 1'b0;
+          round_ctr_reg       <= 7'h0;
+          rnd_ctr_reg         <= 7'h0;
+          sha512_ctrl_reg     <= CTRL_IDLE;
+          masking_rnd         <= '0;
+        end
+
+      else if (zeroize) 
+        begin
+          a_reg               <= {64'h0, 64'h0};
+          b_reg               <= {64'h0, 64'h0};
+          c_reg               <= {64'h0, 64'h0};
+          d_reg               <= {64'h0, 64'h0};
+          e_reg               <= {64'h0, 64'h0};
+          f_reg               <= {64'h0, 64'h0};
+          g_reg               <= {64'h0, 64'h0};
+          h_reg               <= {64'h0, 64'h0};
+          H0_reg              <= 64'h0;
+          H1_reg              <= 64'h0;
+          H2_reg              <= 64'h0;
+          H3_reg              <= 64'h0;
+          H4_reg              <= 64'h0;
+          H5_reg              <= 64'h0;
+          H6_reg              <= 64'h0;
+          H7_reg              <= 64'h0;
+          ready_reg           <= 1'b1;
+          digest_valid_reg    <= 1'b0;
+          round_ctr_reg       <= 7'h0;
+          rnd_ctr_reg         <= 7'h0;
+          sha512_ctrl_reg     <= CTRL_IDLE;
+          masking_rnd         <= '0;
+        end
+
+--- src/hmac/rtl/hmac_core.sv:326,351 (the FSM idle arm the comment relies on) ---
+  always_comb begin : hmac_ctrl_fsm
+    ready_flag       = 1'b0;
+    digest_valid_new = 1'b0;
+    digest_valid_we  = 1'b0;
+    hmac_ctrl_new    = CTRL_IDLE;
+    hmac_ctrl_we     = 1'b0;
+
+    set_entropy = 1'b0;
+
+    unique case (hmac_ctrl_reg)
+      CTRL_IDLE: begin
+        ready_flag = 1'b1;
+
+        if (init_cmd) begin
+          digest_valid_new = 1'b0;
+          hmac_ctrl_new    = CTRL_IPAD;
+          hmac_ctrl_we     = 1'b1;
+        end
+
+        if (next_cmd) begin
+          digest_valid_new = 1'b0;
+          digest_valid_we  = 1'b1;
+          hmac_ctrl_new    = CTRL_OPAD;
+          hmac_ctrl_we     = 1'b1;
+        end
+      end
+
+structural_gates_passed=35/35
+RESULT: PASS

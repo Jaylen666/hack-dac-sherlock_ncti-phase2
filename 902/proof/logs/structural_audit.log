@@ -1,0 +1,51 @@
+== BUG-N-002 structural audit ==
+tree: /home/smy/hackatdac26-phase-2-caliptra
+
+-- group 1: the reg_update block has three branches --
+gate_ok   sha512.sv:216 opens the reg_update block
+gate_ok   sha512.sv:217 is the asynchronous reset branch
+gate_ok   sha512.sv:229 is the zeroize branch
+gate_ok   sha512.sv:239 is the normal-operation branch
+
+-- group 2: the reset branch clears both routing registers --
+gate_ok   sha512.sv:224 clears pcr_hash_extend_ip on asynchronous reset
+gate_ok   sha512.sv:225 clears hash_extend_entry on asynchronous reset
+
+-- group 3: the zeroize branch omits exactly those two --
+gate_ok   the zeroize branch performs 8 assignments
+gate_ok   pcr_hash_extend_ip is absent from the zeroize branch
+gate_ok   hash_extend_entry is absent from the zeroize branch
+gate_ok   the zeroize branch does clear digest_reg, so it is not a stub
+gate_ok   the zeroize branch does clear kv_reg
+gate_ok   the zeroize branch does clear pcr_sign_reg
+
+-- group 4: their only updates are in the branch zeroize skips --
+gate_ok   sha512.sv:255-256 updates pcr_hash_extend_ip inside the normal branch
+gate_ok   sha512.sv:257 updates hash_extend_entry inside the normal branch
+gate_ok   pcr_hash_extend_ip has exactly 2 assignment sites: reset and normal operation
+gate_ok   hash_extend_entry has exactly 2 assignment sites: reset and normal operation
+
+-- group 5: what the residual bits control --
+gate_ok   sha512.sv:459-462 gates all four pv_write fields on pcr_hash_extend_ip
+gate_ok   sha512.sv:470 forces the vault write enable to 1 while the bit is set
+gate_ok   sha512.sv:471 overrides the destination entry with hash_extend_entry
+gate_ok   sha512.sv:425 also routes the vault read on the same bit
+gate_ok   sha512.sv:335 holds the PCR hash status not-ready while the bit is set
+
+-- group 6: the residual state cannot retire on its own --
+gate_ok   sha512.sv:372 is the only non-reset clear, and it needs a vault completion
+gate_ok   sha512.sv:371 sets the bit from two software-writable register fields
+gate_ok   the zeroize source at sha512.sv:284-286 includes the debug-unlock/scan switch
+gate_ok   the same zeroize_reg is what the SHA-512 core itself is erased with
+
+-- group 7: software reachability of the witness inputs --
+gate_ok   the SHA-512 block sits at 0x10020000 in the MMIO map
+gate_ok   VAULT_RD_CTRL, the register that raises the bit, is software-addressable
+gate_ok   pcr_hash_extend is bit 6 of that register
+gate_ok   read_entry, which becomes hash_extend_entry, starts at bit 1
+gate_ok   SHA512_CTRL, which carries ZEROIZE, is software-addressable
+gate_ok   ZEROIZE is bit 4 of SHA512_CTRL
+gate_ok   GEN_PCR_HASH_STATUS, the register the witness observes, is software-readable
+
+structural_gates_passed=32/32
+result=PASS

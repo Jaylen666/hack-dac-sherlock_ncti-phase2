@@ -1,0 +1,24 @@
+BUG-009 negative control
+source DUT : /home/smy/hackatdac26-phase-2-caliptra/src/csrng/rtl/csrng_state_db.sv
+patched DUT: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/009/proof/scripts/../scratch/csrng_state_db.sv
+date=2026-07-28T15:13:19+08:00
+patch applied: dump qualification indexed per application inside the generate loop
+
+sim exit code                       : 1 (nonzero expected)
+BUG_009 witness lines               : 0 (must be 0)
+control read still granted          : 1 (must stay 1)
+unauthorized app now denied         : 1 (must be 1)
+authorized app now granted          : 1 (must be 1)
+containment case still passing      : 1 (must stay 1)
+TBFAIL lines total                  : 0 (must be 0)
+
+CONCLUSION: On the audited RTL, application 1's DRBG key word is readable
+through the software dump window while application 1's own authorization bit
+is clear, and is withheld while that bit is set -- application 0's bit is the
+effective gate in both directions. With the qualification indexed per
+application in a scratch copy, both violations disappear: the unauthorized
+application dumps zeros and the authorized one is served, while the control
+read and the all-bits-clear containment case pass before and after the
+change. The observation is a property of the audited RTL, not of the
+testbench.
+NEGATIVE CONTROL: PASS

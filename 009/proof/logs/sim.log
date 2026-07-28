@@ -1,0 +1,37 @@
+Command: /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/009/proof/build/./simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/009/proof/logs/sim.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 15:11 2026
+===== BUG-009 directed witness: per-application int-state read authorization =====
+      loaded states for 4 applications
+--- control_app0_authorized_reads_app0 ---
+      app0 key word=6be00000 (expected 6be00000)
+  case=control_app0_authorized_reads_app0 PASS an application authorized by its own bit must be readable
+--- violating_app1_denied_but_readable ---
+      app1 key word=6be00001 (its own enable bit is 0, expected 00000000)
+      OBSERVED: BUG_009_WITNESS_OBSERVED application 1 DRBG key word read out while int_state_read_enable=4'b0001 leaves bit 1 clear
+  TBFAIL case=violating_app1_denied_but_readable an application whose own enable bit is clear must dump zeros
+--- violating_app1_authorized_but_denied ---
+      app1 key word=00000000 (its own enable bit is 1, expected 6be00001)
+      OBSERVED: BUG_009_WITNESS_OBSERVED application 1 refused while int_state_read_enable=4'b0010 sets its own bit, so bit 0 is the effective gate
+  TBFAIL case=violating_app1_authorized_but_denied an application authorized by its own bit must not be refused
+--- containment_all_bits_clear_denies_all ---
+      app0 key word=00000000
+      app1 key word=00000000
+      app2 key word=00000000
+      app3 key word=00000000
+  case=containment_all_bits_clear_denies_all PASS with no application authorized, no internal state may be dumped
+
+cov_own_bit_grants=1
+cov_denied_app_readable_via_app0=1
+cov_authorized_app_denied_by_app0=1
+witness_hits=2
+checks=4 fails=2
+result=PASS
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/009/proof/tb/csrng_state_db_bug_009_tb.sv", line 279.
+$finish at simulation time              1175000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 1175000 ps
+CPU Time:      0.310 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 15:12:00 2026

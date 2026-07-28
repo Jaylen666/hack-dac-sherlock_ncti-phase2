@@ -1,0 +1,48 @@
+{
+  "schema_version": "caliptra_bug_submission_v1",
+  "module": "doe",
+  "bug_id": "012",
+  "bug_name": "doe_uds_write_dest_valid_expansion",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_security_bug",
+  "security_feature_bypassed": "KeyVault destination-valid isolation for DOE UDS output, which should keep UDS-derived material from being tagged as AES-key-valid.",
+  "finding": "The DOE FSM hard-codes KeyVault destination-valid metadata at src/doe/rtl/doe_fsm.sv:268. For DOE_UDS, the expression drives 9'h023. KeyVault defines bit 5 as KV_DEST_IDX_AES_KEY, so this UDS path asserts the AES-key destination-valid bit in addition to the lower HMAC destination bits. The directed witness observes DOE_FE producing 0x003 as a control and DOE_UDS producing 0x023 with expanded_bit5=1.",
+  "location_or_code_reference": {
+    "competition_file": "src/doe/rtl/doe_fsm.sv:268",
+    "line_range": "265-269",
+    "supporting_references": [
+      "src/doe/rtl/doe_fsm.sv:131-133",
+      "src/keyvault/rtl/kv_defines_pkg.sv:52-60"
+    ],
+    "attachment_note": "The detection code and reproduction scripts used for this submission are included in the attachment linked with this submission."
+  },
+  "detection_method": "CSBC identified the candidate using LLM-driven RTL security analysis, and the issue was independently validated by directed single-DUT Verilator simulation.",
+  "security_impact": "UDS-derived material can be labeled as an AES-key-valid KeyVault entry. This weakens destination separation for provisioning material and can allow downstream cryptographic logic to consume material under an unintended authorization tag.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "Use an explicit UDS destination-valid mask that does not include KV_DEST_IDX_AES_KEY unless AES-key consumption is intentionally authorized by the DOE security policy.",
+    "Add an assertion or regression that DOE_UDS never sets the AES_KEY destination bit.",
+    "Prefer named destination-mask constants over raw 9'h023 so the policy is explicit in the RTL."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:N",
+    "base_score": 6.0,
+    "severity": "Medium"
+  },
+  "test_submitted": {
+    "proof_plan": "proof_plan_v1.json",
+    "proof_result": "proof_result_v1.json",
+    "script": "proof/scripts/run_bug_012_doe_fsm_witness.sh",
+    "testbench": "proof/tb/BUG-012_doe_fsm_real_dut_tb.sv",
+    "compile_log": "proof/logs/compile.log",
+    "run_log": "proof/logs/run.log",
+    "success_marker": "BUG012_WITNESS_PASS"
+  },
+  "exploit_or_attack_flow": [
+    "A DOE UDS flow is selected.",
+    "The DOE FSM computes the KeyVault write-destination mask.",
+    "The hard-coded UDS mask sets bit 5, which KeyVault defines as AES-key validity.",
+    "Downstream AES-key consumers can see the written entry as valid for AES use."
+  ]
+}

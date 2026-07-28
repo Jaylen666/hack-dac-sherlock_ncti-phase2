@@ -1,0 +1,56 @@
+{
+  "module": "doe_fsm",
+  "bug_id": "011",
+  "bug_name": "doe_fsm_bug_011",
+  "version": 1,
+  "status": "planned",
+  "security_frame": {
+    "attacker": "No adversary is required to trigger the primary effect: the release condition is wrong in the steady operating state, whenever the core is ready. Reaching the state where it matters requires software able to write the DOE CMD register, which is privileged.",
+    "precondition": "A released reset with the DOE core up, so init_done (doe_cbc.sv:256, core_ready) is high. A de-obfuscation flow in progress, so the FSM is outside DOE_IDLE. Then a zeroize event, which doe_cbc.sv:213-214 raises from either a DOE_CLEAR command or debugUnlock_or_scan_mode_switch.",
+    "input": "Start a UDS de-obfuscation flow by writing DOE CMD, let the FSM leave DOE_IDLE, then raise zeroize for a single cycle. The command register is cleared to NOP in the same cycle by doe_cbc.sv:203-204, so no command is pending during the window that follows.",
+    "protected_asset": "The guarantee the module documents for itself at doe_fsm.sv:115-118: after a zeroize the FSM stays parked in DOE_IDLE, with dest_write_offset, block_offset and dest_addr held at zero, until the next DOE_CMD is issued. dest_addr selects the key vault entry a flow writes to, and doe_fsm.sv:234 captures it only on the IDLE->INIT arc that the hold suppresses.",
+    "security_property": "doe_fsm.sv:115-118 states the intent in the module's own words: zeroize arrives as a single pulse, the FSM should remain in IDLE until the next DOE_CMD is issued, the pulse is extended to a level to achieve that, and the extended signal is reset when the next command is issued. docs/CaliptraHardwareSpecification.md:2588-2600 describes the clear-obf-secrets command as the step that flushes the obfuscation key, the obfuscated UDS and the field entropy.",
+    "implemented_logic": "doe_fsm.sv:126 releases the extended hold on ((running_uds || running_fe || running_hek) || (init_done && (kv_doe_fsm_ps != DOE_IDLE))). The first group is the flow-specific release the comment describes. The second disjunct is not flow-specific: init_done is an input wired to core_ready, high whenever the core is up, so as soon as the hold has forced the FSM out of DOE_IDLE the condition for clearing it is already satisfied, and the level collapses to roughly one cycle instead of spanning the wait for the next command."
+  },
+  "security_feature_bypassed": "To be determined by simulation. The mechanism under test is a self-declared cleanup hold, so whether shortening it is adversary-reachable has to be measured rather than assumed. zeroize_reg has exactly one consumer, the state flop at doe_fsm.sv:286, and that branch performs no key or key-vault wipe of its own, so the plan does not presuppose a confidentiality claim.",
+  "proof_goal": "Establish on one unmodified doe_fsm instance, compiled from the audited checkout through the project's own doe_ctrl filelist, that the extended zeroize hold no longer spans the interval the module documents: after a single-cycle zeroize pulse the next command reaches DOE_INIT with the same latency as a cold start out of reset, so the hold contributed nothing. Then bound the claim by showing the abort itself still happens and the hold mechanism still works when zeroize is held as a level.",
+  "proof_style": "Directed port-driven simulation of one real DUT, paired with a scripted structural audit of the surrounding tree and a negative control that applies the proposed mitigation to a scratch copy.",
+  "invariant": "After a zeroize event, a subsequent DOE command must not reach DOE_INIT as quickly as it would have with no zeroize at all: the extended hold must absorb at least one cycle, because the module states the FSM remains in IDLE until the next DOE_CMD is issued.",
+  "attacker_model": "Privileged software at supervisor mode, being the privilege level that can write the DOE CMD register and therefore both start a de-obfuscation flow and raise DOE_CLEAR while that flow is in progress.",
+  "minimum_attack_sequence": [
+    "Write DOE CMD with a de-obfuscation command so the FSM leaves DOE_IDLE.",
+    "While the flow is in progress, raise zeroize by writing DOE_CLEAR, which also clears the command register to NOP.",
+    "Wait, with no command pending, over the interval the extended hold is supposed to cover.",
+    "Write a new DOE command and observe how quickly the FSM advances to DOE_INIT."
+  ],
+  "controls": [
+    "control_cold_start_reaches_init: measure the command-to-doe_init latency out of reset with no zeroize anywhere in the run, to establish the reference against which the post-zeroize latency is compared.",
+    "discriminator_level_zeroize_delays_next_cmd: repeat the sequence with zeroize held as a level for the whole quiet window. The flop's own zeroize branch takes priority over the release, so this case must still show the delay. It separates 'the release condition is wrong' from 'the hold never works at all', which the witness alone cannot distinguish.",
+    "containment_no_kv_write_after_zeroize: confirm a zeroize pulse still lands the FSM back in DOE_IDLE with no key vault write and no source write left in flight, which bounds the claim to the duration of the hold rather than the existence of the abort."
+  ],
+  "witness_construction_note": "The testbench instantiates one doe_fsm and drives it only through its declared ports. No force, no deposit, no hierarchical assignment into the DUT, and no second checkout. zeroize_reg is module-local, so the hold is not observed directly: it is measured through the ports as the latency from asserting a command to doe_init rising, because the hold's only effect is to force the state flop to DOE_IDLE. dest_data_avail is held low for the whole run so the flow never reaches DOE_DONE, flow_done never asserts, no lock arms, and the same command can be re-issued in every case. Stimulus changes on negedge and doe_init is sampled after the posedge, so no measurement races the sampling edge.",
+  "expected_evidence": [
+    "A simulation line reporting the cold-start command-to-doe_init latency as the reference.",
+    "A line reporting the same latency measured after a single-cycle zeroize pulse, equal to the cold-start reference.",
+    "A line reporting the latency after a level zeroize, strictly greater than the reference, showing the hold mechanism itself is intact.",
+    "The containment case passing: no key vault write, no source write, no flow_error after the pulse."
+  ],
+  "success_criteria": [
+    "checks=8 and fails=1 in the directed simulation, with the single failure being the invariant check that the next command is delayed by the extended hold.",
+    "cov_pulse_hold_absent=1 and cov_level_hold_present=1 in the same run, so both directions are measured on one DUT.",
+    "structural_gates_passed=27/27 in the audit.",
+    "The negative control fails the witness testbench after the release condition is made flow-specific, with the pulse-case latency rising above the reference and containment still holding."
+  ],
+  "non_findings": [
+    "No claim is planned that this discloses UDS, field entropy or HEK material. The extended hold performs no wipe of its own: doe_cbc.sv:227 clears the IV from zeroize directly, and the key and core state wipes are likewise driven from zeroize, not from the extended level.",
+    "No claim is planned that the abort fails. A zeroize pulse still forces the FSM to DOE_IDLE and still clears the offsets; the defect is how long that state is held, not whether it is entered.",
+    "No claim is planned about the two legitimate uses of init_done at doe_fsm.sv:147 and doe_fsm.sv:149, which are the DOE_WAIT exit arcs and are correct."
+  ],
+  "artifacts": {
+    "testbench": "final_bug_submissions/011/proof/tb/doe_fsm_bug_011_tb.sv",
+    "script": "final_bug_submissions/011/proof/scripts/run_bug_011_proof.sh",
+    "sim_script": "final_bug_submissions/011/proof/scripts/run_bug_011_sim.sh",
+    "negative_control": "final_bug_submissions/011/proof/scripts/run_bug_011_negative_control.sh",
+    "logs": "final_bug_submissions/011/proof/logs/"
+  }
+}

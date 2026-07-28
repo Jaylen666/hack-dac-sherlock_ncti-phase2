@@ -1,0 +1,28 @@
+BUG-009 structural audit (single-tree)
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+date=2026-07-28T15:25:49+08:00
+gate_ok: csrng.rdl describes INT_STATE_READ_ENABLE as a PER-INSTANCE enable
+gate_ok: the rdl binds each bit to the internal state of the CORRESPONDING instance
+gate_ok: csrng.hjson states the bit of the SELECTED instance is what must be set
+gate_ok: the field is a three-bit vector, one bit per instance, not a single global enable
+gate_ok: csrng_state_db declares the authorization input one bit per application
+gate_ok: NApps is the application count, so the vector is indexed by application
+gate_ok: the select, dump-select and qualified vectors are all one bit per application
+gate_ok: line 115 replicates bit 0 of the authorization vector across all NApps lanes
+gate_ok: line 115 carries no per-application index at all
+gate_ok: a per-application generate loop providing the index rd begins on the NEXT line
+gate_ok: int_state_read_enable_i is referenced exactly twice: its declaration and line 115
+gate_ok: the authorization vector is never indexed by the application being read
+gate_ok: the dump SELECT in the same loop is indexed per application, so rd is in scope there
+gate_ok: the hardware read select is likewise per application, establishing the intended idiom
+gate_ok: the qualified vector is consumed per application, so lane rd carries application rd's state
+gate_ok: the dumped state becomes internal_state_diag
+gate_ok: internal_state_diag is windowed into the 32-bit register read output
+gate_ok: the same internal-state layout carries the DRBG key and V, so the window exposes key material
+gate_ok: the reseed counter is separately and unconditionally exported, so it is NOT the sensitive part of the window
+gate_ok: the vector is driven straight from a software-writable register field
+gate_ok: csrng_core wires that register field into the state database
+gate_ok: the field is written from the register bus, so the mask is under software control
+structural_gates_passed=22/22
+RESULT: PASS - all structural gates confirm BUG-009
+result=PASS

@@ -1,0 +1,56 @@
+{
+  "schema_version": "caliptra_bug_submission_v1",
+  "module": "entropy_src",
+  "bug_id": "013",
+  "bug_name": "entropy_src_bug_013",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_security_bug",
+  "security_feature_bypassed": "Entropy source repetition-count health-test boundary enforcement for the symbol-level REPCNTS path.",
+  "finding": "The symbol-level repetition-count health test computes a threshold-met condition but then removes the equality case before producing the failure decision. In src/entropy_src/rtl/entropy_src_repcnts_ht.sv:86-88, threshold_met is rep_cntr >= thresh_i, threshold_equal is rep_cntr == thresh_i, and rep_cnt_fail is threshold_met && !threshold_equal. The resulting predicate is equivalent to rep_cntr > thresh_i. A repeated entropy symbol therefore does not produce test_fail_pulse_o when the repetition counter reaches the configured threshold; the failure is delayed until the next repeated symbol.",
+  "location_or_code_reference": {
+    "competition_file": "src/entropy_src/rtl/entropy_src_repcnts_ht.sv:88",
+    "line_range": "86-96",
+    "supporting_locations": [
+      "src/entropy_src/rtl/entropy_src_repcnts_ht.sv:62",
+      "src/entropy_src/rtl/entropy_src_repcnts_ht.sv:75",
+      "src/entropy_src/rtl/entropy_src_repcnts_ht.sv:86",
+      "src/entropy_src/rtl/entropy_src_repcnts_ht.sv:87",
+      "src/entropy_src/rtl/entropy_src_repcnts_ht.sv:88",
+      "src/entropy_src/rtl/entropy_src_repcnts_ht.sv:123",
+      "src/entropy_src/rtl/entropy_src_repcnts_ht.sv:126",
+      "src/entropy_src/config/entropy_src.md:364",
+      "src/entropy_src/config/entropy_src.md:380"
+    ],
+    "proof_note": "The proof bundle includes a directed single-DUT Verilator witness script and logs."
+  },
+  "detection_method": "The candidate was identified by CSBC, an LLM-driven RTL security analysis framework, and independently validated by directed single-DUT simulation. The proof drives repeated and alternating entropy symbols into entropy_src_repcnts_ht and observes the exported counter and failure pulse.",
+  "security_impact": "A physical entropy-source fault or manipulation that produces a repeated symbol is reported one sample later than the configured threshold in the REPCNTS path. This weakens entropy health-test integrity at the exact configured boundary and can allow one additional repeated symbol to pass before the repetition-count failure pulse is raised.",
+  "adversary_profile": "Physical attacker",
+  "proposed_mitigation": [
+    "Drive rep_cnt_fail directly from threshold_met, or equivalently use rep_cnt_fail = (rep_cntr >= thresh_i).",
+    "Add a directed regression that sets a small REPCNTS threshold and checks that test_fail_pulse_o is asserted when test_cnt_o reaches that threshold.",
+    "Keep the alternating-symbol control to ensure the failure pulse remains specific to repeated-symbol behavior."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:N/I:L/A:N",
+    "base_score": 2.4,
+    "severity": "Low"
+  },
+  "test_submitted": {
+    "proof_plan": "proof_plan_v1.json",
+    "proof_result": "proof_result_v1.json",
+    "script": "proof/scripts/run_bug_013_repcnts_witness.sh",
+    "harness": "proof/tb/entropy_src_bug_013_repcnts_harness.cpp",
+    "compile_log": "proof/logs/compile.log",
+    "run_log": "proof/logs/run.log",
+    "success_marker": "PASS BUG013_REPCNTS_OFF_BY_ONE_WITNESS"
+  },
+  "exploit_or_attack_flow": [
+    "The entropy source is active and the REPCNTS threshold is configured.",
+    "The physical entropy input presents repeated identical symbols, as would happen for a stuck or manipulated symbol source.",
+    "The repetition counter reaches the configured threshold value.",
+    "Because equality is masked out of rep_cnt_fail, test_fail_pulse_o remains low at that boundary.",
+    "Only the next repeated symbol raises the failure pulse, so the health-test boundary is effectively threshold plus one."
+  ]
+}

@@ -1,0 +1,9 @@
+N003_CONTROL_RESET lfsr_seed_zero=1 sca_entropy_zero=1
+N003_SETUP_NONZERO lfsr_seed_reg_nonzero=1 sca_entropy_reg_nonzero=1 lambda_nonzero=1 scalar_nonzero=1 masking_nonzero=1 drbg_nonzero=1
+N003_WITNESS_AFTER_ZEROIZE lfsr_seed_reg_nonzero=1 sca_entropy_reg_nonzero=1 lambda_zero=1 scalar_zero=1 masking_zero=1 drbg_zero=1
+N003_RESTART_INPUT_RESIDUE ready=1 hmac_entropy_uses_retained=1 retained_sca_entropy_nonzero=1
+N003_ZEROIZE_RESIDUE_WITNESS_PASS
+- ./tb/N003_ecc_hmac_drbg_zeroize_residue_tb.sv:129: Verilog $finish
+- S i m u l a t i o n   R e p o r t: Verilator 5.024 2024-04-05
+- Verilator: $finish at 50ps; walltime 0.006 s; speed 0.000 s/s
+- Verilator: cpu 0.000 s on 1 threads; alloced 761 MB

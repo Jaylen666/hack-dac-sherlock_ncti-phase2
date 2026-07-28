@@ -1,0 +1,26 @@
+===== BUG-015 negative control =====
+patch=zeroize arm of hmac_core.sv reg_update now clears digest_valid_reg
+scratch_code_lines_added=1
+sim_script_rc=1
+witness_hits=0
+cov_tag_valid_survives_zeroize=0
+cov_spurious_parent_capture_edge=0
+cov_reset_clears_tag_valid=1
+cov_tag_valid_after_normal_run=1
+tb_fails=0
+violating_tag_valid_survives_zeroize_now_passes=1
+violating_idle_refresh_never_happens_now_passes=1
+violating_no_spurious_parent_capture_now_passes=1
+containment_reset_still_clears_still_passes=1
+--- gates ---
+  ok   the witness no longer fires on the patched copy
+  ok   cov_tag_valid_survives_zeroize drops to 0 (anti-vacuity)
+  ok   cov_spurious_parent_capture_edge drops to 0 (anti-vacuity)
+  ok   no TB check fails once the assignment is present
+  ok   the zeroize-clears-tag-valid check now passes
+  ok   the idle-refresh check now passes
+  ok   the spurious-parent-capture check now passes
+  ok   harness control intact: reset still observed to clear the flag
+  ok   harness control intact: a normal run still reaches tag_valid
+  ok   containment case still passes
+NEGATIVE CONTROL: PASS

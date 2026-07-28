@@ -1,0 +1,28 @@
+Command: /tmp/bugn002_sim.yumclV/simv -l /home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/N-002/proof/logs/run.log
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 16:52 2026
+COV baseline_gen_ready=1
+CHECK_PASS control_quiescent_pcr_hash_status_ready
+COV gen_ready_after_bare_zeroize=1
+CHECK_PASS control_zeroize_alone_leaves_block_ready
+COV gen_ready_during_extend=0
+CHECK_PASS witness_setup_extend_took_effect
+COV gen_ready_after_zeroize=0 core_ready_after_zeroize=1
+CHECK_FAIL witness_zeroize_clears_extend_routing_state
+WITNESS extend_routing_state_survives_zeroize gen_ready=0
+CHECK_PASS discriminator_core_status_ready_after_zeroize
+WITNESS core_reports_ready_so_stall_is_routing_state core_ready=1
+COV gen_ready_after_idle=0
+CHECK_PASS containment_residual_state_does_not_self_retire
+CHECK_PASS containment_no_bus_error
+SUMMARY checks=7 fails=1 witness_hits=2
+COV extend_set=1 ip_survives=1 core_ready=1 no_extend_no_stall=1
+result=PASS
+PROOF_RESULT: PASS
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/N-002/proof/tb/sha512_bug_n002_tb.sv", line 313.
+$finish at simulation time              2630000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 2630000 ps
+CPU Time:      0.290 seconds;       Data structure size:   0.0Mb
+Tue Jul 28 16:52:05 2026

@@ -1,0 +1,45 @@
+{
+  "module": "doe_fsm",
+  "bug_id": "011",
+  "bug_name": "doe_fsm_bug_011",
+  "version": 1,
+  "status": "partial_proof",
+  "blocker": "The RTL defect is proven and measured, but no adversary-reachable security property was shown to break. The extended zeroize hold performs no wipe of its own: its sole consumer, the state flop at doe_fsm.sv:286, forces DOE_IDLE and clears the offset and destination registers, while the actual flush of the obfuscation key, the IV and the core state is driven from zeroize directly. The abort therefore still happens on the audited RTL, and the shortening was measured at one cycle of command-to-doe_init latency, which is not by itself sufficient to write a confidentiality or integrity claim. Escalating it would require showing a sequence in which the FSM, freed from the hold one cycle early, performs a key vault write it should not have, and that sequence was not found: dest_addr is captured only on the IDLE->INIT arc, which requires a fresh command.",
+  "proof_method_executed": "Twenty-seven scripted structural gates over the submitted checkout, a directed VCS W-2024.09-SP1 simulation of one unmodified doe_fsm elaborated through the project's own src/doe/config/doe_ctrl.vf filelist, and a negative control that applies the proposed mitigation to a scratch copy of doe_fsm.sv and re-runs the identical testbench.",
+  "result_summary": "One doe_fsm was driven through its ports only. A UDS de-obfuscation flow was started and allowed to leave DOE_IDLE, then zeroize was raised for a single cycle with the command register dropping to NOP in the same cycle, matching the behaviour doe_cbc.sv:203-204 produces on clear_obf_secrets. After a quiet window with no command pending, a new command was issued and the latency to doe_init was measured at 1 cycle, exactly the cold-start reference measured out of reset with no zeroize anywhere in the run. The extended hold contributed nothing. The same run then held zeroize as a level across the quiet window and measured 2 cycles, strictly greater than the reference, so the hold mechanism itself is intact and the release condition is what is defective. Containment held throughout: the flow was aborted, flow_in_progress fell, and no key vault write, source write or flow_error remained after the pulse.",
+  "security_impact_assessment": "Specification compliance and defence-in-depth, not confidentiality, integrity or availability of secrets. The module documents that after a zeroize the FSM remains parked in DOE_IDLE until the next DOE_CMD is issued, and that guarantee no longer holds: the level collapses to roughly one cycle because the second release disjunct is satisfied by core readiness rather than by a flow. What the hold protects is the state flop, including dest_addr, which selects the key vault entry a flow writes to. On the audited RTL dest_addr can only be captured on the IDLE->INIT arc, so a fresh command is still required and no unauthorised write was demonstrated. The finding is therefore submitted as a proven functional defect that weakens a stated cleanup guarantee, not as a demonstrated secret exposure.",
+  "evidence": {
+    "competition_file": "src/doe/rtl/doe_fsm.sv:126",
+    "line_range": "115-129",
+    "run_log": "final_bug_submissions/011/proof/logs/run.log",
+    "compile_log": "final_bug_submissions/011/proof/logs/compile.log",
+    "witness_log": "final_bug_submissions/011/proof/logs/witness.log",
+    "structural_audit_log": "final_bug_submissions/011/proof/logs/structural_audit.log",
+    "negative_control_log": "final_bug_submissions/011/proof/logs/negative_control.log",
+    "key_observation": "On the unmodified tree: cold_start_latency=1, latency_after_pulse=1, latency_after_level=2. The post-pulse latency equals the cold-start reference, so the extended hold released before the next command arrived; the level case exceeding the reference shows the hold works when zeroize is still asserted. Verdict line SUMMARY checks=8 fails=1 witness_hits=2 with cov_pulse_hold_absent=1, cov_level_hold_present=1, cov_flow_aborted_to_idle=1.",
+    "negative_evidence": "With the mitigation applied to a scratch copy, the same testbench measured latency_after_pulse=2 against the same cold_start_latency=1, the witness stopped reproducing, and PROOF_RESULT went to FAIL, while the level case and all three containment checks were unchanged. The containment case also passed on the audited RTL, which is what bounds this to a duration defect rather than a failed abort."
+  },
+  "evidence_items": [
+    "src/doe/rtl/doe_fsm.sv:115-118 states the intent in the module's own words, including that the FSM should remain in IDLE until the next DOE_CMD is issued and that the extended signal is reset when the next command is issued.",
+    "src/doe/rtl/doe_fsm.sv:126 releases the hold on ((running_uds || running_fe || running_hek) || (init_done && (kv_doe_fsm_ps != DOE_IDLE))). The second disjunct appears exactly once in the module.",
+    "src/doe/rtl/doe_fsm.sv:286 is the only consumer of the extended level, and its branch forces kv_doe_fsm_ps to DOE_IDLE and clears dest_write_offset, block_offset and dest_addr.",
+    "src/doe/rtl/doe_cbc.sv:256 wires init_done to core_ready, so it is core readiness rather than a per-flow signal, which is why the second disjunct fires outside any flow.",
+    "src/doe/rtl/doe_fsm.sv:234 captures dest_addr only on the IDLE->INIT arc, which is the arc the hold suppresses, so the hold does protect the key vault destination select while it lasts.",
+    "src/doe/rtl/doe_cbc.sv:213-214 derives zeroize from a DOE_CLEAR command or debugUnlock_or_scan_mode_switch, and src/doe/rtl/doe_cbc.sv:227 clears the IV from zeroize directly, which is why the wipe does not depend on the extended level."
+  ],
+  "non_findings": [
+    "This is not a disclosure of UDS, field entropy or HEK material. No secret was read back in any case, and the extended hold performs no wipe whose loss could expose one.",
+    "This is not a failed abort. On the audited RTL a zeroize pulse still forces the FSM to DOE_IDLE and still clears the offsets and dest_addr; the containment case confirms no key vault write or source write survives the pulse.",
+    "This is not a defect in the level-driven path. When zeroize is held as a level, the flop's own zeroize branch takes priority and the hold behaves as documented, which the discriminator case measured on the same DUT.",
+    "This is not a defect in the two DOE_WAIT exit arcs at src/doe/rtl/doe_fsm.sv:147 and src/doe/rtl/doe_fsm.sv:149, which are the correct uses of init_done."
+  ],
+  "reproduction": {
+    "command": "final_bug_submissions/011/proof/scripts/run_bug_011_proof.sh && final_bug_submissions/011/proof/scripts/run_bug_011_sim.sh && final_bug_submissions/011/proof/scripts/run_bug_011_negative_control.sh",
+    "tools": "VCS W-2024.09-SP1 at /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/bin, bash, python3. CALIPTRA_ROOT points at the submitted checkout, CALIPTRA_PRIM_ROOT at src/caliptra_prim_generic, CALIPTRA_PRIM_MODULE_PREFIX is caliptra_prim_generic.",
+    "success_marker": "PROOF_RESULT: PASS from the simulation script, result=PASS with structural_gates_passed=27/27 from the structural audit, NEGATIVE_CONTROL: PASS from the negative control.",
+    "determinism": "Fully deterministic. The stimulus is a fixed directed sequence with no randomization and no seed dependence. All stimulus changes land on a negedge and doe_init is sampled after the posedge, so no measurement depends on event ordering within a time slot.",
+    "note_on_verdict_markers": "The testbench prints result=PASS only on success. Its failure branch prints PROOF_RESULT: FAIL with no result= line, because the negative control run is supposed to reach that branch and a bare result=FAIL would be read as a real failure by the log scanners.",
+    "note_on_filelist": "The simulation script expands src/doe/config/doe_ctrl.vf with two adjustments that change neither the set of files compiled nor their contents: it appends an include path for the generated register headers, which files reachable from that list require but which the list does not carry, and it emits packages ahead of modules because the list places some modules before the packages they import."
+  },
+  "conclusion": "The defect is confirmed and reproducible: doe_fsm releases its extended zeroize hold on a condition that is satisfied by core readiness rather than by a de-obfuscation flow, so the hold collapses from 'until the next DOE_CMD is issued', as the module documents, to roughly one cycle. Both directions were measured in a single simulation of one unmodified DUT, and the one-line mitigation flips the measurement, which establishes non-vacuity. The security impact could not be raised above specification compliance and defence-in-depth, because the hold's only consumer is the FSM state flop and the actual secret flush is driven from zeroize itself, so it is reported as partial_proof with that boundary stated rather than presented as a secret exposure."
+}

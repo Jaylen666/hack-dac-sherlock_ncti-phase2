@@ -1,0 +1,12 @@
+TRACE sample=0x0 cnt=2 fail=0 count_err=0
+TRACE sample=0xf cnt=1 fail=0 count_err=0
+TRACE sample=0x0 cnt=1 fail=0 count_err=0
+TRACE sample=0xf cnt=1 fail=0 count_err=0
+PASS control_alternating_symbols_no_fail
+TRACE sample=0x0 cnt=2 fail=0 count_err=0
+PASS control_below_threshold_no_fail cnt=2
+TRACE sample=0x0 cnt=3 fail=0 count_err=0
+OBSERVE boundary_count=3 threshold=3 boundary_fail=0
+TRACE sample=0x0 cnt=4 fail=1 count_err=0
+OBSERVE next_count=4 threshold=3 next_fail=1
+PASS BUG013_REPCNTS_OFF_BY_ONE_WITNESS

@@ -1,0 +1,59 @@
+===== BUG-N-004 structural audit =====
+audit_root=/home/smy/hackatdac26-phase-2-caliptra
+target=src/soc_ifc/rtl/soc_ifc_fuse_reg.rdl:21 (field type) and :147-148 (fuse_hek_seed), src/soc_ifc/rtl/soc_ifc_top.sv:557-559
+
+--- 1. the defect: two field types, only one of which can be cleared ---
+  ok   the audited RDL, block top and generated register file all exist
+  ok   the secret field type (soc_ifc_fuse_reg.rdl:19) carries hwclr, a hardware clear
+  ok   the Fuse field type (soc_ifc_fuse_reg.rdl:21) carries NO hwclr, so fields of this type cannot be cleared by hardware
+  ok   the Fuse type's only clear path is the cptra_pwrgood reset (soc_ifc_fuse_reg.rdl:21)
+  ok   fuse_hek_seed's field is declared with the Fuse type (soc_ifc_fuse_reg.rdl:147), the type with no hardware clear
+  ok   that declaration belongs to the fuse_hek_seed register (soc_ifc_fuse_reg.rdl:148)
+  ok   the two sibling DOE secret fuses (soc_ifc_fuse_reg.rdl:28 and :35) are declared with the secret type instead
+
+--- 2. the omission is visible in one always_comb in the block top ---
+hwclr_driven_from_scrub_strobe=3
+  ok   exactly 3 register families are wired to the scrubbing strobe's hardware clear (measured 3): the obf key, the UDS seed and the field entropy
+  ok   the obf key is cleared on the strobe (soc_ifc_top.sv:538)
+  ok   the UDS seed is cleared on the strobe (soc_ifc_top.sv:542)
+  ok   the field entropy is cleared on the strobe (soc_ifc_top.sv:550)
+  ok   the HEK seed loop sits in the same always_comb, immediately after those three (soc_ifc_top.sv:557-559)
+  ok   that loop only reads the value out (soc_ifc_top.sv:558) and assigns no clear
+hek_loop_hwclr_assignments=0
+  ok   the HEK loop contains zero hwclr assignments (measured 0), unlike each of its three neighbours
+  ok   the only hwif_in member the block ever drives for this family is swwel (soc_ifc_top.sv:739)
+
+--- 3. the generated block confirms there is no clear to drive ---
+  ok   the generated package declares packed input structs per field type
+secret_w32_input_members=4 fuse_w32_input_members=1
+  ok   the secret type's input struct has 4 members and the Fuse type's has 1 (measured 4 and 1), so no hwclr port exists on the HEK family at all
+  ok   the Fuse type's input struct contains no hwclr member, so soc_ifc_top could not drive one even deliberately
+  ok   the generated UDS field logic has a HW Clear branch (soc_ifc_reg.sv:3712)
+hek_field_hw_clear_branches=0
+  ok   the generated HEK field logic has zero HW Clear branches (soc_ifc_reg.sv:4066-4088, measured 0)
+  ok   its storage element's only clear arm is the pwrgood reset (soc_ifc_reg.sv:4080-4082)
+  ok   the stored value is returned on the software readback path (soc_ifc_reg.sv:7450), so a residue is software-visible
+total_hw_clear_branches_in_block=6
+  ok   the generated block does implement HW Clear elsewhere (measured 6), so its absence on the HEK family is a per-field property and not a generator limitation
+
+--- 4. what the strobe is, and what it is supposed to cover ---
+  ok   the strobe is debug/scan entry or a fatal error (caliptra_top.sv:772)
+  ok   that strobe is what reaches the audited block (caliptra_top.sv:1466)
+  ok   the HEK seed is delivered to the DOE (caliptra_top.sv:1014)
+debug_mode_substitution_muxes=4
+  ok   4 secrets are substituted with constants on the path to their consumers while in debug or scan mode (caliptra_top.sv:999-1002, measured 4)
+  ok   the HEK seed appears in none of them, so it is outside that second protection as well
+  ok   its siblings reach the DOE through the substituted _dbg signals (caliptra_top.sv:1012-1013) while the HEK seed at :1014 is connected raw
+debug_mode_constant_macros=4
+  ok   the tree defines 4 debug-mode replacement constants (caliptra_macros.svh:19-22, measured 4) and none for the HEK seed
+
+--- 5. the asset and its documented access policy ---
+  ok   the register is documented as the obfuscated Hard Epoch Key seed (soc_ifc_fuse_reg.rdl:143-144)
+  ok   its documented Caliptra-side access is read-only (soc_ifc_fuse_reg.rdl:145), so code running on the core can read it back
+  ok   the seed is 8 dwords, 256 bits (kv_defines_pkg.sv:43)
+  ok   the seed feeds the DOE's HEK derivation flow (doe_fsm.sv)
+  ok   the DOE selects it as the source block for the HEK flow (doe_fsm.sv:276)
+
+gates_passed=35 gates_failed=0
+RESULT: PASS - all structural gates confirm BUG-N-004
+result=PASS

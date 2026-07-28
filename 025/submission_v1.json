@@ -1,0 +1,59 @@
+{
+  "module": "keyvault",
+  "bug_id": "025",
+  "bug_name": "kv_bug_025",
+  "team_name": null,
+  "version": 1,
+  "status": "false_alarm_not_submitted",
+  "security_feature_bypassed": "None. The OCP Lock release-slot read isolation rule holds for every input the design can present; the candidate bypass was found unreachable.",
+  "finding": "In src/keyvault/rtl/kv_read_rule_check.sv:64 the read destination is classified with a reduction-OR over a bitwise AND against the DMA one-hot mask, assign dest_selects_dma = |(read_metrics.kv_read_dest & DMA_DEST_ONEHOT), rather than by comparing the destination vector against the DMA one-hot encoding. A destination vector asserting the DMA data bit together with a non-DMA consumer bit therefore classifies as DMA and is granted a release-slot read. Directed simulation confirms this: with ocp_lock_in_progress asserted and kv_key_entry = 23, destination 0x101 is granted read_allow=1 while destination 0x001 alone is denied. The finding is nonetheless not a vulnerability in this design, because a structural audit shows all 6 assignments to kv_read_dest are single hardcoded one-hot shift literals (src/aes/rtl/aes_clp_wrapper.sv:420, src/hmac/rtl/hmac.sv:437, src/hmac/rtl/hmac.sv:473, src/axi/rtl/axi_dma_ctrl.sv:1350, src/ecc/rtl/ecc_dsa_ctrl.sv:892, src/ecc/rtl/ecc_dsa_ctrl.sv:928), the rule module has a single instantiation at src/keyvault/rtl/kv_read_client.sv:64 that forwards read_metrics without cross-client merging, and kv_read_ctrl_reg_t exposes no destination field to software. The multi-hot vector has no producer, so the implemented expression and an exact comparison agree on every reachable input. Recorded as a hardening observation: the expression depends on a one-hot invariant it does not enforce.",
+  "location_or_code_reference": {
+    "competition_file": "src/keyvault/rtl/kv_read_rule_check.sv:64",
+    "line_range": "52-107",
+    "supporting_references": [
+      "src/keyvault/rtl/kv_read_rule_check.sv:78",
+      "src/keyvault/rtl/kv_read_rule_check.sv:104",
+      "src/keyvault/rtl/kv_read_client.sv:64",
+      "src/keyvault/rtl/kv_defines_pkg.sv:52",
+      "src/keyvault/rtl/kv_defines_pkg.sv:60",
+      "src/aes/rtl/aes_clp_wrapper.sv:420",
+      "src/hmac/rtl/hmac.sv:437",
+      "src/hmac/rtl/hmac.sv:473",
+      "src/axi/rtl/axi_dma_ctrl.sv:1350",
+      "src/ecc/rtl/ecc_dsa_ctrl.sv:892",
+      "src/ecc/rtl/ecc_dsa_ctrl.sv:928"
+    ],
+    "attachment_note": "The detection code and scripts are included in the attachment: the directed testbench that measures the release-slot decision for four destination vectors, and the structural audit script that enumerates every kv_read_dest producer and the read control structure members."
+  },
+  "detection_method": "Competition-only RTL review of the KeyVault read rule module, followed by a directed single-DUT simulation measuring read_allow for four release-slot destination vectors, and a 5-gate structural audit of the submitted tree enumerating every kv_read_dest producer, the read control structure members, every driver of read_metrics.ocp_lock_in_progress, and the rule module's instantiation sites.",
+  "security_impact": "No reachable impact. For every destination vector producible in this design the implemented classification yields the same allow or deny decision as an exact one-hot comparison, so release-slot isolation during OCP Lock provisioning is enforced as specified. The residual concern is maintainability rather than exploitability: a future read client that drives two destination bits, or any change routing a software-writable field into kv_read_dest, would turn this expression into a release-slot read bypass without any assertion catching it.",
+  "adversary_profile": "Privileged software at supervisor mode",
+  "proposed_mitigation": [
+    "Harden the classification at src/keyvault/rtl/kv_read_rule_check.sv:64 to require an exact match on the sanctioned destination encoding, assign dest_selects_dma = (read_metrics.kv_read_dest == DMA_DEST_ONEHOT), so that a destination vector asserting any additional consumer bit cannot be classified as the DMA data path.",
+    "Add an assertion in src/keyvault/rtl/kv_read_rule_check.sv constraining the input to the invariant the classification relies on, that read_metrics.kv_read_dest is at most one-hot whenever read_en_i is asserted, so that a future client driving two destination bits fails loudly at the rule boundary instead of silently gaining a release-slot grant.",
+    "Keep the destination-vector regression shipped with this case, proof/tb/kv_read_rule_check_release_slot_tb.sv, in the KeyVault regression set. It measures the release-slot decision for the non-DMA one-hot, DMA one-hot, multi-hot and all-zero destination vectors, so it locks in the deny for a multi-hot vector once the classification is tightened."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:L/AC:H/PR:H/UI:N/S:U/C:N/I:N/A:N",
+    "base_score": 0.0,
+    "severity": "None"
+  },
+  "test_submitted": {
+    "proof_plan": "proof_plan_v1.json",
+    "proof_result": "proof_result_v1.json",
+    "script": "proof/scripts/run_kv_bug_025_proof.sh",
+    "audit_script": "proof/scripts/audit_kv_read_dest_producers.sh",
+    "tb": "proof/tb/kv_read_rule_check_release_slot_tb.sv",
+    "run_log": "proof/logs/run.log",
+    "witness_log": "proof/logs/witness.log",
+    "sim_log": "proof/logs/sim.log",
+    "compile_log": "proof/logs/compile.log",
+    "c_validation_status": "c_validation_status_v1.md"
+  },
+  "exploit_or_attack_flow": [
+    "Precondition: OCP Lock provisioning is active so ocp_lock_in_progress is asserted, and the release slot KV23 holds live key material.",
+    "Privileged software programs a KeyVault read client's control register to select read_entry = 23, the release slot. This step succeeds; read_entry is software-writable.",
+    "The attack requires the destination vector presented to the rule module to assert the DMA data bit alongside the attacker's own consumer bit. This step fails: kv_read_ctrl_reg_t carries no destination member, so no register write reaches kv_read_dest, and all 6 hardware producers emit a single hardcoded one-hot literal with no cross-client merging at src/keyvault/rtl/kv_read_client.sv:64.",
+    "Outcome: the release-slot read is denied. Measured at the rule boundary, a non-DMA consumer targeting slot 23 yields read_allow=0. The permissive grant is reachable only with destination 0x101, which the design never generates, so the attack terminates at step 3 with no key material disclosed."
+  ]
+}

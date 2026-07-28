@@ -1,0 +1,61 @@
+recompiling package kv_defines_pkg
+recompiling module axi_dma_req_if
+recompiling package axi_dma_reg_pkg
+recompiling module axi_mgr_rd
+recompiling module axi_mgr_wr
+recompiling module axi_dma_ctrl
+recompiling package el2_pkg
+recompiling package kv_reg_pkg
+recompiling module kv_read_client
+recompiling package pv_defines_pkg
+recompiling package pv_reg_pkg
+recompiling package sha512_reg_pkg
+recompiling package sha512_params_pkg
+50 of 55 modules done
+recompiling module soc_ifc_top
+recompiling module soc_ifc_boot_fsm
+recompiling module soc_ifc_reg
+recompiling module wdt
+recompiling module soc_ifc_top_bug_N001_tb
+All of 55 modules done
+rm -f _cuarc*.so _csrc*.so pre_vcsobj_*.so share_vcsobj_*.so
+if [ -x ../simv ]; then chmod a-x ../simv; fi
+g++  -o ../simv   -no-pie  -Wl,--no-as-needed    -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu -Wl,--no-as-needed -rdynamic  -Wl,-rpath='$ORIGIN'/simv.daidir -Wl,-rpath=./simv.daidir -Wl,-rpath=/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib -L/data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib  -Wl,-rpath-link=./ -Wl,--no-as-needed   objs/amcQw_d.o   _959462_archive_1.so   SIM_l.o       rmapats_mop.o rmapats.o rmar.o rmar_nd.o  rmar_llvm_0_1.o rmar_llvm_0_0.o            -lnuma -lvirsim -lerrorinf -lsnpsmalloc -lvfs    -lvcsnew -lsimprofile -luclinative /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_tls.o   -Wl,-whole-archive  -lvcsucli    -Wl,-no-whole-archive       ./../simv.daidir/vc_hdrs.o    /data0/tools/Synopsys/vcs/vcs/W-2024.09-SP1/linux64/lib/vcs_save_restore_new.o -ldl  -lc -lm -lpthread -ldl 
+../simv up to date
+CPU time: 4.675 seconds to compile + .661 seconds to elab + .280 seconds to link
+Info: [VCS_SAVE_RESTORE_INFO] ASLR (Address Space Layout Randomization) is detected on the machine. To enable $save functionality, ASLR will be switched off and simv re-executed.
+Please use '-no_save' simv switch to avoid re-execution or '-suppress=ASLR_DETECTED_INFO' to suppress this message.
+Chronologic VCS simulator copyright 1991-2024
+Contains Synopsys proprietary information.
+Compiler version W-2024.09-SP1_Full64; Runtime version W-2024.09-SP1_Full64;  Jul 28 16:43 2026
+===== BUG-N-001 directed witness: SS_DEBUG_INTENT write qualifier =====
+  configuration: subsystem mode, debug_locked=1, lifecycle=PRODUCTION
+  DMI_REG_SS_DEBUG_INTENT = 7'h63
+  case=control_reset_leaves_debug_intent_clear PASS after cold reset with the DMI idle the block must report no debug intent
+      addr=7'h62 wdata[0]=1 wr_en=0 -> debug_intent=0
+  case=control_addr_mismatch_no_write PASS presenting a different address without a write must not set debug intent
+      addr=7'h63 wdata[0]=1 wr_en=0 -> debug_intent=0
+  case=violating_no_dmi_write_sets_debug_intent PASS debug intent must not be settable without an asserted DMI write
+      same address with wdata[0]=0 -> debug_intent=0 (data is attacker-chosen)
+      lifecycle=MANUFACTURING, issuing a permitted DMI write to debug_intent
+      after a legitimate DMI write (reg_en=1 wr_en=1 wdata[0]=1) -> debug_intent=1
+  case=violating_legitimate_dmi_write_is_ignored PASS a permitted DMI write to debug_intent must take effect
+      re-armed via the defect -> debug_intent=1
+      after cold reset -> debug_intent=0
+  case=containment_pwrgood_reset_clears PASS a pwrgood reset must still clear the flag, confining the defect to the write qualifier
+
+cov_reset_clear=1
+cov_addr_mismatch_no_write=1
+cov_no_write_sets_intent=0
+cov_legit_write_ignored=0
+witness_hits=0
+checks=5 fails=0
+result=FAIL
+PROOF_RESULT: FAIL
+$finish called from file "/home/smy/hackatdac26-phase-2-caliptra/final_bug_submissions/N-001/proof/tb/soc_ifc_top_bug_N001_tb.sv", line 361.
+$finish at simulation time              1215000
+           V C S   S i m u l a t i o n   R e p o r t 
+Time: 1215000 ps
+CPU Time:      0.290 seconds;       Data structure size:   0.2Mb
+Tue Jul 28 16:43:22 2026
+SIM RESULT: FAIL (no PASS verdict)

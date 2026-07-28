@@ -1,0 +1,67 @@
+{
+  "schema_version": "caliptra_bug_proof_plan_v1",
+  "bug_id": "013",
+  "bug_name": "entropy_src_bug_013",
+  "module": "entropy_src",
+  "target_dut": "entropy_src_repcnts_ht",
+  "status": "planned",
+  "claim": "The symbol-level repetition-count health test reports failure one accepted repeated symbol later than the configured threshold.",
+  "security_invariant": "The configured repetition-count threshold is the point at which the health test must report that a repeated entropy symbol has crossed the acceptable repetition limit.",
+  "adversary_profile": "Physical attacker",
+  "attacker_model": "An attacker or faulty physical entropy source can present repeated identical entropy symbols to the health-test input while the entropy source is active.",
+  "protected_asset": "Entropy health-test integrity before conditioned random material is accepted by downstream logic.",
+  "root_cause": "src/entropy_src/rtl/entropy_src_repcnts_ht.sv computes threshold_met as rep_cntr >= thresh_i but then masks out the equality case with !threshold_equal, so rep_cnt_fail is asserted only when rep_cntr > thresh_i.",
+  "trigger": "Keep active_i high, set thresh_i to a small positive threshold, and drive repeated identical entropy_bit_i values with entropy_bit_vld_i asserted until the internal repetition counter reaches the threshold.",
+  "proof_style": "single-DUT directed simulation",
+  "controls": [
+    {
+      "name": "alternating_symbols_do_not_fail",
+      "purpose": "Shows the witness is not a constant-failure artifact; non-repeated input keeps the health test clear."
+    },
+    {
+      "name": "below_threshold_repetition_does_not_fail",
+      "purpose": "Shows the testbench distinguishes subthreshold repetition from the boundary condition."
+    }
+  ],
+  "witness": {
+    "threshold": 3,
+    "expected_observation": "At test_cnt_o == thresh_i the DUT still has test_fail_pulse_o == 0, while the following repeated sample at test_cnt_o == thresh_i + 1 asserts test_fail_pulse_o."
+  },
+  "source_locations": [
+    {
+      "path": "src/entropy_src/rtl/entropy_src_repcnts_ht.sv",
+      "line": 86,
+      "excerpt": "assign threshold_met   = (rep_cntr >= thresh_i);"
+    },
+    {
+      "path": "src/entropy_src/rtl/entropy_src_repcnts_ht.sv",
+      "line": 87,
+      "excerpt": "assign threshold_equal = (rep_cntr == thresh_i);"
+    },
+    {
+      "path": "src/entropy_src/rtl/entropy_src_repcnts_ht.sv",
+      "line": 88,
+      "excerpt": "assign rep_cnt_fail    = threshold_met && !threshold_equal;"
+    },
+    {
+      "path": "src/entropy_src/config/entropy_src.md",
+      "line": 364,
+      "excerpt": "### Repetition count threshold"
+    },
+    {
+      "path": "src/entropy_src/config/entropy_src.md",
+      "line": 380,
+      "excerpt": "`CPTRA_iTRNG_ENTROPY_CONFIG1.repetition_count` = `RcThresh` = 81"
+    }
+  ],
+  "expected_evidence": [
+    "proof/logs/compile.log records a single-DUT Verilator build of entropy_src_repcnts_ht with a C++ harness.",
+    "proof/logs/run.log records PASS lines for controls and a BUG013_REPCNTS_OFF_BY_ONE_WITNESS marker.",
+    "The run log shows boundary_count=3 boundary_fail=0 and next_count=4 next_fail=1 for threshold=3."
+  ],
+  "exclusions": [
+    "No second Caliptra implementation is compiled.",
+    "The witness uses a single DUT and an independently derived boundary check.",
+    "Internal analysis metadata is not serialized into the case."
+  ]
+}

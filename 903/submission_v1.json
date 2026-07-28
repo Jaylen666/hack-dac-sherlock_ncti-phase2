@@ -1,0 +1,51 @@
+{
+  "schema_version": "caliptra_bug_submission_v1",
+  "module": "ecc",
+  "bug_id": "903",
+  "bug_name": "ecc_hmac_drbg_zeroize_residue",
+  "team_name": null,
+  "version": 1,
+  "status": "submission_ready_security_bug",
+  "security_feature_bypassed": "ECC zeroize erasure of HMAC-DRBG entropy and masking-seed state, which should prevent pre-zeroize side-channel-randomization residue from feeding a later ECC operation.",
+  "finding": "The ECC HMAC-DRBG interface does not fully erase internal SCA entropy state on zeroize. src/ecc/rtl/ecc_hmac_drbg_interface.sv:237 leaves lfsr_seed_reg uncleared in the zeroize branch, while src/ecc/rtl/ecc_hmac_drbg_interface.sv:297-307 updates counter_nonce_reg and sca_entropy_reg without any zeroize branch. The retained sca_entropy_reg is security-relevant because src/ecc/rtl/ecc_hmac_drbg_interface.sv:171-180 selects it as hmac_drbg_entropy for the LFSR, lambda, scalar-randomization, and masking-randomization states. The directed witness first drives the interface into a nonzero state, then asserts zeroize and observes lfsr_seed_reg_nonzero=1 and sca_entropy_reg_nonzero=1 while the visible lambda, scalar, masking, and drbg outputs clear.",
+  "location_or_code_reference": {
+    "competition_file": "src/ecc/rtl/ecc_hmac_drbg_interface.sv:237",
+    "line_range": "223-310",
+    "supporting_references": [
+      "src/ecc/rtl/ecc_hmac_drbg_interface.sv:171-180",
+      "src/ecc/rtl/ecc_hmac_drbg_interface.sv:223-238",
+      "src/ecc/rtl/ecc_hmac_drbg_interface.sv:242",
+      "src/ecc/rtl/ecc_hmac_drbg_interface.sv:297-310"
+    ],
+    "attachment_note": "The detection code and reproduction scripts used for this submission are included in the attachment linked with this submission."
+  },
+  "detection_method": "RTL review of the ECC HMAC-DRBG zeroize paths and directed single-DUT Verilator residue simulation.",
+  "security_impact": "Sensitive SCA entropy and seed residue can survive an ECC zeroize event and influence the next ECC HMAC-DRBG entropy path. This weakens the wipe boundary intended to remove per-operation masking and randomization state, leaving side-channel countermeasure material coupled across operations that should be separated by zeroize.",
+  "adversary_profile": "Physical attacker",
+  "proposed_mitigation": [
+    "Clear lfsr_seed_reg in the zeroize branch together with lambda_reg, scalar_rnd_reg, masking_rnd_reg, and drbg_reg.",
+    "Add a zeroize branch to the counter_nonce_reg and sca_entropy_reg update block.",
+    "Add a directed regression that drives nonzero SCA entropy state, asserts zeroize, and checks that lfsr_seed_reg, sca_entropy_reg, and counter_nonce_reg are all cleared before a later HMAC-DRBG operation."
+  ],
+  "cvss_v3_1": {
+    "vector": "CVSS:3.1/AV:P/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N",
+    "base_score": 2.4,
+    "severity": "Low"
+  },
+  "test_submitted": {
+    "proof_plan": "proof_plan_v1.json",
+    "proof_result": "proof_result_v1.json",
+    "testbench": "proof/tb/N003_ecc_hmac_drbg_zeroize_residue_tb.sv",
+    "support_models": "proof/tb/ecc_hmac_drbg_child_models.sv",
+    "script": "proof/scripts/run_n003_ecc_hmac_drbg_zeroize_residue.sh",
+    "compile_log": "proof/logs/compile.log",
+    "run_log": "proof/logs/run.log",
+    "success_marker": "N003_ZEROIZE_RESIDUE_WITNESS_PASS"
+  },
+  "exploit_or_attack_flow": [
+    "An ECC operation populates lfsr_seed_reg and sca_entropy_reg with nonzero SCA entropy-derived values.",
+    "A zeroize event is asserted.",
+    "The visible output registers clear, but lfsr_seed_reg and sca_entropy_reg retain their previous values.",
+    "A later ECC HMAC-DRBG operation can source hmac_drbg_entropy from the retained sca_entropy_reg value."
+  ]
+}

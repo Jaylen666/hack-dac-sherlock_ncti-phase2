@@ -1,0 +1,23 @@
+===== BUG-N-001 negative control =====
+patch=write qualifier at soc_ifc_top.sv:828-830 restored to the sibling positive form
+scratch_code_lines_added=2 scratch_code_lines_removed=2
+sim_script_rc=1
+witness_hits=0
+cov_no_write_sets_intent=0
+cov_legit_write_ignored=0
+cov_reset_clear=1
+cov_addr_mismatch_no_write=1
+tb_fails=0
+--- gates ---
+  ok   the patch replaces exactly two code lines
+  ok   and removes exactly two, so nothing else moved
+  ok   the witness no longer fires on the patched copy
+  ok   cov_no_write_sets_intent drops to 0 (anti-vacuity)
+  ok   cov_legit_write_ignored drops to 0 (anti-vacuity)
+  ok   no TB check fails once the polarity is correct
+  ok   the no-DMI-write check now passes
+  ok   the legitimate-write check now passes
+  ok   harness control intact: reset still leaves the flag clear
+  ok   harness control intact: a mismatched address still writes nothing
+  ok   containment case still passes
+NEGATIVE CONTROL: PASS
